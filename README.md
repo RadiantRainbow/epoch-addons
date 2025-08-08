@@ -4,6 +4,16 @@ A mirror/collection of addons for project epoch.
 
 Managed with: https://github.com/RadiantRainbow/wow-addon-cli
 
+## Git setup
+
+```
+$ cd AddOns
+$ git init .
+$ git remote add origin https://github.com/RadiantRainbow/epoch-addons.git
+$ git fetch
+$ git checkout -f main
+```
+
 ## Addon sources
 
 Also see `config.toml`
