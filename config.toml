@@ -1,0 +1,8 @@
+[[addons]]
+git = "https://github.com/hypernormalisation/SwedgeTimer.git"
+
+[[addons]]
+git = "https://github.com/bkader/Dominos.git"
+
+[[addons]]
+zip = "https://github.com/RichSteini/Bagnon-3.3.5/archive/refs/heads/main.zip"
