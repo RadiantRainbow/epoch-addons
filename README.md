@@ -6,13 +6,17 @@ Managed with: https://github.com/RadiantRainbow/wow-addon-cli
 
 ## Git setup
 
+This repo will be reasonably up to date, but consider forking your own repo.
+
 ```
-$ cd AddOns
-$ git init .
-$ git remote add origin https://github.com/RadiantRainbow/epoch-addons.git
-$ git fetch
-$ git checkout -f main
+# move to your addons dir: cd AddOns
+git init . && \
+    git remote add origin https://github.com/RadiantRainbow/epoch-addons.git && \
+    git fetch && \
+    git checkout -f main
 ```
+
+Later can just `git pull` for updates.
 
 ## Addon sources
 
