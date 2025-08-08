@@ -14,6 +14,8 @@ Also see `config.toml`
     - https://github.com/hypernormalisation/SwedgeTimer
 - Bagnon
     - https://github.com/RichSteini/Bagnon-3.3.5
+- GroupBulletinBoard
+    - https://github.com/TheNielDeal/GroupBulletinBoard.git
 
 ## Notes
 
