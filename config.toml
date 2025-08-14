@@ -1,11 +1,11 @@
 [[addons]]
-git = "https://github.com/hypernormalisation/SwedgeTimer.git"
+git = "https://github.com/hypernormalisation/SwedgeTimer/releases/download/2.0.8/SwedgeTimer-2.0.8-wrath.zip"
 
 [[addons]]
 git = "https://github.com/bkader/Dominos.git"
 
 [[addons]]
-zip = "https://github.com/RichSteini/Bagnon-3.3.5/archive/refs/heads/main.zip"
+git = "https://github.com/RichSteini/Bagnon-3.3.5.git"
 
 [[addons]]
 git = "https://github.com/TheNielDeal/GroupBulletinBoard.git"
