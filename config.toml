@@ -1,5 +1,5 @@
 [[addons]]
-git = "https://github.com/hypernormalisation/SwedgeTimer/releases/download/2.0.8/SwedgeTimer-2.0.8-wrath.zip"
+zip = "https://github.com/hypernormalisation/SwedgeTimer/releases/download/2.0.8/SwedgeTimer-2.0.8-wrath.zip"
 
 [[addons]]
 git = "https://github.com/bkader/Dominos.git"
