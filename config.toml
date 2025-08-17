@@ -29,4 +29,4 @@ git = "https://github.com/NoM0Re/WeakAuras-WotLK.git"
 #zip = "https://felbite.com/wp-content/uploads/2022/03/felbite.com-minimapbuttonframe-wotlk-minimapbuttonframe.zip"
 
 [[addons]]
-git = "https://github.com/Ascension-Addons/MoveAnything.git"
+zip = "https://felbite.com/wp-content/uploads/2022/03/felbite.com-moveanything-wotlk-moveanything.zip"

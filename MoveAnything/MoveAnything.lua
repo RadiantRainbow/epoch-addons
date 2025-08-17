@@ -335,8 +335,8 @@ MovAny = {
 		MAOptions = {
 			{"MAOptions", "ARTWORK","BORDER"},
 		},
-		EscapeMenu = {
-			{"EscapeMenu", "BACKGROUND","ARTWORK","BORDER"},
+		GameMenuFrame = {
+			{"GameMenuFrame", "BACKGROUND","ARTWORK","BORDER"},
 		},
 		MainMenuBar = {
 			{"MainMenuBarArtFrame", "BACKGROUND","ARTWORK"},
@@ -422,6 +422,7 @@ MovAny = {
 	lAllowedMAFrames = {
 		MAOptions = "MAOptions",
 		MANudger = "MANudger",
+		GameMenuButtonMoveAnything = "GameMenuButtonMoveAnything",
 	},
 	DefaultFrameList = {
 		{"", "Achievements & Quests"},
@@ -537,7 +538,7 @@ MovAny = {
 		{"FocusFrameToTDebuff1", "Target of Focus Debuffs"},
 
 		{"", "Game Menu"},
-		{"EscapeMenu", "Game Menu"},
+		{"GameMenuFrame", "Game Menu"},
 		{"VideoOptionsFrame", "Video Options"},
 		{"AudioOptionsFrame", "Sound & Voice Options"},
 		{"InterfaceOptionsFrame", "Interface Options"},
@@ -638,6 +639,7 @@ MovAny = {
 		{"", "MoveAnything"},
 		{"MAOptions", "MoveAnything Window"},
 		{"MANudger", "MoveAnything Nudger"},
+		{"GameMenuButtonMoveAnything", "MoveAnything Game Menu Button"},
 
 		{"", "Party"},
 		{"PartyMemberFrame1", "Party Member 1"},
@@ -703,7 +705,7 @@ MovAny = {
 				opt = MovAny:GetFrameOptions(fn)
 				if opt and opt.UIPanelWindows then
 					f = _G[fn]
-					if f ~= nil and f ~= EscapeMenu then
+					if f ~= nil and f ~= GameMenuFrame then
 						if f.IsShown and f:IsShown() then
 							if InCombatLockdown() and MovAny:IsProtected(f) then
 								local closure = function(f)
@@ -4177,7 +4179,7 @@ function MovAny:ApplyPosition(f, opt)
 			end
 		end
 		
-		if UIPanelWindows[fn] and f ~= EscapeMenu then
+		if UIPanelWindows[fn] and f ~= GameMenuFrame then
 			local left = GetUIPanel("left")
 			local center = GetUIPanel("center")
 
@@ -5632,11 +5634,3 @@ function MovAny:SerializeAtom(o)
 		return o
 	end
 end
-
-EscapeMenu:AddButton("MoveAnything!", EscapeMenuSection.AddOns, function()
-	if IsShiftKeyDown() and IsControlKeyDown() and IsAltKeyDown() then
-		ReloadUI()
-	else
-		ShowUIPanel(MAOptions)
-	end
-end, nil, true)
