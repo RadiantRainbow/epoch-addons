@@ -9,3 +9,6 @@ git = "https://github.com/RichSteini/Bagnon-3.3.5.git"
 
 [[addons]]
 git = "https://github.com/TheNielDeal/GroupBulletinBoard.git"
+
+[[addons]]
+zip = "https://felbite.com/wp-content/uploads/2022/03/felbite.com-addoncontrolpanel-wotlk-addoncontrolpanel.zip"
