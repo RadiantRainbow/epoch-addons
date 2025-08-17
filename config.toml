@@ -1,5 +1,5 @@
-[[addons]]
-zip = "https://github.com/hypernormalisation/SwedgeTimer/releases/download/2.0.8/SwedgeTimer-2.0.8-wrath.zip"
+#[[addons]]
+#zip = "https://github.com/hypernormalisation/SwedgeTimer/releases/download/2.0.8/SwedgeTimer-2.0.8-wrath.zip"
 
 [[addons]]
 git = "https://github.com/bkader/Dominos.git"
@@ -21,3 +21,12 @@ zip = "https://github.com/shagu/pfQuest/releases/latest/download/pfQuest-enUS-wo
 
 [[addons]]
 zip = "https://github.com/Bennylavaa/pfQuest-epoch/archive/master.zip"
+
+[[addons]]
+git = "https://github.com/NoM0Re/WeakAuras-WotLK.git"
+
+#[[addons]]
+#zip = "https://felbite.com/wp-content/uploads/2022/03/felbite.com-minimapbuttonframe-wotlk-minimapbuttonframe.zip"
+
+[[addons]]
+git = "https://github.com/Ascension-Addons/MoveAnything.git"
