@@ -15,3 +15,9 @@ zip = "https://felbite.com/wp-content/uploads/2022/03/felbite.com-addoncontrolpa
 
 [[addons]]
 git = "https://github.com/Sattva-108/Leatrix_Plus.git"
+
+[[addons]]
+zip = "https://github.com/shagu/pfQuest/releases/latest/download/pfQuest-enUS-wotlk.zip"
+
+[[addons]]
+zip = "https://github.com/Bennylavaa/pfQuest-epoch/archive/master.zip"
