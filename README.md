@@ -30,7 +30,13 @@ Also see `config.toml`
     - https://github.com/RichSteini/Bagnon-3.3.5
 - GroupBulletinBoard
     - https://github.com/TheNielDeal/GroupBulletinBoard.git
+- pfQuest-wotlk
+    - https://github.com/shagu/pfQuest
+- pfQuest-epoch
+    - https://github.com/Bennylavaa/pfQuest-epoch
+- leatrix plus
+    - https://github.com/Sattva-108/Leatrix_Plus.git
 
 ## Notes
 
-This is just a mirror of addons for convenience. Refer to each source.
+This is just a mirror of addons for convenience for my personal use, but others are welcome.
