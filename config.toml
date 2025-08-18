@@ -1,5 +1,5 @@
 #[[addons]]
-#url = "https://github.com/hypernormalisation/SwedgeTimer/releases/download/2.0.8/SwedgeTimer-2.0.8-wrath.zip"
+#url = "https://github.com/Bennylavaa/ElvUI-Epoch.git"
 
 [[addons]]
 url = "https://github.com/bkader/Dominos.git"
@@ -34,3 +34,8 @@ url = "https://felbite.com/wp-content/uploads/2022/03/felbite.com-moveanything-w
 [[addons]]
 url = "https://github.com/RichSteini/NotPlater.git"
 
+[[addons]]
+url = "https://gitlab.com/Tsoukie/compactraidframe-3.3.5.git"
+
+[[addons]]
+url = "https://gitlab.com/Tsoukie/classicapi.git"
