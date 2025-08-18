@@ -39,3 +39,6 @@ url = "https://gitlab.com/Tsoukie/compactraidframe-3.3.5.git"
 
 [[addons]]
 url = "https://gitlab.com/Tsoukie/classicapi.git"
+
+[[addons]]
+url = "https://felbite.com/wp-content/uploads/2022/03/felbite.com-auctionator-wotlk-auctionator.zip"
