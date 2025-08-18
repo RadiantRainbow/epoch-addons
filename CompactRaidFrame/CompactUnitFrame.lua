@@ -485,19 +485,25 @@ function CompactUnitFrame_UpdateHealthColor(frame)
             end
         end
     end
-    if ( r ~= frame.healthBar.r or g ~= frame.healthBar.g or b ~= frame.healthBar.b ) then
+
+    local oldR, oldG, oldB = frame.healthBar:GetStatusBarColor();
+    if ( r ~= oldR or g ~= oldG or b ~= oldB ) then
         frame.healthBar:SetStatusBarColor(r, g, b);
+
         if (frame.optionTable.colorHealthWithExtendedColors) then
             frame.ignoreParentAlpha.selectionHighlight:SetVertexColor(r, g, b);
         else
             frame.ignoreParentAlpha.selectionHighlight:SetVertexColor(1, 1, 1);
         end
-        frame.healthBar.r, frame.healthBar.g, frame.healthBar.b = r, g, b;
     end
 end
 
 function CompactUnitFrame_UpdateMaxHealth(frame)
-    local maxHealth = UnitIsConnected(frame.unit) and UnitHealthMax(frame.displayedUnit) or 1;
+    local maxHealth = UnitHealthMax(frame.displayedUnit);
+
+    if ( maxHealth == 0 ) then
+        maxHealth = .1;
+    end
 
     if ( frame.optionTable.smoothHealthUpdates ) then
         frame.healthBar:SetMinMaxSmoothedValue(0, maxHealth);
@@ -507,7 +513,11 @@ function CompactUnitFrame_UpdateMaxHealth(frame)
 end
 
 function CompactUnitFrame_UpdateHealth(frame)
-    local health = UnitIsConnected(frame.unit) and UnitHealth(frame.displayedUnit) or 1;
+    local health = UnitHealth(frame.displayedUnit);
+
+    if ( health == 0 and not UnitIsConnected(frame.displayedUnit) ) then
+        health = .1;
+    end
 
     if ( frame.optionTable.smoothHealthUpdates ) then
         if ( frame.newUnit ) then
@@ -517,7 +527,7 @@ function CompactUnitFrame_UpdateHealth(frame)
             frame.healthBar:SetSmoothedValue(health);
         end
     else
-        PixelUtil.SetStatusBarValue(frame.healthBar, health);
+        frame.healthBar:SetValue(health);
     end
 end
 
@@ -527,13 +537,25 @@ end
 
 function CompactUnitFrame_UpdateMaxPower(frame)
     if frame.powerBar then
-        frame.powerBar:SetMinMaxValues(0, UnitIsConnected(frame.unit) and UnitPowerMax(frame.displayedUnit, CompactUnitFrame_GetDisplayedPowerID(frame)) or 1);
+        local maxPower = UnitPowerMax(frame.displayedUnit, CompactUnitFrame_GetDisplayedPowerID(frame));
+
+        if ( maxPower == 0 ) then
+            maxPower = .1;
+        end
+
+        frame.powerBar:SetMinMaxValues(0, maxPower);
     end
 end
 
 function CompactUnitFrame_UpdatePower(frame)
     if frame.powerBar then
-        PixelUtil.SetStatusBarValue(frame.powerBar, UnitIsConnected(frame.unit) and UnitPower(frame.displayedUnit, CompactUnitFrame_GetDisplayedPowerID(frame)) or 1);
+        local power = UnitPower(frame.displayedUnit, CompactUnitFrame_GetDisplayedPowerID(frame))
+
+        if ( power == 0 and not UnitIsConnected(frame.displayedUnit) ) then
+            power = .1;
+        end
+
+        frame.powerBar:SetValue(power);
     end
 end
 
