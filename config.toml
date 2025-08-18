@@ -38,6 +38,9 @@ url = "https://github.com/RichSteini/NotPlater.git"
 url = "https://gitlab.com/Tsoukie/compactraidframe-3.3.5.git"
 
 [[addons]]
+url = "https://gitlab.com/Tsoukie/compactraidframe_healex.git"
+
+[[addons]]
 url = "https://gitlab.com/Tsoukie/classicapi.git"
 
 [[addons]]
