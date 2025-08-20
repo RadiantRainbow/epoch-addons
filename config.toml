@@ -1,6 +1,3 @@
-#[[addons]]
-#url = "https://github.com/Bennylavaa/ElvUI-Epoch.git"
-
 [[addons]]
 url = "https://github.com/bkader/Dominos.git"
 
@@ -24,9 +21,6 @@ url = "https://github.com/Bennylavaa/pfQuest-epoch/archive/master.zip"
 
 [[addons]]
 url = "https://github.com/NoM0Re/WeakAuras-WotLK.git"
-
-#[[addons]]
-#url = "https://felbite.com/wp-content/uploads/2022/03/felbite.com-minimapbuttonframe-wotlk-minimapbuttonframe.zip"
 
 [[addons]]
 url = "https://felbite.com/wp-content/uploads/2022/03/felbite.com-moveanything-wotlk-moveanything.zip"
