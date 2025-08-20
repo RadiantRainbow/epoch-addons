@@ -1,4 +1,4 @@
-# Looking For Group - a LFG Addon for Project Epoch, v0.0.0.2
+# Looking For Group - a LFG Addon for Project Epoch, v0.0.0.3
 
 [Download Link](https://github.com/Bennylavaa/LFG/archive/refs/heads/main.zip)
 
