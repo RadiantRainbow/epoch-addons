@@ -18,12 +18,19 @@ local C = {
 
 -- Hunter melee specials that should RESET MH swing when they land.
 -- Raptor Strike (all ranks through WotLK) + Mongoose Bite ranks.
+-- Abilities that should reset the MH timer when they LAND (Wrath 3.3.5a).
 local MELEE_ONHIT_SPELL = {
-  -- Raptor Strike
+  -- Hunter: Raptor Strike (all ranks)
   [2973]=true,[14260]=true,[14261]=true,[14262]=true,[14263]=true,[14264]=true,[14265]=true,[14266]=true,[27014]=true,[48995]=true,[48996]=true,
-  -- Mongoose Bite
+
+  -- Hunter: Mongoose Bite (all ranks)
   [1495]=true,[14269]=true,[14270]=true,[14271]=true,[36916]=true,
+
+  -- Druid (Bear): Maul (all ranks)
+  [6807]=true,[6808]=true,[6809]=true,[8972]=true,[9745]=true,[9880]=true,[9881]=true,[26996]=true,[48479]=true,[48480]=true,
 }
+
+
 
 -- runtime state
 local state = {
