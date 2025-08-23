@@ -44,9 +44,6 @@ url = "https://gitlab.com/Tsoukie/classicapi.git"
 url = "https://felbite.com/wp-content/uploads/2022/03/felbite.com-auctionator-wotlk-auctionator.zip"
 
 [[addons]]
-url = "https://github.com/bkader/Skada-WoTLK.git"
-
-[[addons]]
 url = "https://felbite.com/wp-content/uploads/2022/03/felbite.com-omnicc-wotlk-omnicc.zip"
 
 [[addons]]
@@ -54,9 +51,6 @@ url = "https://github.com/Carnivohra/NugEnergy.git"
 
 [[addons]]
 url = "https://github.com/Raynbock/AtlaslootProjectEpoch.git"
-
-#[[addons]]
-#url = "https://github.com/Tacodilla/TacoRotSwingTimer.git"
 
 [[addons]]
 url = "https://github.com/gareth-charles/Quartz.git"
