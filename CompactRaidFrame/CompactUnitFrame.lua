@@ -1,6 +1,6 @@
 --Widget Handlers
 local OPTION_TABLE_NONE = {};
-BOSS_DEBUFF_SIZE_INCREASE = 18;
+BOSS_DEBUFF_SIZE_INCREASE = 9;
 CUF_READY_CHECK_DECAY_TIME = 11;
 DISTANCE_THRESHOLD_SQUARED = 250*250;
 CUF_NAME_SECTION_SIZE = 15;
@@ -448,6 +448,7 @@ end
 
 function CompactUnitFrame_UpdateHealthColor(frame)
     local r, g, b;
+
     if ( not UnitIsConnected(frame.unit) ) then
         --Color it gray
         r, g, b = 0.5, 0.5, 0.5;
@@ -455,12 +456,10 @@ function CompactUnitFrame_UpdateHealthColor(frame)
         if ( frame.optionTable.healthBarColorOverride ) then
             local healthBarColorOverride = frame.optionTable.healthBarColorOverride;
             r, g, b = healthBarColorOverride.r, healthBarColorOverride.g, healthBarColorOverride.b;
-        else 
+        else
             --Try to color it by class.
             local localizedClass, englishClass = UnitClass(frame.unit);
             local classColor = RAID_CLASS_COLORS[englishClass];
-            --debug
-            --classColor = RAID_CLASS_COLORS["PRIEST"];
             if ( (frame.optionTable.allowClassColorsForNPCs or UnitIsPlayer(frame.unit)) and classColor and frame.optionTable.useClassColors ) then
                 -- Use class colors for players if class color option is turned on
                 r, g, b = classColor.r, classColor.g, classColor.b;
@@ -469,15 +468,11 @@ function CompactUnitFrame_UpdateHealthColor(frame)
                 r, g, b = 0.9, 0.9, 0.9;
             elseif ( frame.optionTable.colorHealthBySelection ) then
                 -- Use color based on the type of unit (neutral, etc.)
-                if ( frame.optionTable.considerSelectionInCombatAsHostile and CompactUnitFrame_IsOnThreatListWithPlayer(frame.displayedUnit) ) then
+                --[[if ( frame.optionTable.considerSelectionInCombatAsHostile and CompactUnitFrame_IsPlayerAttacking(frame.displayedUnit)) then
                     r, g, b = 1.0, 0.0, 0.0;
-                elseif ( UnitIsPlayer(frame.displayedUnit) and UnitIsFriend("player", frame.displayedUnit) ) then
-                    -- We don't want to use the selection color for friendly player nameplates because
-                    -- it doesn't show player health clearly enough.
-                    r, g, b = 0.667, 0.667, 1.0;
-                else
+                else]]
                     r, g, b = UnitSelectionColor(frame.unit, frame.optionTable.colorHealthWithExtendedColors);
-                end
+                --end
             elseif ( UnitIsFriend("player", frame.unit) ) then
                 r, g, b = 0.0, 1.0, 0.0;
             else
@@ -563,29 +558,24 @@ function CompactUnitFrame_UpdatePowerColor(frame)
     if not frame.powerBar then
         return;
     end
+
     local r, g, b;
     if ( not UnitIsConnected(frame.unit) ) then
         --Color it gray
         r, g, b = 0.5, 0.5, 0.5;
     else
-        --Set it to the proper power type color.
-        local barInfo = nil --GetUnitPowerBarInfo(frame.unit);
-        if ( barInfo and barInfo.showOnRaid ) then
-            r, g, b = 0.7, 0.7, 0.6;
+        local powerType, powerToken, altR, altG, altB = UnitPowerType(frame.displayedUnit);
+        local prefix = _G[powerToken];
+        local info = PowerBarColor[powerToken];
+        if ( info ) then
+                r, g, b = info.r, info.g, info.b;
         else
-            local powerType, powerToken, altR, altG, altB = UnitPowerType(frame.displayedUnit);
-            local prefix = _G[powerToken];
-            local info = PowerBarColor[powerToken];
-            if ( info ) then
-                    r, g, b = info.r, info.g, info.b;
+            if ( not altR) then
+                -- couldn't find a power token entry...default to indexing by power type or just mana if we don't have that either
+                info = PowerBarColor[powerType] or PowerBarColor["MANA"];
+                r, g, b = info.r, info.g, info.b;
             else
-                if ( not altR ) then
-                    -- couldn't find a power token entry...default to indexing by power type or just mana if we don't have that either
-                    info = PowerBarColor[powerType] or PowerBarColor["MANA"];
-                    r, g, b = info.r, info.g, info.b;
-                else
-                    r, g, b = altR, altG, altB;
-                end
+                r, g, b = altR, altG, altB;
             end
         end
     end
@@ -601,14 +591,17 @@ function ShouldShowName(frame)
             end
             failedRequirement = true;
         end
+
         if ( frame.optionTable.displayNameWhenSelected ) then
             if ( UnitIsUnit(frame.unit, "target") ) then
                 return true;
             end
             failedRequirement = true;
         end
+
         return not failedRequirement;
     end
+
     return false;
 end
 
@@ -618,21 +611,21 @@ function CompactUnitFrame_UpdateName(frame)
     end
 
     if ( not ShouldShowName(frame) ) then
-        frame.overlay.name:Hide();
+        frame.name:Hide();
     else
         local name = GetUnitName(frame.unit, true);
         if ( false and name ) then -- C_Commentator.IsSpectating()
-            local overrideName = "" --  C_Commentator.GetPlayerOverrideName(name);
+            local overrideName = nil -- C_Commentator.GetPlayerOverrideName(name);
             if overrideName then
                 name = overrideName;
             end
         end
 
-        frame.overlay.name:SetText(name);
+        frame.name:SetText(name);
 
         if ( CompactUnitFrame_IsTapDenied(frame) ) then
             -- Use grey if not a player and can't get tap on unit
-            frame.overlay.name:SetVertexColor(0.5, 0.5, 0.5);
+            frame.name:SetVertexColor(0.5, 0.5, 0.5);
         elseif ( frame.optionTable.colorNameBySelection ) then
             --[[if ( frame.optionTable.considerSelectionInCombatAsHostile and CompactUnitFrame_IsPlayerAttacking(frame.displayedUnit)) then
                 frame.name:SetVertexColor(1.0, 0.0, 0.0);
@@ -644,7 +637,7 @@ function CompactUnitFrame_UpdateName(frame)
             frame.name:SetVertexColor(1.0, 1.0, 1.0);
         end
 
-        frame.overlay.name:Show();
+        frame.name:Show();
     end
 end
 
@@ -661,18 +654,22 @@ function CompactUnitFrame_UpdateSelectionHighlight(frame)
 end
 
 function CompactUnitFrame_UpdateAggroHighlight(frame)
+    if ( not frame.aggroHighlight ) then
+        return;
+    end
     if ( not frame.optionTable.displayAggroHighlight ) then
         if ( not frame.optionTable.playLoseAggroHighlight ) then
-            frame.overlay.aggroHighlight:Hide();
+           frame.aggroHighlight:Hide();
         end
         return;
     end
+
     local status = UnitThreatSituation(frame.displayedUnit);
     if ( status and status > 0 ) then
-        frame.overlay.aggroHighlight:SetVertexColor(GetThreatStatusColor(status));
-        frame.overlay.aggroHighlight:Show();
+        frame.aggroHighlight:SetVertexColor(GetThreatStatusColor(status));
+        frame.aggroHighlight:Show();
     else
-        frame.overlay.aggroHighlight:Hide();
+        frame.aggroHighlight:Hide();
     end
 end
 
@@ -734,7 +731,7 @@ function CompactUnitFrame_UpdateStatusText(frame)
         return;
     end
 
-    if ( not UnitIsConnected(frame.unit) and UnitIsPlayer(frame.unit) ) then
+    if ( not UnitIsConnected(frame.unit) ) then
         frame.statusText:SetText(PLAYER_OFFLINE)
         frame.statusText:Show();
     elseif ( UnitIsDeadOrGhost(frame.displayedUnit) ) then
@@ -772,15 +769,15 @@ function CompactUnitFrame_UpdateHealPrediction(frame)
     end
 
     if ( not frame.optionTable.displayHealPrediction ) then
-        frame.overlay.myHealPrediction:Hide();
-        frame.overlay.otherHealPrediction:Hide();
-        frame.overlay.totalAbsorb:Hide();
-        frame.overlay.totalAbsorbOverlay:Hide();
-        frame.overlay.overAbsorbGlow:Hide();
-        frame.overlay.myHealAbsorb:Hide();
-        frame.overlay.myHealAbsorbLeftShadow:Hide();
-        frame.overlay.myHealAbsorbRightShadow:Hide();
-        frame.overlay.overHealAbsorbGlow:Hide();
+        frame.myHealPrediction:Hide();
+        frame.otherHealPrediction:Hide();
+        frame.totalAbsorb:Hide();
+        frame.totalAbsorbOverlay:Hide();
+        frame.overAbsorbGlow:Hide();
+        frame.myHealAbsorb:Hide();
+        frame.myHealAbsorbLeftShadow:Hide();
+        frame.myHealAbsorbRightShadow:Hide();
+        frame.overHealAbsorbGlow:Hide();
         return;
     end
 
@@ -1041,276 +1038,310 @@ function CompactUnitFrame_UpdateAuras(frame)
 end
 
 function CompactUnitFrame_UpdateBuffs(frame)
-  if ( not frame.optionTable.displayBuffs ) then
-    CompactUnitFrame_HideAllBuffs(frame);
-    return;
-  end
-  
-  local index = 1;
-  local frameNum = 1;
-  local filter = nil;
-  while ( frameNum <= frame.maxBuffs ) do
-    local buffName = UnitBuff(frame.displayedUnit, index, filter);
-    if ( buffName ) then
-      if ( CompactUnitFrame_UtilShouldDisplayBuff(frame.displayedUnit, index, filter) ) then
-        local buffFrame = frame.buffFrames[frameNum];
-        CompactUnitFrame_UtilSetBuff(buffFrame, frame.displayedUnit, index, filter);
-        frameNum = frameNum + 1;
-      end
-    else
-      break;
+    if ( not frame.buffFrames or not frame.optionTable.displayBuffs ) then
+        CompactUnitFrame_HideAllBuffs(frame);
+        return;
     end
-    index = index + 1;
-  end
-  for i=frameNum, frame.maxBuffs do
-    local buffFrame = frame.buffFrames[i];
-    buffFrame:Hide();
-  end
-end
- 
-function CompactUnitFrame_UpdateDebuffs(frame)
-  if ( not frame.optionTable.displayDebuffs ) then
-    CompactUnitFrame_HideAllDebuffs(frame);
-    return;
-  end
-  
-  local index = 1;
-  local frameNum = 1;
-  local filter = nil;
-  local maxDebuffs = frame.maxDebuffs;
-  --First, we go through displaying boss debuffs.
-  while ( frameNum <= maxDebuffs ) do
-    local debuffName = UnitDebuff(frame.displayedUnit, index, filter);
-    if ( debuffName ) then
-      if ( CompactUnitFrame_UtilShouldDisplayDebuff(frame.displayedUnit, index, filter) and CompactUnitFrame_UtilIsBossDebuff(frame.displayedUnit, index, filter) ) then
-        local debuffFrame = frame.debuffFrames[frameNum];
-        CompactUnitFrame_UtilSetDebuff(debuffFrame, frame.displayedUnit, index, filter);
-        CompactUnitFrame_UtilSetDebuffBossDebuff(debuffFrame, true);
-        frameNum = frameNum + 1;
-        --Boss debuffs are about twice as big as normal debuffs, so display one less.
-        local bossDebuffScale = (debuffFrame.baseSize + BOSS_DEBUFF_SIZE_INCREASE)/debuffFrame.baseSize
-        maxDebuffs = maxDebuffs - (bossDebuffScale - 1);
-      end
-    else
-      break;
-    end
-    index = index + 1;
-  end
-  
-  --Now we go through the debuffs with a priority (e.g. Weakened Soul and Forbearance)
-  index = 1;
-  while ( frameNum <= maxDebuffs ) do
-    local debuffName = UnitDebuff(frame.displayedUnit, index, filter);
-    if ( debuffName ) then
-      if ( CompactUnitFrame_UtilIsPriorityDebuff(frame.displayedUnit, index, filter) ) then
-        local debuffFrame = frame.debuffFrames[frameNum];
-        CompactUnitFrame_UtilSetDebuff(debuffFrame, frame.displayedUnit, index, filter);
-        CompactUnitFrame_UtilSetDebuffBossDebuff(debuffFrame, false);
-        frameNum = frameNum + 1;
-      end
-    else
-      break;
-    end
-    index = index + 1;
-  end
-  
-  if ( frame.optionTable.displayOnlyDispellableDebuffs ) then
-    filter = "RAID";
-  end
-  
-  index = 1;
-  --Now, we display all normal debuffs.
-  if ( frame.optionTable.displayNonBossDebuffs ) then
-    while ( frameNum <= maxDebuffs ) do
-      local debuffName = UnitDebuff(frame.displayedUnit, index, filter);
-      if ( debuffName ) then
-        if ( CompactUnitFrame_UtilShouldDisplayDebuff(frame.displayedUnit, index, filter) and not CompactUnitFrame_UtilIsBossDebuff(frame.displayedUnit, index, filter) and
-          not CompactUnitFrame_UtilIsPriorityDebuff(frame.displayedUnit, index, filter)) then
-          local debuffFrame = frame.debuffFrames[frameNum];
-          CompactUnitFrame_UtilSetDebuff(debuffFrame, frame.displayedUnit, index, filter);
-          CompactUnitFrame_UtilSetDebuffBossDebuff(debuffFrame, false);
-          frameNum = frameNum + 1;
+
+    local index = 1;
+    local frameNum = 1;
+    local filter = nil;
+    while ( frameNum <= frame.maxBuffs ) do
+        local buffName = UnitBuff(frame.displayedUnit, index, filter);
+        if ( buffName ) then
+            if ( CompactUnitFrame_UtilShouldDisplayBuff(frame.displayedUnit, index, filter) and not CompactUnitFrame_UtilIsBossAura(frame.displayedUnit, index, filter, true) ) then
+                local buffFrame = frame.buffFrames[frameNum];
+                CompactUnitFrame_UtilSetBuff(buffFrame, frame.displayedUnit, index, filter);
+                frameNum = frameNum + 1;
+            end
+        else
+            break;
         end
-      else
-        break;
-      end
-      index = index + 1;
+        index = index + 1;
     end
-  end
-  
-  for i=frameNum, frame.maxDebuffs do
-    local debuffFrame = frame.debuffFrames[i];
-    debuffFrame:Hide();
-  end
+    for i=frameNum, frame.maxBuffs do
+        local buffFrame = frame.buffFrames[i];
+        buffFrame:Hide();
+    end
 end
- 
+
+function CompactUnitFrame_UpdateDebuffs(frame)
+    if ( not frame.debuffFrames or not frame.optionTable.displayDebuffs ) then
+        CompactUnitFrame_HideAllDebuffs(frame);
+        return;
+    end
+
+    local index = 1;
+    local frameNum = 1;
+    local filter = nil;
+    local maxDebuffs = frame.maxDebuffs;
+--[[
+    --Show both Boss buffs & debuffs in the debuff location
+    --First, we go through all the debuffs looking for any boss flagged ones.
+    while ( frameNum <= maxDebuffs ) do
+        local debuffName = UnitDebuff(frame.displayedUnit, index, filter);
+        if ( debuffName ) then
+            if ( CompactUnitFrame_UtilIsBossAura(frame.displayedUnit, index, filter, false) ) then
+                local debuffFrame = frame.debuffFrames[frameNum];
+                CompactUnitFrame_UtilSetDebuff(debuffFrame, frame.displayedUnit, index, filter, true, false);
+                frameNum = frameNum + 1;
+                --Boss debuffs are about twice as big as normal debuffs, so display one less.
+                local bossDebuffScale = (debuffFrame.baseSize + BOSS_DEBUFF_SIZE_INCREASE)/debuffFrame.baseSize
+                maxDebuffs = maxDebuffs - (bossDebuffScale - 1);
+            end
+        else
+            break;
+        end
+        index = index + 1;
+    end
+
+    --Then we go through all the buffs looking for any boss flagged ones.
+    index = 1;
+    while ( frameNum <= maxDebuffs ) do
+        local debuffName = UnitBuff(frame.displayedUnit, index, filter);
+        if ( debuffName ) then
+            if ( CompactUnitFrame_UtilIsBossAura(frame.displayedUnit, index, filter, true) ) then
+                local debuffFrame = frame.debuffFrames[frameNum];
+                CompactUnitFrame_UtilSetDebuff(debuffFrame, frame.displayedUnit, index, filter, true, true);
+                frameNum = frameNum + 1;
+                --Boss debuffs are about twice as big as normal debuffs, so display one less.
+                local bossDebuffScale = (debuffFrame.baseSize + BOSS_DEBUFF_SIZE_INCREASE)/debuffFrame.baseSize
+                maxDebuffs = maxDebuffs - (bossDebuffScale - 1);
+            end
+        else
+            break;
+        end
+        index = index + 1;
+    end
+]]
+    --Now we go through the debuffs with a priority (e.g. Weakened Soul and Forbearance)
+    index = 1;
+    while ( frameNum <= maxDebuffs ) do
+        local debuffName = UnitDebuff(frame.displayedUnit, index, filter);
+        if ( debuffName ) then
+            if ( CompactUnitFrame_UtilIsPriorityDebuff(frame.displayedUnit, index, filter) ) then
+                local debuffFrame = frame.debuffFrames[frameNum];
+                CompactUnitFrame_UtilSetDebuff(debuffFrame, frame.displayedUnit, index, filter, false, false);
+                frameNum = frameNum + 1;
+            end
+        else
+            break;
+        end
+        index = index + 1;
+    end
+
+    if ( frame.optionTable.displayOnlyDispellableDebuffs ) then
+        filter = "RAID";
+    end
+
+    index = 1;
+    --Now, we display all normal debuffs.
+    if ( frame.optionTable.displayNonBossDebuffs ) then
+        while ( frameNum <= maxDebuffs ) do
+            local debuffName = UnitDebuff(frame.displayedUnit, index, filter);
+            if ( debuffName ) then
+                if ( CompactUnitFrame_UtilShouldDisplayDebuff(frame.displayedUnit, index, filter) and not CompactUnitFrame_UtilIsBossAura(frame.displayedUnit, index, filter, false) and
+                    not CompactUnitFrame_UtilIsPriorityDebuff(frame.displayedUnit, index, filter)) then
+                    local debuffFrame = frame.debuffFrames[frameNum];
+                    CompactUnitFrame_UtilSetDebuff(debuffFrame, frame.displayedUnit, index, filter, false, false);
+                    frameNum = frameNum + 1;
+                end
+            else
+                break;
+            end
+            index = index + 1;
+        end
+    end
+
+    for i=frameNum, frame.maxDebuffs do
+        local debuffFrame = frame.debuffFrames[i];
+        debuffFrame:Hide();
+    end
+end
+
 local dispellableDebuffTypes = { Magic = true, Curse = true, Disease = true, Poison = true};
 function CompactUnitFrame_UpdateDispellableDebuffs(frame)
-  if ( not frame.optionTable.displayDispelDebuffs ) then
-    CompactUnitFrame_HideAllDispelDebuffs(frame);
-    return;
-  end
-  
-  --Clear what we currently have.
-  for debuffType, display in pairs(dispellableDebuffTypes) do
-    if ( display ) then
-      frame["hasDispel"..debuffType] = false;
+    if ( not frame.dispelDebuffFrames or not frame.optionTable.displayDispelDebuffs ) then
+        CompactUnitFrame_HideAllDispelDebuffs(frame);
+        return;
     end
-  end
-  
-  local index = 1;
-  local frameNum = 1;
-  local filter = "RAID";  --Only dispellable debuffs.
-  while ( frameNum <= frame.maxDispelDebuffs ) do
-    local name, rank, icon, count, debuffType, duration, expirationTime, unitCaster, canStealOrPurge, _, spellId = UnitDebuff(frame.displayedUnit, index, filter);
-    if ( dispellableDebuffTypes[debuffType] and not frame["hasDispel"..debuffType] ) then
-      frame["hasDispel"..debuffType] = true;
-      local dispellDebuffFrame = frame.dispelDebuffFrames[frameNum];
-      CompactUnitFrame_UtilSetDispelDebuff(dispellDebuffFrame, debuffType, index)
-      frameNum = frameNum + 1;
-    elseif ( not name ) then
-      break;
+
+    --Clear what we currently have.
+    for debuffType, display in pairs(dispellableDebuffTypes) do
+        if ( display ) then
+            frame["hasDispel"..debuffType] = false;
+        end
     end
-    index = index + 1;
-  end
-  for i=frameNum, frame.maxDispelDebuffs do
-    local dispellDebuffFrame = frame.dispelDebuffFrames[i];
-    dispellDebuffFrame:Hide();
-  end
+
+    local index = 1;
+    local frameNum = 1;
+    local filter = "RAID";  --Only dispellable debuffs.
+    while ( frameNum <= frame.maxDispelDebuffs ) do
+        local name, rank, icon, count, debuffType, duration, expirationTime, unitCaster, canStealOrPurge, _, spellId = UnitDebuff(frame.displayedUnit, index, filter);
+        if ( dispellableDebuffTypes[debuffType] and not frame["hasDispel"..debuffType] ) then
+            frame["hasDispel"..debuffType] = true;
+            local dispellDebuffFrame = frame.dispelDebuffFrames[frameNum];
+            CompactUnitFrame_UtilSetDispelDebuff(dispellDebuffFrame, debuffType, index)
+            frameNum = frameNum + 1;
+        elseif ( not name ) then
+            break;
+        end
+        index = index + 1;
+    end
+    for i=frameNum, frame.maxDispelDebuffs do
+        local dispellDebuffFrame = frame.dispelDebuffFrames[i];
+        dispellDebuffFrame:Hide();
+    end
 end
 
 --Utility Functions
 function CompactUnitFrame_UtilShouldDisplayBuff(unit, index, filter)
-  local name, rank, icon, count, debuffType, duration, expirationTime, unitCaster, canStealOrPurge, _, spellId = UnitBuff(unit, index, filter);
-  
-  local hasCustom, alwaysShowMine, showForMySpec = SpellGetVisibilityInfo(spellId, UnitAffectingCombat("player") and "RAID_INCOMBAT" or "RAID_OUTOFCOMBAT");
-  
-  if ( hasCustom ) then
-    return showForMySpec or (alwaysShowMine and (unitCaster == "player" or unitCaster == "pet" or unitCaster == "vehicle"));
-  else
-    local selfBuff, canApplyAura = SpellIsSelfBuff(spellId)
-    return (unitCaster == "player" or unitCaster == "pet" or unitCaster == "vehicle") and canApplyAura and not selfBuff;
-  end
+    local name, rank, icon, count, debuffType, duration, expirationTime, unitCaster, canStealOrPurge, _, spellId = UnitBuff(unit, index, filter);
+
+    local hasCustom, alwaysShowMine, showForMySpec = SpellGetVisibilityInfo(spellId, UnitAffectingCombat("player") and "RAID_INCOMBAT" or "RAID_OUTOFCOMBAT");
+
+    if ( hasCustom ) then
+        return showForMySpec or (alwaysShowMine and (unitCaster == "player" or unitCaster == "pet" or unitCaster == "vehicle"));
+    else
+        local selfBuff, canApplyAura = SpellIsSelfBuff(spellId)
+        return (unitCaster == "player" or unitCaster == "pet" or unitCaster == "vehicle") and canApplyAura and not selfBuff;
+    end
 end
 
 function CompactUnitFrame_HideAllBuffs(frame)
-  for i=1, #frame.buffFrames do
-    frame.buffFrames[i]:Hide();
-  end
+    if frame.buffFrames then
+        for i=1, #frame.buffFrames do
+            frame.buffFrames[i]:Hide();
+        end
+    end
+end
+
+function CompactUnitFrame_UpdateCooldownFrame(frame, expirationTime, duration)
+    local enabled = expirationTime and expirationTime ~= 0;
+    if enabled then
+        local startTime = expirationTime - duration;
+        CooldownFrame_Set(frame.cooldown, startTime, duration, true);
+    else
+        CooldownFrame_Clear(frame.cooldown);
+    end
 end
 
 function CompactUnitFrame_UtilSetBuff(buffFrame, unit, index, filter)
-  local name, rank, icon, count, debuffType, duration, expirationTime, unitCaster, canStealOrPurge, _, spellId, canApplyAura = UnitBuff(unit, index, filter);
-  buffFrame.icon:SetTexture(icon);
-  if ( count > 1 ) then
-    local countText = count;
-    if ( count >= 10 ) then
-      countText = BUFF_STACKS_OVERFLOW;
+    local name, rank, icon, count, debuffType, duration, expirationTime, unitCaster, canStealOrPurge, _, spellId, canApplyAura = UnitBuff(unit, index, filter);
+    buffFrame.icon:SetTexture(icon);
+    if ( count > 1 ) then
+        local countText = count;
+        if ( count >= 100 ) then
+            countText = BUFF_STACKS_OVERFLOW;
+        end
+        buffFrame.count:Show();
+        buffFrame.count:SetText(countText);
+    else
+        buffFrame.count:Hide();
     end
-    buffFrame.count:Show();
-    buffFrame.count:SetText(countText);
-  else
-    buffFrame.count:Hide();
-  end
-  buffFrame:SetID(index);
-  if ( expirationTime and expirationTime ~= 0 ) then
-    local startTime = expirationTime - duration;
-    buffFrame.cooldown:SetCooldown(startTime, duration);
-    buffFrame.cooldown:Show();
-  else
-    buffFrame.cooldown:Hide();
-  end
-  buffFrame:Show();
-  buffFrame:SetFrameStrata("MEDIUM")
+    buffFrame:SetID(index);
+    CompactUnitFrame_UpdateCooldownFrame(buffFrame, expirationTime, duration);
+    buffFrame:Show();
 end
 
 function CompactUnitFrame_UtilShouldDisplayDebuff(unit, index, filter)
-  local name, rank, icon, count, debuffType, duration, expirationTime, unitCaster, canStealOrPurge, _, spellId, canApplyAura, isBossDebuff = UnitDebuff(unit, index, filter);
-  
-  local hasCustom, alwaysShowMine, showForMySpec = SpellGetVisibilityInfo(spellId, UnitAffectingCombat("player") and "RAID_INCOMBAT" or "RAID_OUTOFCOMBAT");
-  if ( hasCustom ) then
-    return showForMySpec or (alwaysShowMine and (unitCaster == "player" or unitCaster == "pet" or unitCaster == "vehicle") ); --Would only be "mine" in the case of something like forbearance.
-  else
-    return true;
-  end
+    local name, rank, icon, count, debuffType, duration, expirationTime, unitCaster, canStealOrPurge, _, spellId, canApplyAura, isBossAura = UnitDebuff(unit, index, filter);
+
+    local hasCustom, alwaysShowMine, showForMySpec = SpellGetVisibilityInfo(spellId, UnitAffectingCombat("player") and "RAID_INCOMBAT" or "RAID_OUTOFCOMBAT");
+    if ( hasCustom ) then
+        return showForMySpec or (alwaysShowMine and (unitCaster == "player" or unitCaster == "pet" or unitCaster == "vehicle") );   --Would only be "mine" in the case of something like forbearance.
+    else
+        return true;
+    end
 end
 
-function CompactUnitFrame_UtilIsBossDebuff(unit, index, filter)
-  local name, rank, icon, count, debuffType, duration, expirationTime, unitCaster, canStealOrPurge, _, spellId, canApplyAura, isBossDebuff = UnitDebuff(unit, index, filter);
-  return isBossDebuff;
+function CompactUnitFrame_UtilIsBossAura(unit, index, filter, checkAsBuff)
+    -- make sure you are using the correct index here!  allAurasIndex ~= debuffIndex
+    local name, rank, icon, count, debuffType, duration, expirationTime, unitCaster, canStealOrPurge, _, spellId, canApplyAura, isBossAura;
+    --[[if (checkAsBuff) then
+        name, rank, icon, count, debuffType, duration, expirationTime, unitCaster, canStealOrPurge, _, spellId, canApplyAura, isBossAura = UnitBuff(unit, index, filter);
+        return (spellId == 23333 or spellId == 23335 or spellId == 34976); -- PvP Flags
+    else
+        -- name, rank, icon, count, debuffType, duration, expirationTime, unitCaster, canStealOrPurge, _, spellId, canApplyAura, isBossAura = UnitDebuff(unit, index, filter);
+    end]]
+    return isBossAura;
 end
 
 function CompactUnitFrame_UtilIsPriorityDebuff(unit, index, filter)
-  local name, rank, icon, count, debuffType, duration, expirationTime, unitCaster, canStealOrPurge, _, spellId, canApplyAura, isBossDebuff = UnitDebuff(unit, index, filter);
+    local name, rank, icon, count, debuffType, duration, expirationTime, unitCaster, canStealOrPurge, _, spellId, canApplyAura, isBossDebuff = UnitDebuff(unit, index, filter);
 
-  if ( playerClassFilename == "PALADIN" ) then
-    if ( spellId == 25771 ) then  --Forbearance
-      return true;
+    if ( playerClassFilename == "PALADIN" ) then
+        if ( spellId == 25771 ) then  --Forbearance
+            return true;
+        end
+    elseif ( playerClassFilename == "PRIEST" ) then
+        if ( spellId == 6788 ) then --Weakened Soul
+        return true;
+        end
     end
-  elseif ( playerClassFilename == "PRIEST" ) then
-    if ( spellId == 6788 ) then --Weakened Soul
-      return true;
-    end
-  end
-  
-  return false;
+
+    return false;
 end
- 
+
 function CompactUnitFrame_HideAllDebuffs(frame)
-  for i=1, #frame.debuffFrames do
-    frame.debuffFrames[i]:Hide();
-  end
-end
- 
-function CompactUnitFrame_UtilSetDebuffBossDebuff(debuffFrame, isBossDebuff)
-  if ( isBossDebuff ) then
-    local size = min(debuffFrame.baseSize + BOSS_DEBUFF_SIZE_INCREASE, debuffFrame.maxHeight)
-    debuffFrame:SetSize(size, size);
-  else
-    debuffFrame:SetSize(debuffFrame.baseSize, debuffFrame.baseSize);
-  end
-end
- 
-function CompactUnitFrame_UtilSetDebuff(debuffFrame, unit, index, filter)
-  local name, rank, icon, count, debuffType, duration, expirationTime, unitCaster, canStealOrPurge, _, spellId = UnitDebuff(unit, index, filter);
-  debuffFrame.filter = filter;
-  debuffFrame.icon:SetTexture(icon);
-  if ( count > 1 ) then
-    local countText = count;
-    if ( count >= 10 ) then
-      countText = BUFF_STACKS_OVERFLOW;
+    if frame.debuffFrames then
+        for i=1, #frame.debuffFrames do
+            frame.debuffFrames[i]:Hide();
+        end
     end
-    debuffFrame.count:Show();
-    debuffFrame.count:SetText(countText);
-  else
-    debuffFrame.count:Hide();
-  end
-  debuffFrame:SetID(index);
-  if ( expirationTime and expirationTime ~= 0 ) then
-    local startTime = expirationTime - duration;
-    debuffFrame.cooldown:SetCooldown(startTime, duration);
-    debuffFrame.cooldown:Show();
-  else
-    debuffFrame.cooldown:Hide();
-  end
-  
-  local color = DebuffTypeColor[debuffType] or DebuffTypeColor["none"];
-  debuffFrame.border:SetVertexColor(color.r, color.g, color.b);
-  
-  debuffFrame:Show();
-  debuffFrame:SetFrameStrata("MEDIUM")
 end
- 
+
+function CompactUnitFrame_UtilSetDebuff(debuffFrame, unit, index, filter, isBossAura, isBossBuff)
+    -- make sure you are using the correct index here!
+    --isBossAura says make this look large.
+    --isBossBuff looks in HELPFULL auras otherwise it looks in HARMFULL ones
+    local name, rank, icon, count, debuffType, duration, expirationTime, unitCaster, canStealOrPurge, _, spellId;
+    if (isBossBuff) then
+        name, rank, icon, count, debuffType, duration, expirationTime, unitCaster, canStealOrPurge, _, spellId = UnitBuff(unit, index, filter);
+    else
+        name, rank, icon, count, debuffType, duration, expirationTime, unitCaster, canStealOrPurge, _, spellId = UnitDebuff(unit, index, filter);
+    end
+    debuffFrame.filter = filter;
+    debuffFrame.icon:SetTexture(icon);
+    if ( count > 1 ) then
+        local countText = count;
+        if ( count >= 100 ) then
+            countText = BUFF_STACKS_OVERFLOW;
+        end
+        debuffFrame.count:Show();
+        debuffFrame.count:SetText(countText);
+    else
+        debuffFrame.count:Hide();
+    end
+    debuffFrame:SetID(index);
+    CompactUnitFrame_UpdateCooldownFrame(debuffFrame, expirationTime, duration);
+
+    local color = DebuffTypeColor[debuffType] or DebuffTypeColor["none"];
+    debuffFrame.border:SetVertexColor(color.r, color.g, color.b);
+
+    debuffFrame.isBossBuff = isBossBuff;
+    if ( isBossAura ) then
+        local size = min(debuffFrame.baseSize + BOSS_DEBUFF_SIZE_INCREASE, debuffFrame.maxHeight);
+        debuffFrame:SetSize(size, size);
+    else
+        debuffFrame:SetSize(debuffFrame.baseSize, debuffFrame.baseSize);
+    end
+
+    debuffFrame:Show();
+end
+
 function CompactUnitFrame_UtilSetDispelDebuff(dispellDebuffFrame, debuffType, index)
-  dispellDebuffFrame:Show();
-  dispellDebuffFrame.icon:SetTexture("Interface\\AddOns\\!!!ClassicAPI\\Texture\\RaidFrame\\Raid-Icon-Debuff"..debuffType);
-  dispellDebuffFrame:SetID(index);
+    dispellDebuffFrame:Show();
+    dispellDebuffFrame.icon:SetTexture("Interface\\AddOns\\!!!ClassicAPI\\Texture\\RaidFrame\\Raid-Icon-Debuff"..debuffType);
+    dispellDebuffFrame:SetID(index);
 end
 
 function CompactUnitFrame_HideAllDispelDebuffs(frame)
-  for i=1, #frame.dispelDebuffFrames do
-    frame.dispelDebuffFrames[i]:Hide();
-  end
+    if frame.dispelDebuffFrames then
+        for i=1, #frame.dispelDebuffFrames do
+            frame.dispelDebuffFrames[i]:Hide();
+        end
+    end
 end
 
 --Dropdown
@@ -1357,6 +1388,7 @@ function CompactUnitFrameDropDown_Initialize(self)
         end
     end
 end
+
 ------The default setup function
 local texCoords = {
     ["Raid-AggroFrame"] = {  0.00781250, 0.55468750, 0.00781250, 0.27343750 },
@@ -1390,7 +1422,6 @@ DefaultCompactUnitFrameOptions = {
 
 local NATIVE_UNIT_FRAME_HEIGHT = 36;
 local NATIVE_UNIT_FRAME_WIDTH = 72;
-
 DefaultCompactUnitFrameSetupOptions = {
     displayPowerBar = true,
     height = NATIVE_UNIT_FRAME_HEIGHT,
@@ -1400,7 +1431,7 @@ DefaultCompactUnitFrameSetupOptions = {
 
 function DefaultCompactUnitFrameSetup(frame)
     local options = DefaultCompactUnitFrameSetupOptions;
-    local componentScale = min(options.height / NATIVE_UNIT_FRAME_HEIGHT, options.width / NATIVE_UNIT_FRAME_WIDTH); 
+    local componentScale = min(options.height / NATIVE_UNIT_FRAME_HEIGHT, options.width / NATIVE_UNIT_FRAME_WIDTH);
 
     frame:SetAlpha(1);
 
@@ -1410,36 +1441,27 @@ function DefaultCompactUnitFrameSetup(frame)
     local powerBarHeight = 8;
     local powerBarUsedHeight = options.displayPowerBar and powerBarHeight or 0;
 
-
-
     frame.myHealPrediction = frame.overlay.myHealPrediction;
     frame.otherHealPrediction = frame.overlay.otherHealPrediction;
     frame.totalAbsorb = frame.overlay.totalAbsorb;
-
     frame.totalAbsorbOverlay = frame.overlay.totalAbsorbOverlay;
-
     frame.name = frame.overlay.name;
     frame.statusText = frame.overlay.statusText;
     frame.roleIcon = frame.overlay.roleIcon;
-
     frame.aggroHighlight = frame.overlay.aggroHighlight;
     frame.myHealAbsorb = frame.overlay.myHealAbsorb;
-
     frame.myHealAbsorbLeftShadow = frame.overlay.myHealAbsorbLeftShadow;
     frame.myHealAbsorbRightShadow = frame.overlay.myHealAbsorbRightShadow;
-
     frame.overAbsorbGlow = frame.overlay.overAbsorbGlow;
-
     frame.overHealAbsorbGlow = frame.overlay.overHealAbsorbGlow;
 
     frame.background:SetTexture("Interface\\AddOns\\!!!ClassicAPI\\Texture\\RaidFrame\\Raid-Bar-Hp-Bg");
     frame.background:SetTexCoord(0, 1, 0, 0.53125);
     frame.healthBar:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1);
-
     frame.healthBar:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1 + powerBarUsedHeight);
-
     frame.healthBar:SetStatusBarTexture("Interface\\AddOns\\!!!ClassicAPI\\Texture\\RaidFrame\\Raid-Bar-Hp-Fill", "BORDER");
     frame.healthBar:SetFrameLevel(frame:GetFrameLevel());
+
     if ( frame.powerBar ) then
         if ( options.displayPowerBar ) then
             if ( options.displayBorder ) then
@@ -1515,7 +1537,6 @@ function DefaultCompactUnitFrameSetup(frame)
     local buffPos, buffRelativePoint, buffOffset = "BOTTOMRIGHT", "BOTTOMLEFT", CUF_AURA_BOTTOM_OFFSET + powerBarUsedHeight;
     frame.buffFrames[1]:ClearAllPoints();
     frame.buffFrames[1]:SetPoint(buffPos, frame, "BOTTOMRIGHT", -3, buffOffset);
-
     for i=1, #frame.buffFrames do
         if ( i > 1 ) then
             frame.buffFrames[i]:ClearAllPoints();
@@ -1523,6 +1544,7 @@ function DefaultCompactUnitFrameSetup(frame)
         end
         frame.buffFrames[i]:SetSize(buffSize, buffSize);
         frame.buffFrames[i]:SetParent(frame.healthBar);
+        frame.buffFrames[i]:SetFrameLevel(6);
     end
 
     local debuffPos, debuffRelativePoint, debuffOffset = "BOTTOMLEFT", "BOTTOMRIGHT", CUF_AURA_BOTTOM_OFFSET + powerBarUsedHeight;
@@ -1537,6 +1559,7 @@ function DefaultCompactUnitFrameSetup(frame)
         frame.debuffFrames[i].maxHeight = options.height - powerBarUsedHeight - CUF_AURA_BOTTOM_OFFSET - CUF_NAME_SECTION_SIZE;
         frame.debuffFrames[i]:SetSize(11, 11);
         frame.debuffFrames[i]:SetParent(frame.healthBar);
+        frame.debuffFrames[i]:SetFrameLevel(6);
     end
 
     frame.dispelDebuffFrames[1]:SetPoint("TOPRIGHT", -3, -2);
@@ -1568,24 +1591,28 @@ function DefaultCompactUnitFrameSetup(frame)
         frame.horizTopBorder:SetTexture("Interface\\AddOns\\!!!ClassicAPI\\Texture\\RaidFrame\\Raid-HSeparator");
         frame.horizTopBorder:SetHeight(8);
         frame.horizTopBorder:Show();
+
         frame.horizBottomBorder:ClearAllPoints();
         frame.horizBottomBorder:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", 0, 1);
         frame.horizBottomBorder:SetPoint("TOPRIGHT", frame, "BOTTOMRIGHT", 0, 1);
         frame.horizBottomBorder:SetTexture("Interface\\AddOns\\!!!ClassicAPI\\Texture\\RaidFrame\\Raid-HSeparator");
         frame.horizBottomBorder:SetHeight(8);
         frame.horizBottomBorder:Show();
+
         frame.vertLeftBorder:ClearAllPoints();
         frame.vertLeftBorder:SetPoint("TOPRIGHT", frame, "TOPLEFT", 7, 0);
         frame.vertLeftBorder:SetPoint("BOTTOMRIGHT", frame, "BOTTOMLEFT", 7, 0);
         frame.vertLeftBorder:SetTexture("Interface\\AddOns\\!!!ClassicAPI\\Texture\\RaidFrame\\Raid-VSeparator");
         frame.vertLeftBorder:SetWidth(8);
         frame.vertLeftBorder:Show();
+
         frame.vertRightBorder:ClearAllPoints();
         frame.vertRightBorder:SetPoint("TOPLEFT", frame, "TOPRIGHT", -1, 0);
         frame.vertRightBorder:SetPoint("BOTTOMLEFT", frame, "BOTTOMRIGHT", -1, 0);
         frame.vertRightBorder:SetTexture("Interface\\AddOns\\!!!ClassicAPI\\Texture\\RaidFrame\\Raid-VSeparator");
         frame.vertRightBorder:SetWidth(8);
         frame.vertRightBorder:Show();
+
         if ( options.displayPowerBar ) then
             frame.horizDivider:ClearAllPoints();
             frame.horizDivider:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", 0, 1 + powerBarUsedHeight);
@@ -1602,7 +1629,8 @@ function DefaultCompactUnitFrameSetup(frame)
         frame.vertLeftBorder:Hide();
         frame.vertRightBorder:Hide();
         frame.horizDivider:Hide();
-    end 
+    end
+
     CompactUnitFrame_SetOptionTable(frame, DefaultCompactUnitFrameOptions)
 end
 
@@ -1611,8 +1639,9 @@ DefaultCompactMiniFrameOptions = {
     displayAggroHighlight = true,
     displayName = true,
     fadeOutOfRange = true,
-    displayStatusText = true,
-    displayDispelDebuffs = true,
+    --displayStatusText = true,
+    --displayDispelDebuffs = true,
+    displayReadyCheck = false,
 }
 
 DefaultCompactMiniFrameSetUpOptions = {
@@ -1627,32 +1656,26 @@ function DefaultCompactMiniFrameSetup(frame)
     frame:SetAlpha(1);
     frame:SetSize(options.width, options.height);
     frame.overlay:SetParent(frame.healthBar)
-
-    frame.myHealPrediction = frame.overlay.myHealPrediction;
-    frame.otherHealPrediction = frame.overlay.otherHealPrediction;
-    frame.totalAbsorb = frame.overlay.totalAbsorb;
-
-    frame.totalAbsorbOverlay = frame.overlay.totalAbsorbOverlay;
-
-    frame.name = frame.overlay.name;
-    frame.statusText = frame.overlay.statusText;
-    frame.roleIcon = frame.overlay.roleIcon;
-
-    frame.aggroHighlight = frame.overlay.aggroHighlight;
-    frame.myHealAbsorb = frame.overlay.myHealAbsorb;
-
-    frame.myHealAbsorbLeftShadow = frame.overlay.myHealAbsorbLeftShadow;
-    frame.myHealAbsorbRightShadow = frame.overlay.myHealAbsorbRightShadow;
-    frame.overAbsorbGlow = frame.overlay.overAbsorbGlow;
-
-    frame.overHealAbsorbGlow = frame.overlay.overHealAbsorbGlow;
-
     frame.background:SetTexture("Interface\\AddOns\\!!!ClassicAPI\\Texture\\RaidFrame\\Raid-Bar-Hp-Bg");
     frame.background:SetTexCoord(0, 1, 0, 0.53125);
     frame.healthBar:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1);
     frame.healthBar:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1);
     frame.healthBar:SetStatusBarTexture("Interface\\AddOns\\!!!ClassicAPI\\Texture\\RaidFrame\\Raid-Bar-Hp-Fill", "BORDER");
     frame.healthBar:SetFrameLevel(frame:GetFrameLevel());
+
+    frame.myHealPrediction = frame.overlay.myHealPrediction;
+    frame.otherHealPrediction = frame.overlay.otherHealPrediction;
+    frame.totalAbsorb = frame.overlay.totalAbsorb;
+    frame.totalAbsorbOverlay = frame.overlay.totalAbsorbOverlay;
+    frame.name = frame.overlay.name;
+    frame.statusText = frame.overlay.statusText;
+    frame.roleIcon = frame.overlay.roleIcon;
+    frame.aggroHighlight = frame.overlay.aggroHighlight;
+    frame.myHealAbsorb = frame.overlay.myHealAbsorb;
+    frame.myHealAbsorbLeftShadow = frame.overlay.myHealAbsorbLeftShadow;
+    frame.myHealAbsorbRightShadow = frame.overlay.myHealAbsorbRightShadow;
+    frame.overAbsorbGlow = frame.overlay.overAbsorbGlow;
+    frame.overHealAbsorbGlow = frame.overlay.overHealAbsorbGlow;
 
     frame.myHealPrediction:ClearAllPoints();
     frame.myHealPrediction:SetTexture(1,1,1);
@@ -1730,5 +1753,6 @@ function DefaultCompactMiniFrameSetup(frame)
         frame.vertLeftBorder:Hide();
         frame.vertRightBorder:Hide();
     end
+
     CompactUnitFrame_SetOptionTable(frame, DefaultCompactMiniFrameOptions)
 end

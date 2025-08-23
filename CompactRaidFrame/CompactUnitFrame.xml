@@ -146,7 +146,7 @@
           </Layer>
         </Layers>
       </Frame>
-      <StatusBar name="$parentPowerBar" parentKey="powerBar" useParentLevel="true">
+      <StatusBar name="$parentPowerBar" parentKey="powerBar">
         <Layers>
           <Layer level="BACKGROUND">
             <Texture name="$parentBackground" parentKey="background" setAllPoints="true" />

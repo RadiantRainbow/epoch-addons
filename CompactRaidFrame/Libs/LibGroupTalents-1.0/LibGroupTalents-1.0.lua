@@ -1,6 +1,6 @@
 --[[
 Name: LibGroupTalents-1.0
-Revision: $Rev: 70 $
+Revision: $Rev: 71 $
 Author: Zek
 Documentation: http://wowace.com/wiki/LibGroupTalents-1.0
 SVN: svn://svn.wowace.com/wow/libgrouptalents-1-0/mainline/trunk
@@ -66,7 +66,7 @@ Events:
 
 local TalentQuery = LibStub("LibTalentQuery-1.0")
 
-local MAJOR, MINOR = "LibGroupTalents-1.0", tonumber(("$Rev: 70 $"):match("(%d+)"))
+local MAJOR, MINOR = "LibGroupTalents-1.0", tonumber(("$Rev: 71 $"):match("(%d+)"))
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
 
@@ -493,7 +493,7 @@ do
 
 	-- crc
 	local function crc32(str)
-		local val = tonumber((select(2, GetBuildInfo())))	-- Use WoW build as CRC base
+		local val = tonumber((select(2, GetBuildInfo()))) or 12340 -- Use WoW build as CRC base
 		for i = 1,#str do
 			val = bit.band(val * 2 + str:byte(i), 0xFFFF)
 		end
