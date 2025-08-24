@@ -1,0 +1,6 @@
+## Interface: 30300
+## Version: 1.4.2
+## Title: HoverBind
+## Notes: Allows you to bind keys on buttons by hovering over them.
+
+HoverBind.lua
