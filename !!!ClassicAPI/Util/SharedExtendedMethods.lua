@@ -39,9 +39,6 @@ local CONST_ATLAS_TILESHORIZ	= 7
 local CONST_ATLAS_TILESVERT		= 8
 local CONST_ATLAS_TEXTUREPATH	= 9
 
-local GRAY_FONT_COLOR = GRAY_FONT_COLOR
-local NORMAL_FONT_COLOR = NORMAL_FONT_COLOR
-
 local function Hook_SetCooldown(Self, Start, Duration, Modrate)
 	Self.___Start = Start > 0 and Start or nil
 	Self.___Duration = Duration > 0 and Duration or nil
@@ -141,8 +138,7 @@ local function Method_SetAtlas(Self, AtlasName, UseAtlasSize, FilterMode)
 	Self:SetTexture(Atlas[CONST_ATLAS_TEXTUREPATH] or "", Atlas[CONST_ATLAS_TILESHORIZ], Atlas[CONST_ATLAS_TILESVERT])
 
 	if ( UseAtlasSize ) then
-		Self:SetWidth(Atlas[CONST_ATLAS_WIDTH])
-		Self:SetHeight(Atlas[CONST_ATLAS_HEIGHT])
+		Self:SetSize(Atlas[CONST_ATLAS_WIDTH], Atlas[CONST_ATLAS_HEIGHT])
 	end
 
 	Self:SetTexCoord(Atlas[CONST_ATLAS_LEFT], Atlas[CONST_ATLAS_RIGHT], Atlas[CONST_ATLAS_TOP], Atlas[CONST_ATLAS_BOTTOM])
@@ -155,18 +151,6 @@ end
 
 local function Method_GetAtlas(Self)
 	return Self.___AtlasName
-end
-
-local function Method_SetDesaturated(Self, Toggle, Color)
-	if ( Toggle ) then
-		Self:SetTextColor(GRAY_FONT_COLOR.r, GRAY_FONT_COLOR.g, GRAY_FONT_COLOR.b)
-	else
-		if ( Color ) then
-			Self:SetTextColor(Color.r, Color.g, Color.b)
-		else
-			Self:SetTextColor(NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b)
-		end
-	end
 end
 
 local function Method_ClearAndSetPoint(Self, ...)
@@ -243,7 +227,6 @@ Frame.IsForbidden = Method_IsForbidden
 
 	-- FONTSTRING (FRAME)
 		FrameFontString.SetShown = Method_SetShown
-		FrameFontString.SetDesaturated = Method_SetDesaturated
 		FrameFontString.ClearAndSetPoint = Method_ClearAndSetPoint
 
 -- BUTTON

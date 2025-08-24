@@ -7,6 +7,8 @@ local CreateFrame = CreateFrame
 local unusedOverlayGlows
 local numOverlays = 0
 
+if ( _G.ActionButton_ShowOverlayGlow ) then return end
+
 local function ActionButton_GetOverlayGlow()
 	if ( not unusedOverlayGlows ) then
 		unusedOverlayGlows = {}

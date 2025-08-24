@@ -263,8 +263,6 @@ Aura(26013, nil, nil, nil, nil, false, true) -- Deserter
 Aura(31694, nil, nil, nil, nil, false, false) -- Strange Feeling
 Aura(70013, nil, nil, nil, nil, false, false) -- Quel'Delar's Compulsion
 
--- TODO: Add PvP flags as a priority buff.
-
 --[[
 
     UNITAURA / UNITBUFF / UNITDEBUFF

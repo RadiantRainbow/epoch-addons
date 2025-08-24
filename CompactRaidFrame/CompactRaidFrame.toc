@@ -2,7 +2,7 @@
 ## Title: Compact Raid Frames
 ## Author: Blizzard, Tsoukie
 ## Notes: Classic Raid Frames
-## Version: 1.6
+## Version: 1.7
 ## SavedVariablesPerCharacter: CompactRaidFrameDB
 ## RequiredDeps: !!!ClassicAPI
 
