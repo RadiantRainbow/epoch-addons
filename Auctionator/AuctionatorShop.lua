@@ -141,7 +141,7 @@ function Atr_SList:DisplayX ()
 		
 		dataOffset = line + currentPane.hlistScrollOffset;
 
-		local lineEntry = getglobal ("AuctionatorHEntry"..line);
+		local lineEntry = _G["AuctionatorHEntry"..line];
 
 		lineEntry:SetID(dataOffset);
 
@@ -149,7 +149,7 @@ function Atr_SList:DisplayX ()
 		
 		if (dataOffset <= numrows and slItem) then
 
-			local lineEntry_text = getglobal("AuctionatorHEntry"..line.."_EntryText");
+			local lineEntry_text = _G["AuctionatorHEntry"..line.."_EntryText"];
 
 			lineEntry_text:SetText		(Atr_AbbrevItemName (slItem));
 			lineEntry_text:SetTextColor	(.6,.6,.6);
@@ -271,7 +271,7 @@ end
 
 -----------------------------------------
 
-function Atr_DropDownSL_Initialize()
+function Atr_DropDownSL_Initialize(self)
 
 	local info = UIDropDownMenu_CreateInfo();
 
@@ -286,7 +286,7 @@ function Atr_DropDownSL_Initialize()
 		info.value = x;
 		info.func = Atr_DropDownSL_OnClick;
 		info.checked = nil;
-		info.owner = this:GetParent();
+		info.owner = self;
 
 		UIDropDownMenu_AddButton(info);
 
@@ -296,11 +296,11 @@ end
 
 -----------------------------------------
 
-function Atr_DropDownSL_OnClick(self)
+function Atr_DropDownSL_OnClick(info)
 	
-	UIDropDownMenu_SetSelectedValue (self.owner, self.value);
+	UIDropDownMenu_SetSelectedValue (info.owner, info.value);
 	
-	gCurrentSList = AUCTIONATOR_SHOPPING_LISTS[self.value];
+	gCurrentSList = AUCTIONATOR_SHOPPING_LISTS[info.value];
 	
 	Atr_SetUINeedsUpdate();
 
@@ -308,10 +308,9 @@ end
 
 -----------------------------------------
 
-function Atr_SEntryOnClick ()
+function Atr_SEntryOnClick (self)
 
-	local line			= this;
-	local entryIndex	= line:GetID();
+	local entryIndex	= self:GetID();
 
 	local itemName = gCurrentSList.items[entryIndex];
 	
@@ -517,6 +516,7 @@ function Atr_Adv_Search_Onclick ()
 		
 		Atr_AS_Searchtext:SetText (queryString);
 		
+		Atr_ASDD_Class_Initialize(Atr_ASDD_Class);
 		UIDropDownMenu_SetSelectedValue (Atr_ASDD_Class, itemClass);
 		Atr_ASDD_UpdateSubclassMenu();
 		UIDropDownMenu_SetSelectedValue (Atr_ASDD_Subclass, itemSubclass);
@@ -564,9 +564,9 @@ end
 
 -----------------------------------------
 
-function Atr_ASDD_Class_OnClick (info, frame, arg2, checked)
+function Atr_ASDD_Class_OnClick (info)
 
-	UIDropDownMenu_SetSelectedValue(frame, info.value);
+	UIDropDownMenu_SetSelectedValue(info.owner, info.value);
 
 	Atr_ASDD_UpdateSubclassMenu();
 
