@@ -1,9 +1,9 @@
 ## Interface: 30300
 ## Title: Group Bulletin Board
 ## Notes: A bulletin board for LFG/LFM messages.
-## Version: 1.0
-## Author: TheNielDeal
-## X-Website: https://github.com/TheNielDeal
+## Version: 1.1.1
+## Author: fondlez
+## X-Website: http://github.com/fondlez
 ## X-Category: Chat/Communication
 ## OG-Author: Obszczymucha aka. Ohhaimark
 ## OG-Repo: https://codeberg.org/obszczymucha/group-bulletin-board-tbc

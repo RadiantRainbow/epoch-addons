@@ -1,11 +1,9 @@
 # GroupBulletinBoard
 
-### [Download Latest](https://github.com/TheNielDeal/Epoch-GroupBulletinBoard/releases/latest)
+### [Download Latest](https://github.com/fondlez/GroupBulletinBoard/releases/latest)
 
-This is the Project Epoch version of the port to WotLK (3.3.5a) of a TBC backport of a Classic TBC addon!
-(mouthful I know)
+This is a port to WotLK (3.3.5a) of a TBC backport of a Classic TBC addon!
 
-* Epoch version: [TheNielDeal] (https://github.com/TheNielDeal)
 * WotLK (3.3.5a) port: [fondlez](https://github.com/fondlez)
 * TBC 2.4.3 backport: [Obszczymucha aka. Ohhaimark](https://codeberg.org/obszczymucha/group-bulletin-board-tbc)
 * Classic TBC addon: [Vyscî-Whitemane](https://github.com/Vysci/LFG-Bulletin-Board)
@@ -26,10 +24,10 @@ To open the settings, use slash command: **`/gbb`** or click the minimap icon.
 ## Graphical Interface
 
 ### Main Window
-![Main Window screenshot](doc/img/EpochGBB-main.png)
+![Main Window screenshot](doc/img/addon-gbb-1.0.0-main.jpg)
 
 ### Interface Settings
-![Interface Settings screenshot](doc/img/EpochGBB-options.png)
+![Interface Settings screenshot](doc/img/addon-gbb-1.0.0-settings.jpg)
 
 ## Slash Commands
 

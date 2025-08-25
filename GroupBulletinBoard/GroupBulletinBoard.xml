@@ -42,7 +42,7 @@
 					</Anchors>
 				</FontString>
 
-				<FontString name="$parentTitleEdition" inherits="GameFontNormal" text="Epoch Edition" maxLines="1" justifyH="LEFT" justifyV="TOP">
+				<FontString name="$parentTitleEdition" inherits="GameFontNormal" text="fondlez Edition" maxLines="1" justifyH="LEFT" justifyV="TOP">
 					<Anchors>
 						<Anchor point="TOPLEFT" relativePoint="TOPRIGHT" relativeTo="$parentTitle">
 							<Offset>

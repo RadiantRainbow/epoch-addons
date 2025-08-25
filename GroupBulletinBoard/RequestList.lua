@@ -535,7 +535,7 @@ function GBB.GetDungeons( msg, name )
         break
       elseif x == GBB.TAGSEARCH then
         isGood = true
-      elseif GBB.dungeonLevel[ x ] then
+      else
         dungeons[ x ] = true
       end
     end
@@ -831,6 +831,8 @@ local function createMenu( DungeonID, req )
   GBB.PopupDynamic:AddItem( GBB.L[ "CboxNotifyChat" ], false, GBB.DB, "NotifyChat" )
   GBB.PopupDynamic:AddItem( "", true )
   GBB.PopupDynamic:AddItem( GBB.L[ "HeaderSettings" ], false, GBB.Options.Open, 1 )
+
+  GBB.PopupDynamic:AddItem( GBB.L[ "TBCPanelFilter" ], false, GBB.Options.Open, 2 )
 
   GBB.PopupDynamic:AddItem( GBB.L[ "PanelAbout" ], false, GBB.Options.Open, 6 )
   GBB.PopupDynamic:AddItem( GBB.L[ "BtnCancel" ], false )

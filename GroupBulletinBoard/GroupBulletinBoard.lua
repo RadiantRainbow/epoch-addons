@@ -145,18 +145,14 @@ function GBB.SplitNoNb( msg )
   return result
 end
 
-function GBB.LevelRange(dungeon, short)
-  local dl = GBB.dungeonLevel[dungeon]
-  if not dl then                 -- <<--- protection anti‑nil
-    return ""                    --     (évite l’erreur)
-  end
-
+function GBB.LevelRange( dungeon, short )
   if short then
-    if dl[1] > 0 then
-      return string.format(GBB.L["msgLevelRangeShort"], dl[1], dl[2])
+    if GBB.dungeonLevel[ dungeon ][ 1 ] > 0 then
+      return string.format( GBB.L[ "msgLevelRangeShort" ], GBB.dungeonLevel[ dungeon ][ 1 ], GBB.dungeonLevel[ dungeon ]
+        [ 2 ] )
     end
-  elseif dl[1] > 0 then
-    return string.format(GBB.L["msgLevelRange"], dl[1], dl[2])
+  elseif GBB.dungeonLevel[ dungeon ][ 1 ] > 0 then
+    return string.format( GBB.L[ "msgLevelRange" ], GBB.dungeonLevel[ dungeon ][ 1 ], GBB.dungeonLevel[ dungeon ][ 2 ] )
   end
   return ""
 end
@@ -393,6 +389,9 @@ function GBB.Popup_Minimap( frame, notminimap )
   end
 
   GBB.PopupDynamic:AddItem( GBB.L[ "HeaderSettings" ], false, GBB.Options.Open, 1 )
+
+  GBB.PopupDynamic:AddItem( GBB.L[ "TBCPanelFilter" ], false, GBB.Options.Open, 2 )
+
 
   GBB.PopupDynamic:AddItem( GBB.L[ "PanelAbout" ], false, GBB.Options.Open, 6 )
 
