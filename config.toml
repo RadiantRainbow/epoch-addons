@@ -69,3 +69,6 @@ url = "https://github.com/fondlez/GroupBulletinBoard.git"
 
 [[addons]]
 url = "https://github.com/NeticSoul/DragonUI.git"
+
+[[addons]]
+url = "https://github.com/SimonGaufreteau/ZygorGuidesViewer.git"
