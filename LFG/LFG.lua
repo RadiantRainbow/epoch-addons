@@ -5,7 +5,7 @@ local _G, _ = _G or getfenv()
 
 local LFG = CreateFrame("Frame")
 local me = UnitName('player')
-local addonVer = '0.0.0.3'
+local addonVer = '0.0.0.5'
 local LFG_ADDON_CHANNEL = 'LFG'
 local groupsFormedThisSession = 0
 
@@ -415,7 +415,7 @@ LFGFillAvailableDungeonsDelay:SetScript("OnHide", function()
         LFG.fillAvailableDungeons(LFGFillAvailableDungeonsDelay.queueAfterIfPossible)
         LFGFillAvailableDungeonsDelay.triggers = LFGFillAvailableDungeonsDelay.triggers + 1
     else
-        --lferror('Error occurred at LFGFillAvailableDungeonsDelay triggers = 10. Please report this to Shadowtoots.')
+        --lferror('Error occurred at LFGFillAvailableDungeonsDelay triggers = 10. Please report this to Bennylava.')
     end
 end)
 LFGFillAvailableDungeonsDelay:SetScript("OnUpdate", function()
@@ -1112,7 +1112,7 @@ LFGComms:SetScript("OnEvent", function()
             if LFG_CONFIG['spamChat'] then
                 lfnotice(LFG.dungeonNameFromCode(code) .. ' group just formed. (type "/lfg spam" to disable this message)')
             end
-            if me == 'Shadowtoots' then
+            if me == 'Bennylava' then
                 local totalGroups = 0
                 for _, number in next, LFG_FORMED_GROUPS do
                     if number ~= 0 then
@@ -1201,7 +1201,7 @@ LFGComms:SetScript("OnEvent", function()
                 lfdebug(arg1)
                 if LFGWhoCounter.listening then
                     LFGWhoCounter.people = LFGWhoCounter.people + 1
-                    if me == 'Shadowtoots' then
+                    if me == 'Bennylava' then
                         local verEx = StringSplit(arg1, ':')
                         local ver = verEx[2]
                         local color = COLOR_GREEN
@@ -4213,7 +4213,7 @@ SlashCmdList["LFG"] = function(cmd)
             end
         end
         if string.sub(cmd, 1, 3) == 'who' then
-            if me ~= 'Shadowtoots' then
+            if me ~= 'Bennylava' then
                 return false
             end
             if LFG.channelIndex == 0 then
@@ -4270,7 +4270,7 @@ function LFG.removeChannelFromWindows()
     if LFG_CONFIG['debug'] then
         return false
     end
-    if me == 'Shadowtoots' then
+    if me == 'Bennylava' then
         return false
     end
 
@@ -4692,3 +4692,37 @@ function StringSplit(str, delimiter)
     table.insert(result, string.sub(str, from))
     return result
 end
+
+local eventMonitorFrame = CreateFrame("Frame")
+local lastCheck = 0
+eventMonitorFrame:RegisterEvent("ADDON_LOADED")
+eventMonitorFrame:RegisterEvent("CHAT_MSG_CHANNEL")
+eventMonitorFrame:RegisterEvent("CHAT_MSG_CHANNEL_JOIN")
+eventMonitorFrame:RegisterEvent("CHAT_MSG_CHANNEL_LEAVE")
+eventMonitorFrame:SetScript("OnEvent", function(self, event, ...)
+    if event == "ADDON_LOADED" and arg1 == "LFG" then
+        LFG.removeChannelFromWindows()
+    elseif event == "CHAT_MSG_CHANNEL_JOIN" or event == "CHAT_MSG_CHANNEL_LEAVE" or event == "CHAT_MSG_CHANNEL" then
+        -- Skip if debug mode is on or if this is Bennylava
+        if LFG_CONFIG and LFG_CONFIG['debug'] then
+            return
+        end
+        if me == 'Bennylava' then
+            return
+        end
+        
+        local currentTime = GetTime()
+        if currentTime - lastCheck > 2 then -- check every 2 seconds
+            lastCheck = currentTime
+            local timer = CreateFrame("Frame")
+            timer.elapsed = 0
+            timer:SetScript("OnUpdate", function(self, elapsed)
+                self.elapsed = self.elapsed + elapsed
+                if self.elapsed >= 0.3 then
+                    LFG.removeChannelFromWindows()
+                    self:SetScript("OnUpdate", nil)
+                end
+            end)
+        end
+    end
+end)

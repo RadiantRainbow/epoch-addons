@@ -65,7 +65,7 @@ url = "https://github.com/Bunny67/Details-WotLK.git"
 url = "https://felbite.com/wp-content/uploads/2022/03/felbite.com-align-wotlk-align.zip"
 
 [[addons]]
-url = "https://github.com/TheLinuxITGuy/Chromie-Dragonflight.git"
+url = "https://github.com/fondlez/GroupBulletinBoard.git"
 
 [[addons]]
-url = "https://github.com/fondlez/GroupBulletinBoard.git"
+url = "https://github.com/NeticSoul/DragonUI.git"
