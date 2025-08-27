@@ -5,7 +5,7 @@ local _G, _ = _G or getfenv()
 
 local LFG = CreateFrame("Frame")
 local me = UnitName('player')
-local addonVer = '0.0.0.5'
+local addonVer = GetAddOnMetadata("LFG", "Version")
 local LFG_ADDON_CHANNEL = 'LFG'
 local groupsFormedThisSession = 0
 
