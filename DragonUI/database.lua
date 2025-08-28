@@ -104,7 +104,7 @@ local defaults = {
 				artstyle = true,
 			},
 			totem = {
-				x_position = 0,
+				x_position = -210,
 				y_offset = 0,      -- Additional Y offset for fine-tuning position
 			},
 		},
@@ -122,6 +122,10 @@ local defaults = {
 			zoom_in_out = false,
 			quest_tracker_x = -115,
 			quest_tracker_y = -250,
+			auras = {
+                x_offset = -70, -- Default horizontal position for minimap auras
+                y_offset = 23,   -- Default vertical position for minimap auras
+            },
 			-- MAIL ICON SETTINGS
             mail_icon_x = -4,
             mail_icon_y = -5,

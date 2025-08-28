@@ -23,7 +23,7 @@ local frame = {}
 -- =====================================================================
 -- 1. A local variable to store the current state of the threat glow setting.
 --    This avoids accessing addon settings during combat.
-local isPetThreatGlowEnabled = true 
+local isPetThreatGlowEnabled = true
 
 -- 2. A function that will be called from the options menu to turn the system on or off.
 function unitframe.SetPetThreatGlow(enabled)
@@ -47,9 +47,11 @@ local safeConfig = {
 
 -- Esta función se llamará cada vez que se cambie una opción para actualizar nuestra caché segura.
 function unitframe.UpdateSafeConfig()
-    if not (addon and addon.db and addon.db.profile and addon.db.profile.unitframe) then return end
+    if not (addon and addon.db and addon.db.profile and addon.db.profile.unitframe) then
+        return
+    end
     local db = addon.db.profile.unitframe
-    
+
     safeConfig.player = db.player or {}
     safeConfig.target = db.target or {}
     safeConfig.focus = db.focus or {}
@@ -165,7 +167,22 @@ end
 * @return string|table - Formatted text string or table with different format options
 --]]
 local function FormatStatusText(current, maximum, textFormat, useBreakup, frameType)
-
+    if frameType then
+        local unit = frameType == "player" and "player" or 
+                    frameType == "target" and "target" or
+                    frameType == "focus" and "focus" or
+                    frameType == "pet" and "pet" or nil
+        
+        if unit then
+            if UnitIsDeadOrGhost(unit) or not UnitExists(unit) then
+                return ""
+            end
+            -- AÑADIR: Verificación adicional para unidades offline
+            if UnitIsConnected and not UnitIsConnected(unit) then
+                return ""
+            end
+        end
+    end
     -- If useBreakup is nil, try to auto-detect the frame type
     if useBreakup == nil then
         if addon and addon.db and addon.db.profile and addon.db.profile.unitframe then
@@ -1232,7 +1249,12 @@ function unitframe.UpdateTargetFrameText()
     end
 
     -- FIXED: Clear target frame texts if no target exists
-    if not UnitExists('target') then
+   if not UnitExists('target') or UnitIsDeadOrGhost('target') then
+        unitframe.ClearTargetFrameTexts()
+        return
+    end
+
+    if UnitIsPlayer('target') and UnitIsConnected and not UnitIsConnected('target') then
         unitframe.ClearTargetFrameTexts()
         return
     end
@@ -1379,6 +1401,43 @@ function unitframe.UpdateTargetFrameText()
     end
 end
 
+local function HandleUnitDeath(unit)
+    if unit == "target" then
+        unitframe.ClearTargetFrameTexts()
+    elseif unit == "focus" then
+        -- Limpiar textos del focus
+        local dragonFrame = _G["DragonUIUnitframeFrame"]
+        if dragonFrame then
+            if dragonFrame.FocusFrameHealthBarText then
+                dragonFrame.FocusFrameHealthBarText:Hide()
+            end
+            if dragonFrame.FocusFrameManaBarText then
+                dragonFrame.FocusFrameManaBarText:Hide()
+            end
+            if dragonFrame.FocusFrameHealthBarTextLeft then
+                dragonFrame.FocusFrameHealthBarTextLeft:Hide()
+            end
+            if dragonFrame.FocusFrameHealthBarTextRight then
+                dragonFrame.FocusFrameHealthBarTextRight:Hide()
+            end
+            if dragonFrame.FocusFrameManaBarTextLeft then
+                dragonFrame.FocusFrameManaBarTextLeft:Hide()
+            end
+            if dragonFrame.FocusFrameManaBarTextRight then
+                dragonFrame.FocusFrameManaBarTextRight:Hide()
+            end
+        end
+    elseif unit == "pet" then
+        unitframe.UpdatePetFrameText()
+    elseif string.match(unit or "", "^party[1-4]$") then
+        local partyIndex = tonumber(string.match(unit, 'party([1-4])'))
+        if partyIndex then
+            unitframe.UpdatePartyFrameText(partyIndex)
+        end
+    elseif unit == "player" then
+        unitframe.ClearPlayerFrameTexts()
+    end
+end
 -- FIXED: Setup proper hover events for PlayerFrame to ensure consistent text display behavior
 function unitframe.SetupPlayerFrameHoverEvents()
     if not PlayerFrame then
@@ -1827,17 +1886,33 @@ end
 
 -- FIXED: Enhanced UpdatePetFrameText function with full format support
 function unitframe.UpdatePetFrameText()
-    if not (addon and addon.db and addon.db.profile and addon.db.profile.unitframe) then return end
+    if not (addon and addon.db and addon.db.profile and addon.db.profile.unitframe) then
+        return
+    end
     local dragonFrame = _G["DragonUIUnitframeFrame"]
-    if not dragonFrame then return end
+    if not dragonFrame then
+        return
+    end
 
     if not UnitExists('pet') then
-        if dragonFrame.PetFrameHealthBarText then dragonFrame.PetFrameHealthBarText:Hide() end
-        if dragonFrame.PetFrameHealthBarTextLeft then dragonFrame.PetFrameHealthBarTextLeft:Hide() end
-        if dragonFrame.PetFrameHealthBarTextRight then dragonFrame.PetFrameHealthBarTextRight:Hide() end
-        if dragonFrame.PetFrameManaBarText then dragonFrame.PetFrameManaBarText:Hide() end
-        if dragonFrame.PetFrameManaBarTextLeft then dragonFrame.PetFrameManaBarTextLeft:Hide() end
-        if dragonFrame.PetFrameManaBarTextRight then dragonFrame.PetFrameManaBarTextRight:Hide() end
+        if dragonFrame.PetFrameHealthBarText then
+            dragonFrame.PetFrameHealthBarText:Hide()
+        end
+        if dragonFrame.PetFrameHealthBarTextLeft then
+            dragonFrame.PetFrameHealthBarTextLeft:Hide()
+        end
+        if dragonFrame.PetFrameHealthBarTextRight then
+            dragonFrame.PetFrameHealthBarTextRight:Hide()
+        end
+        if dragonFrame.PetFrameManaBarText then
+            dragonFrame.PetFrameManaBarText:Hide()
+        end
+        if dragonFrame.PetFrameManaBarTextLeft then
+            dragonFrame.PetFrameManaBarTextLeft:Hide()
+        end
+        if dragonFrame.PetFrameManaBarTextRight then
+            dragonFrame.PetFrameManaBarTextRight:Hide()
+        end
         return
     end
 
@@ -1849,7 +1924,8 @@ function unitframe.UpdatePetFrameText()
 
     -- Use the same hover detection function as other frames
     -- FIXED: Check if the dummy frames exist before checking for mouseover
-    local healthHover = dragonFrame.PetFrameHealthBarDummy and IsMouseOverFrame(dragonFrame.PetFrameHealthBarDummy) or false
+    local healthHover = dragonFrame.PetFrameHealthBarDummy and IsMouseOverFrame(dragonFrame.PetFrameHealthBarDummy) or
+                            false
     local manaHover = dragonFrame.PetFrameManaBarDummy and IsMouseOverFrame(dragonFrame.PetFrameManaBarDummy) or false
 
     local shouldShowHealth = showHealthAlways or healthHover
@@ -1859,21 +1935,42 @@ function unitframe.UpdatePetFrameText()
     if shouldShowHealth and UnitHealthMax('pet') > 0 then
         local health, maxHealth = UnitHealth('pet'), UnitHealthMax('pet')
         local healthText = FormatStatusText(health, maxHealth, textFormat, useBreakup, "pet")
-        
+
         if textFormat == "both" and type(healthText) == "table" then
-            if dragonFrame.PetFrameHealthBarTextLeft then dragonFrame.PetFrameHealthBarTextLeft:SetText(healthText.percentage); dragonFrame.PetFrameHealthBarTextLeft:Show() end
-            if dragonFrame.PetFrameHealthBarTextRight then dragonFrame.PetFrameHealthBarTextRight:SetText(healthText.current); dragonFrame.PetFrameHealthBarTextRight:Show() end
-            if dragonFrame.PetFrameHealthBarText then dragonFrame.PetFrameHealthBarText:Hide() end
+            if dragonFrame.PetFrameHealthBarTextLeft then
+                dragonFrame.PetFrameHealthBarTextLeft:SetText(healthText.percentage);
+                dragonFrame.PetFrameHealthBarTextLeft:Show()
+            end
+            if dragonFrame.PetFrameHealthBarTextRight then
+                dragonFrame.PetFrameHealthBarTextRight:SetText(healthText.current);
+                dragonFrame.PetFrameHealthBarTextRight:Show()
+            end
+            if dragonFrame.PetFrameHealthBarText then
+                dragonFrame.PetFrameHealthBarText:Hide()
+            end
         else
             local displayText = type(healthText) == "table" and healthText.combined or healthText
-            if dragonFrame.PetFrameHealthBarText then dragonFrame.PetFrameHealthBarText:SetText(displayText); dragonFrame.PetFrameHealthBarText:Show() end
-            if dragonFrame.PetFrameHealthBarTextLeft then dragonFrame.PetFrameHealthBarTextLeft:Hide() end
-            if dragonFrame.PetFrameHealthBarTextRight then dragonFrame.PetFrameHealthBarTextRight:Hide() end
+            if dragonFrame.PetFrameHealthBarText then
+                dragonFrame.PetFrameHealthBarText:SetText(displayText);
+                dragonFrame.PetFrameHealthBarText:Show()
+            end
+            if dragonFrame.PetFrameHealthBarTextLeft then
+                dragonFrame.PetFrameHealthBarTextLeft:Hide()
+            end
+            if dragonFrame.PetFrameHealthBarTextRight then
+                dragonFrame.PetFrameHealthBarTextRight:Hide()
+            end
         end
     else
-        if dragonFrame.PetFrameHealthBarText then dragonFrame.PetFrameHealthBarText:Hide() end
-        if dragonFrame.PetFrameHealthBarTextLeft then dragonFrame.PetFrameHealthBarTextLeft:Hide() end
-        if dragonFrame.PetFrameHealthBarTextRight then dragonFrame.PetFrameHealthBarTextRight:Hide() end
+        if dragonFrame.PetFrameHealthBarText then
+            dragonFrame.PetFrameHealthBarText:Hide()
+        end
+        if dragonFrame.PetFrameHealthBarTextLeft then
+            dragonFrame.PetFrameHealthBarTextLeft:Hide()
+        end
+        if dragonFrame.PetFrameHealthBarTextRight then
+            dragonFrame.PetFrameHealthBarTextRight:Hide()
+        end
     end
 
     -- Power Logic
@@ -1882,19 +1979,40 @@ function unitframe.UpdatePetFrameText()
         local powerText = FormatStatusText(power, maxPower, textFormat, useBreakup, "pet")
 
         if textFormat == "both" and type(powerText) == "table" then
-            if dragonFrame.PetFrameManaBarTextLeft then dragonFrame.PetFrameManaBarTextLeft:SetText(powerText.percentage); dragonFrame.PetFrameManaBarTextLeft:Show() end
-            if dragonFrame.PetFrameManaBarTextRight then dragonFrame.PetFrameManaBarTextRight:SetText(powerText.current); dragonFrame.PetFrameManaBarTextRight:Show() end
-            if dragonFrame.PetFrameManaBarText then dragonFrame.PetFrameManaBarText:Hide() end
+            if dragonFrame.PetFrameManaBarTextLeft then
+                dragonFrame.PetFrameManaBarTextLeft:SetText(powerText.percentage);
+                dragonFrame.PetFrameManaBarTextLeft:Show()
+            end
+            if dragonFrame.PetFrameManaBarTextRight then
+                dragonFrame.PetFrameManaBarTextRight:SetText(powerText.current);
+                dragonFrame.PetFrameManaBarTextRight:Show()
+            end
+            if dragonFrame.PetFrameManaBarText then
+                dragonFrame.PetFrameManaBarText:Hide()
+            end
         else
             local displayText = type(powerText) == "table" and powerText.combined or powerText
-            if dragonFrame.PetFrameManaBarText then dragonFrame.PetFrameManaBarText:SetText(displayText); dragonFrame.PetFrameManaBarText:Show() end
-            if dragonFrame.PetFrameManaBarTextLeft then dragonFrame.PetFrameManaBarTextLeft:Hide() end
-            if dragonFrame.PetFrameManaBarTextRight then dragonFrame.PetFrameManaBarTextRight:Hide() end
+            if dragonFrame.PetFrameManaBarText then
+                dragonFrame.PetFrameManaBarText:SetText(displayText);
+                dragonFrame.PetFrameManaBarText:Show()
+            end
+            if dragonFrame.PetFrameManaBarTextLeft then
+                dragonFrame.PetFrameManaBarTextLeft:Hide()
+            end
+            if dragonFrame.PetFrameManaBarTextRight then
+                dragonFrame.PetFrameManaBarTextRight:Hide()
+            end
         end
     else
-        if dragonFrame.PetFrameManaBarText then dragonFrame.PetFrameManaBarText:Hide() end
-        if dragonFrame.PetFrameManaBarTextLeft then dragonFrame.PetFrameManaBarTextLeft:Hide() end
-        if dragonFrame.PetFrameManaBarTextRight then dragonFrame.PetFrameManaBarTextRight:Hide() end
+        if dragonFrame.PetFrameManaBarText then
+            dragonFrame.PetFrameManaBarText:Hide()
+        end
+        if dragonFrame.PetFrameManaBarTextLeft then
+            dragonFrame.PetFrameManaBarTextLeft:Hide()
+        end
+        if dragonFrame.PetFrameManaBarTextRight then
+            dragonFrame.PetFrameManaBarTextRight:Hide()
+        end
     end
 end
 
@@ -2551,6 +2669,22 @@ function unitframe.ChangePlayerframe()
             'Interface\\Addons\\DragonUI\\Textures\\Unitframe\\UI-HUD-UnitFrame-Player-PortraitOn-Bar-Health')
         PlayerFrameHealthBar:SetStatusBarColor(1, 1, 1, 1)
     end
+
+    -- Fix text overlap when Character info panel is open
+   if PlayerFrameHealthBarText and not PlayerFrameHealthBarText.DragonUINoShow then
+        -- Permanently disable Blizzard's health text by overriding its Show method.
+        PlayerFrameHealthBarText.Show = function() end 
+        PlayerFrameHealthBarText:Hide() -- Hide it one last time just in case.
+        PlayerFrameHealthBarText.DragonUINoShow = true -- Flag it as handled.
+    end
+    
+    if PlayerFrameManaBarText and not PlayerFrameManaBarText.DragonUINoShow then
+        -- Permanently disable Blizzard's mana text by overriding its Show method.
+        PlayerFrameManaBarText.Show = function() end
+        PlayerFrameManaBarText:Hide() -- Hide it one last time.
+        PlayerFrameManaBarText.DragonUINoShow = true -- Flag it as handled.
+    end
+    -- End of fix
 
     -- Hide original Blizzard text elements - we use custom ones
     PlayerFrameHealthBarText:Hide()
@@ -6434,7 +6568,9 @@ end
 -- FIXED: Enhanced Pet Frame function with full configuration support
 function unitframe.ChangePetFrame()
 
-     if InCombatLockdown() then return end
+    if InCombatLockdown() then
+        return
+    end
     local base = 'Interface\\Addons\\DragonUI\\Textures\\uiunitframe'
 
     -- Get pet configuration
@@ -6544,7 +6680,7 @@ function unitframe.ChangePetFrame()
         healthTextRight:SetJustifyH("RIGHT")
         healthTextRight:Hide()
         frame.PetFrameHealthBarTextRight = healthTextRight
-        
+
         -- Assign scripts right after creation
         PetFrameHealthBarDummy:SetScript('OnEnter', function(self)
             unitframe.UpdatePetFrameText()
@@ -6617,7 +6753,7 @@ function unitframe.ChangePetFrame()
         manaTextRight:SetJustifyH("RIGHT")
         manaTextRight:Hide()
         frame.PetFrameManaBarTextRight = manaTextRight
-        
+
         -- Assign scripts right after creation
         PetFrameManaBarDummy:SetScript('OnEnter', function(self)
             unitframe.UpdatePetFrameText()
@@ -6744,7 +6880,7 @@ function unitframe.ChangePetFrame()
             end
         end
     end
--- =====================================================================
+    -- =====================================================================
     -- START: DEFINITIVE TAINT-PROOF PET THREAT SYSTEM
     -- Replace the old "Threat Glow logic for Pet" block with this one.
     -- =====================================================================
@@ -6775,7 +6911,9 @@ function unitframe.ChangePetFrame()
         -- 4. Aplicamos la configuración guardada cuando se carga la UI por primera vez.
         local petConfig = addon:GetConfigValue("unitframe", "pet") or {}
         local threatEnabled = petConfig.enableThreatGlow
-        if threatEnabled == nil then threatEnabled = true end -- Por defecto, activado.
+        if threatEnabled == nil then
+            threatEnabled = true
+        end -- Por defecto, activado.
         unitframe.TogglePetThreatGlow(threatEnabled)
 
         frame.PetThreatSystemInitialized = true
@@ -6943,15 +7081,23 @@ function eventFrame:OnEvent(event, arg1)
             unitframe.UpdatePartyFrameText(partyIndex)
             unitframe.UpdatePartyManaBar(partyIndex)
         end
-    elseif event == 'UNIT_HEALTH' and arg1 == 'focus' then
-        unitframe.UpdateFocusText()
-    elseif event == 'UNIT_HEALTH' and string.match(arg1, '^party[1-4]$') then
-        -- Update party frame text when health changes
-        local partyIndex = tonumber(string.match(arg1, 'party([1-4])'))
-        if partyIndex then
-            -- Ensure mouseover scripts are set up
-            unitframe.InitializePartyFrameMouseover()
-            unitframe.UpdatePartyFrameText(partyIndex)
+    elseif event == 'UNIT_HEALTH' and arg1 then
+        -- NUEVO: Verificar si la unidad murió PRIMERO
+        if UnitIsDeadOrGhost(arg1) then
+            HandleUnitDeath(arg1)
+        else
+            -- Código existente para unidades vivas
+            if arg1 == 'focus' then
+                unitframe.UpdateFocusText()
+            elseif string.match(arg1, '^party[1-4]$') then
+                -- Update party frame text when health changes
+                local partyIndex = tonumber(string.match(arg1, 'party([1-4])'))
+                if partyIndex then
+                    -- Ensure mouseover scripts are set up
+                    unitframe.InitializePartyFrameMouseover()
+                    unitframe.UpdatePartyFrameText(partyIndex)
+                end
+            end
         end
     elseif event == 'PLAYER_FOCUS_CHANGED' then
         unitframe.ReApplyFocusFrame()
@@ -7011,6 +7157,28 @@ function eventFrame:OnEvent(event, arg1)
         if PlayerFrame_UpdateStatus then
             PlayerFrame_UpdateStatus()
         end
+    -- NUEVOS EVENTOS PARA MANEJAR MUERTE/RESURRECCIÓN
+    elseif event == 'PLAYER_DEAD' then
+        HandleUnitDeath("player")
+    elseif event == 'PLAYER_ALIVE' or event == 'PLAYER_UNGHOST' then
+        -- Actualizar textos del player cuando revive
+        unitframe.SafeUpdatePlayerFrameText()
+    elseif event == 'UNIT_CONNECTION' and arg1 then
+        -- Manejar desconexiones de jugadores
+        if arg1 == "target" then
+            if UnitIsConnected and not UnitIsConnected(arg1) then
+                unitframe.ClearTargetFrameTexts()
+            else
+                unitframe.UpdateTargetFrameText()
+            end
+        elseif arg1 == "focus" then
+            unitframe.UpdateFocusText()
+        elseif string.match(arg1, "^party[1-4]$") then
+            local partyIndex = tonumber(string.match(arg1, 'party([1-4])'))
+            if partyIndex then
+                unitframe.UpdatePartyFrameText(partyIndex)
+            end
+        end
     end
 end
 eventFrame:SetScript('OnEvent', eventFrame.OnEvent)
@@ -7020,19 +7188,22 @@ eventFrame:SetScript('OnEvent', eventFrame.OnEvent)
 -- Register all events needed for unit frame updates
 ------------------------------------------
 -- Register core events for all unit frames
-eventFrame:RegisterEvent('UNIT_HEALTH')
-eventFrame:RegisterEvent('UNIT_MANA') -- FIXED: Add specific WoW 3.3.5a mana event
-eventFrame:RegisterEvent('UNIT_MAXMANA') -- FIXED: Add specific WoW 3.3.5a max mana event
+eventFrame:RegisterEvent('UNIT_HEALTH') 
+eventFrame:RegisterEvent('UNIT_MANA') 
+eventFrame:RegisterEvent('UNIT_MAXMANA') 
 eventFrame:RegisterEvent('UNIT_POWER_UPDATE')
 eventFrame:RegisterEvent('PLAYER_ENTERING_WORLD')
 eventFrame:RegisterEvent('PLAYER_TARGET_CHANGED')
 eventFrame:RegisterEvent('PLAYER_FOCUS_CHANGED')
-eventFrame:RegisterEvent('UNIT_ENTERED_VEHICLE')
-eventFrame:RegisterEvent('UNIT_EXITED_VEHICLE')
+eventFrame:RegisterEvent('UNIT_EXITED_VEHICLE') 
 eventFrame:RegisterEvent('ZONE_CHANGED')
-eventFrame:RegisterEvent('ZONE_CHANGED_INDOORS')
-eventFrame:RegisterEvent('ZONE_CHANGED_NEW_AREA')
-eventFrame:RegisterEvent('PLAYER_UPDATE_RESTING')
+eventFrame:RegisterEvent('ZONE_CHANGED_INDOORS') 
+eventFrame:RegisterEvent('ZONE_CHANGED_NEW_AREA') 
+eventFrame:RegisterEvent('PLAYER_UPDATE_RESTING') 
+eventFrame:RegisterEvent('PLAYER_DEAD')
+eventFrame:RegisterEvent('PLAYER_ALIVE')
+eventFrame:RegisterEvent('PLAYER_UNGHOST')
+eventFrame:RegisterEvent('UNIT_CONNECTION')
 
 -- Module initialization compatible with DragonUI
 local frameInit = CreateFrame("Frame")
@@ -7360,10 +7531,10 @@ textUpdateFrame:SetScript("OnEvent", function(self, event, unit)
         if unit == "target" then
             -- Simple robust function that handles both health and mana
             unitframe.UpdateTargetFrameText()
-         elseif unit == "focus" then
+        elseif unit == "focus" then
             unitframe.UpdateFocusText()
         elseif unit == "pet" then
-            unitframe.UpdatePetFrameText() 
+            unitframe.UpdatePetFrameText()
             if event == "UNIT_POWER_UPDATE" then
                 -- FIXED: Handle pet power type changes
                 if UnitExists("pet") and frame.UpdatePetManaBarTexture then
@@ -7403,7 +7574,7 @@ textUpdateFrame:SetScript("OnEvent", function(self, event, unit)
             end
             -- Already handled by UnitFrameManaBar_Update hook
         end
-   elseif event == "UNIT_PET" and unit == "player" then
+    elseif event == "UNIT_PET" and unit == "player" then
         -- FIXED: Handle pet summon/dismiss events
         if UnitExists("pet") then
             -- Pet was summoned, ensure pet frame is properly styled
@@ -7675,7 +7846,7 @@ profileCallbackFrame:RegisterEvent("ADDON_LOADED")
 profileCallbackFrame:SetScript("OnEvent", function(self, event, addonName)
     if addonName == "DragonUI" then
         unitframe.RegisterProfileCallbacks()
-        self:UnregisterEvent("ADDON_LOADED") 
+        self:UnregisterEvent("ADDON_LOADED")
     end
 end)
 

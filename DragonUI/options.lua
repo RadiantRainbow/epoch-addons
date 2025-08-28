@@ -962,32 +962,32 @@ function addon:CreateOptionsTable()
                                     x_position = {
                                         type = 'range',
                                         name = "X Position",
-                                        desc = "Horizontal position of totem bar",
+                                        desc = "Horizontal offset for totem bar",
                                         min = -500,
                                         max = 500,
                                         step = 1,
+                                        order = 1,
                                         get = function()
                                             return (addon.db.profile.additional.totem and
                                                        addon.db.profile.additional.totem.x_position) or 0
                                         end,
-                                        set = createSetFunction("additional", "totem", "x_position", "RefreshMulticast"),
-                                        order = 1,
-                                        width = "double"
+                                        set = createInstantSetFunction("additional", "totem", "x_position",
+                                            "RefreshMulticast")
                                     },
                                     y_offset = {
                                         type = 'range',
                                         name = "Y Offset",
-                                        desc = "|cffFFD700Smart Anchored Bar:|r This bar automatically positions itself relative to other visible bars.\n\n• This Y offset adds extra spacing above/below the automatic position\n• Positive values = move UP\n• Negative values = move DOWN\n• The bar will still move automatically when you show/hide other action bars",
-                                        min = -100,
-                                        max = 100,
+                                        desc = "Vertical offset for totem bar",
+                                        min = -200,
+                                        max = 200,
                                         step = 1,
+                                        order = 2,
                                         get = function()
                                             return (addon.db.profile.additional.totem and
                                                        addon.db.profile.additional.totem.y_offset) or 0
                                         end,
-                                        set = createSetFunction("additional", "totem", "y_offset", "RefreshMulticast"),
-                                        order = 2,
-                                        width = "full"
+                                        set = createInstantSetFunction("additional", "totem", "y_offset",
+                                            "RefreshMulticast")
                                     }
                                 }
                             }
@@ -1196,6 +1196,72 @@ function addon:CreateOptionsTable()
                         set = createSetFunction("map", "zoom_in_out", nil, "RefreshMinimap"),
                         order = 10
                     },
+
+                    -- AURAS POSITION
+                    auras_header = {
+                        type = 'header',
+                        name = "Minimap Auras Position",
+                        order = 10.1
+                    },
+                    auras_x_offset = {
+                        type = 'range',
+                        name = "Auras Horizontal Offset",
+                        desc = "Adjusts the horizontal position of the buffs/debuffs block next to the minimap.",
+                        min = -200, -- More space to the left
+                        max = -10, -- Closer to the minimap
+                        step = 1,
+                        get = function()
+                            -- Ensure the 'auras' table exists to prevent errors
+                            if not addon.db.profile.map.auras then
+                                addon.db.profile.map.auras = {
+                                    x_offset = -80
+                                } -- Fallback default
+                            end
+                            return addon.db.profile.map.auras.x_offset
+                        end,
+                        set = createInstantSetFunction("map", "auras", "x_offset", "RefreshAuraPosition"),
+                        order = 10.2
+                    },
+                    auras_y_offset = {
+                        type = 'range',
+                        name = "Auras Vertical Offset",
+                        desc = "Adjusts the vertical position of the buffs/debuffs block next to the minimap.",
+                        min = -100, -- More down
+                        max = 100, -- More up
+                        step = 1,
+                        get = function()
+                            -- Ensure the 'auras' table exists to prevent errors
+                            if not addon.db.profile.map.auras then
+                                addon.db.profile.map.auras = {
+                                    y_offset = 0
+                                } -- Fallback default
+                            end
+                            return addon.db.profile.map.auras.y_offset
+                        end,
+                        set = createInstantSetFunction("map", "auras", "y_offset", "RefreshAuraPosition"),
+                        order = 10.3
+                    },
+
+                    auras_reset = {
+                        type = 'execute',
+                        name = "Reset Auras Position",
+                        desc = "Reset auras position to default values (-80, 0)",
+                        func = function()
+                            -- Ensure the 'auras' table exists
+                            if not addon.db.profile.map.auras then
+                                addon.db.profile.map.auras = {}
+                            end
+                            -- Reset to defaults
+                            addon.db.profile.map.auras.x_offset = -70
+                            addon.db.profile.map.auras.y_offset = 23
+                            -- Refresh the position
+                            if addon.RefreshAuraPosition then
+                                addon.RefreshAuraPosition()
+                            end
+                        end,
+                        order = 10.4
+                    },
+
                     -- MAIL ICON POSITION
                     mail_header = {
                         type = 'header',
@@ -2863,7 +2929,7 @@ function addon:CreateOptionsTable()
                                 set = createSetFunction("unitframe", "pet", "enableThreatGlow", "RefreshPetFrame"),
                                 order = 6
                             },
-                           override = {
+                            override = {
                                 type = 'toggle',
                                 name = "Override Position",
                                 desc = "Allows the pet frame to be moved freely. When unchecked, it will be positioned relative to the player frame.",
