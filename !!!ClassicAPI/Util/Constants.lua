@@ -2,10 +2,8 @@ local ExpansionLevel = GetAccountExpansionLevel()
 
 	WOW_PROJECT_MAINLINE = 1
 	WOW_PROJECT_CLASSIC = 2
-	WOW_PROJECT_WOWLABS = 3
 	WOW_PROJECT_BURNING_CRUSADE_CLASSIC = 5
 	WOW_PROJECT_WRATH_CLASSIC = 11
-	WOW_PROJECT_CATACLYSM_CLASSIC = 14
 WOW_PROJECT_ID = WOW_PROJECT_WRATH_CLASSIC
 
 	LE_EXPANSION_CLASSIC = 0
@@ -21,8 +19,11 @@ WOW_PROJECT_ID = WOW_PROJECT_WRATH_CLASSIC
 	LE_EXPANSION_WAR_WITHIN = 10
 LE_EXPANSION_LEVEL_CURRENT = ExpansionLevel
 
--- RCE Expansion (Use instead of "WOW_PROJECT_ID" for multi-expansion 3.3.5a)
-if ( ExpansionLevel == 0 ) then
+-- RCE Expansion: Use instead of "WOW_PROJECT_ID" for (3.3.5a) multi-expansion.
+local _, _, IsEpoch = GetSpellInfo(86624)
+if ( IsEpoch == "Interface\\Icons\\ability_malkorok_blightofyshaarj_yellow" ) then
+	WOW_PROJECT_ID_RCE = WOW_PROJECT_BURNING_CRUSADE_CLASSIC
+elseif ( ExpansionLevel == 0 ) then
 	WOW_PROJECT_ID_RCE = WOW_PROJECT_CLASSIC
 elseif ( ExpansionLevel == 1 ) then
 	WOW_PROJECT_ID_RCE = WOW_PROJECT_BURNING_CRUSADE_CLASSIC
