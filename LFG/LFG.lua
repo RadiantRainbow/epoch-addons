@@ -44,6 +44,7 @@ LFG.queueStartTime = 0
 LFG.averageWaitTime = 0
 LFG.types = {
     [1] = 'Suggested Dungeons',
+    [2] = 'Elite Encounters',
     [3] = 'All Available Dungeons',
 }
 LFG.maxDungeonsList = 11
@@ -929,144 +930,163 @@ LFGComms:SetScript("OnEvent", function()
                     lfprint('You have chosen: ' .. roleColor .. LFG.ucFirst(roleEx[2]))
                 end
 
-                if roleEx[2] == 'tank' then
-
-                    _G['roleCheckTank']:SetChecked(false)
-                    _G['roleCheckTank']:Disable()
-                    _G['LFGRoleCheckRoleTank']:SetDesaturated(1)
-
-                    if _G['LFGRoleCheck']:IsVisible() and LFG_ROLE == 'tank' then
-                        _G['LFGRoleCheckAcceptRole']:Disable()
+                -- Check if this is an Elite Encounter for flexible role assignment
+                if LFG.isEliteEncounter(LFG.LFMDungeonCode) then
+                    if roleEx[2] == 'tank' then
+                        LFG.LFMGroup.tank = arg4
                     end
+                    if roleEx[2] == 'healer' then
+                        LFG.LFMGroup.healer = arg4
+                    end
+                    if roleEx[2] == 'damage' then
+                        if LFG.LFMGroup.damage1 == '' then
+                            LFG.LFMGroup.damage1 = arg4
+                        elseif LFG.LFMGroup.damage2 == '' then
+                            LFG.LFMGroup.damage2 = arg4
+                        elseif LFG.LFMGroup.damage3 == '' then
+                            LFG.LFMGroup.damage3 = arg4
+                        end
+                    end
+                else
+                    if roleEx[2] == 'tank' then
 
-                    if LFG_ROLE == 'tank' then
-                        if _G['LFGRoleCheck']:IsVisible() then
+                        _G['roleCheckTank']:SetChecked(false)
+                        _G['roleCheckTank']:Disable()
+                        _G['LFGRoleCheckRoleTank']:SetDesaturated(1)
+
+                        if _G['LFGRoleCheck']:IsVisible() and LFG_ROLE == 'tank' then
                             _G['LFGRoleCheckAcceptRole']:Disable()
-                            _G['roleCheckTank']:SetChecked(false)
-                            _G['roleCheckTank']:Disable()
-                        else
-                            --not visible means confirmed by me
-                            --for me
-                            --should not get here i think, button will be disabled
-                            if LFG.isLeader then
-                                if arg4 ~= me then
-                                    lfprint(LFG.classColors[LFG.playerClass(arg4)].c .. arg4 .. COLOR_WHITE .. ' has chosen '
-                                            .. COLOR_TANK .. 'Tank' .. COLOR_WHITE .. ' but you already confirmed this role.')
-                                    lfprint('Queueing aborted.')
-                                    leaveQueue(' two tanks')
-                                    return false
-                                end
+                        end
+
+                        if LFG_ROLE == 'tank' then
+                            if _G['LFGRoleCheck']:IsVisible() then
+                                _G['LFGRoleCheckAcceptRole']:Disable()
+                                _G['roleCheckTank']:SetChecked(false)
+                                _G['roleCheckTank']:Disable()
                             else
-                                --for other tank
-                                if LFG.LFMGroup.tank ~= '' and LFG.LFMGroup.tank ~= me then
-                                    lfprint(COLOR_TANK .. 'Tank ' .. COLOR_WHITE .. 'role has already been filled by ' .. LFG.classColors[LFG.playerClass(LFG.LFMGroup.tank)].c .. LFG.LFMGroup.tank
-                                            .. COLOR_WHITE .. '. Please select a different role to rejoin the queue.')
-                                    return false
-                                end
-                            end
-                        end
-                    end
-                    LFG.LFMGroup.tank = arg4
-                end
-
-                if roleEx[2] == 'healer' then
-
-                    _G['roleCheckHealer']:SetChecked(false)
-                    _G['roleCheckHealer']:Disable()
-                    _G['LFGRoleCheckRoleHealer']:SetDesaturated(1)
-
-                    if _G['LFGRoleCheck']:IsVisible() and LFG_ROLE == 'healer' then
-                        _G['LFGRoleCheckAcceptRole']:Disable()
-                    end
-
-                    if LFG_ROLE == 'healer' then
-                        if _G['LFGRoleCheck']:IsVisible() then
-                            _G['LFGRoleCheckAcceptRole']:Disable()
-                            _G['roleCheckHealer']:SetChecked(false)
-                            _G['roleCheckHealer']:Disable()
-                        else
-                            --not visible means confirmed by me
-                            --for me
-                            --should not get here i think, button will be disabled
-                            if LFG.isLeader then
-                                if arg4 ~= me then
-                                    lfprint(LFG.classColors[LFG.playerClass(arg4)].c .. arg4 .. COLOR_WHITE .. ' has chosen '
-                                            .. COLOR_HEALER .. 'Healer' .. COLOR_WHITE .. ' but you already confirmed this role.')
-                                    lfprint('Queueing aborted.')
-                                    leaveQueue('two healers')
-                                    return false
-                                end
-                            else
-                                --for other healer
-                                if LFG.LFMGroup.healer ~= '' then
-                                    lfprint(COLOR_HEALER .. 'Healer ' .. COLOR_WHITE .. 'role has already been filled by ' .. LFG.classColors[LFG.playerClass(LFG.LFMGroup.healer)].c .. LFG.LFMGroup.healer
-                                            .. COLOR_WHITE .. '. Please select a different role to rejoin the queue.')
-                                    return false
-                                end
-                            end
-                        end
-                    end
-                    LFG.LFMGroup.healer = arg4
-                end
-
-                if roleEx[2] == 'damage' then
-
-                    local dpsFilled = false
-
-                    if LFG.LFMGroup.damage1 == '' then
-                        LFG.LFMGroup.damage1 = arg4
-                    elseif LFG.LFMGroup.damage2 == '' then
-                        LFG.LFMGroup.damage2 = arg4
-                    elseif LFG.LFMGroup.damage3 == '' then
-                        LFG.LFMGroup.damage3 = arg4
-
-                        dpsFilled = true
-                        _G['roleCheckDamage']:SetChecked(false)
-                        _G['roleCheckDamage']:Disable()
-                        _G['LFGRoleCheckRoleDamage']:SetDesaturated(1)
-
-                        if _G['LFGRoleCheck']:IsVisible() and LFG_ROLE == 'damage' then
-                            _G['LFGRoleCheckAcceptRole']:Disable()
-                        end
-
-                    end
-
-                    if LFG_ROLE == 'damage' or dpsFilled then
-
-                        if _G['LFGRoleCheck']:IsVisible() then
-
-                            -- lock accept buttons if we have 3 dps already
-                            if LFG.LFMGroup.damage1 ~= '' and
-                                    LFG.LFMGroup.damage2 ~= '' and
-                                    LFG.LFMGroup.damage3 ~= '' then
-                                --_G['LFGRoleCheckAcceptRole']:Disable()
-                                _G['roleCheckDamage']:SetChecked(false)
-                                _G['roleCheckDamage']:Disable()
-                                _G['LFGRoleCheckRoleDamage']:SetDesaturated(1)
-                            end
-
-                        else
-                            if dpsFilled then
+                                --not visible means confirmed by me
+                                --for me
+                                --should not get here i think, button will be disabled
                                 if LFG.isLeader then
                                     if arg4 ~= me then
-                                        if LFG.LFMGroup.damage1 ~= '' and LFG.LFMGroup.damage2 ~= '' and LFG.LFMGroup.damage3 ~= '' then
-                                            lfprint(LFG.classColors[LFG.playerClass(arg4)].c .. arg4 .. COLOR_WHITE .. ' has chosen ' .. COLOR_DAMAGE .. 'Damage' .. COLOR_WHITE
-                                                    .. ' but the group already has ' .. COLOR_DAMAGE .. '3' .. COLOR_WHITE .. ' confirmed ' .. COLOR_DAMAGE .. 'Damage' .. COLOR_WHITE .. ' members.')
-                                            lfprint('Queueing aborted.')
-                                            leaveQueue('4 dps')
-                                            return false
-                                        end
+                                        lfprint(LFG.classColors[LFG.playerClass(arg4)].c .. arg4 .. COLOR_WHITE .. ' has chosen '
+                                                .. COLOR_TANK .. 'Tank' .. COLOR_WHITE .. ' but you already confirmed this role.')
+                                        lfprint('Queueing aborted.')
+                                        leaveQueue(' two tanks')
+                                        return false
                                     end
                                 else
-                                    if LFG.LFMGroup.damage1 ~= '' and LFG.LFMGroup.damage2 ~= '' and LFG.LFMGroup.damage3 ~= '' then
-                                        lfprint(COLOR_DAMAGE .. 'Damage ' .. COLOR_WHITE .. 'role has already been filled by ' .. COLOR_DAMAGE .. '3' .. COLOR_WHITE .. ' members. Please select a different role to rejoin the queue.')
+                                    --for other tank
+                                    if LFG.LFMGroup.tank ~= '' and LFG.LFMGroup.tank ~= me then
+                                        lfprint(COLOR_TANK .. 'Tank ' .. COLOR_WHITE .. 'role has already been filled by ' .. LFG.classColors[LFG.playerClass(LFG.LFMGroup.tank)].c .. LFG.LFMGroup.tank
+                                                .. COLOR_WHITE .. '. Please select a different role to rejoin the queue.')
                                         return false
                                     end
                                 end
                             end
                         end
+                        LFG.LFMGroup.tank = arg4
                     end
 
+                    if roleEx[2] == 'healer' then
+
+                        _G['roleCheckHealer']:SetChecked(false)
+                        _G['roleCheckHealer']:Disable()
+                        _G['LFGRoleCheckRoleHealer']:SetDesaturated(1)
+
+                        if _G['LFGRoleCheck']:IsVisible() and LFG_ROLE == 'healer' then
+                            _G['LFGRoleCheckAcceptRole']:Disable()
+                        end
+
+                        if LFG_ROLE == 'healer' then
+                            if _G['LFGRoleCheck']:IsVisible() then
+                                _G['LFGRoleCheckAcceptRole']:Disable()
+                                _G['roleCheckHealer']:SetChecked(false)
+                                _G['roleCheckHealer']:Disable()
+                            else
+                                --not visible means confirmed by me
+                                --for me
+                                --should not get here i think, button will be disabled
+                                if LFG.isLeader then
+                                    if arg4 ~= me then
+                                        lfprint(LFG.classColors[LFG.playerClass(arg4)].c .. arg4 .. COLOR_WHITE .. ' has chosen '
+                                                .. COLOR_HEALER .. 'Healer' .. COLOR_WHITE .. ' but you already confirmed this role.')
+                                        lfprint('Queueing aborted.')
+                                        leaveQueue('two healers')
+                                        return false
+                                    end
+                                else
+                                    --for other healer
+                                    if LFG.LFMGroup.healer ~= '' then
+                                        lfprint(COLOR_HEALER .. 'Healer ' .. COLOR_WHITE .. 'role has already been filled by ' .. LFG.classColors[LFG.playerClass(LFG.LFMGroup.healer)].c .. LFG.LFMGroup.healer
+                                                .. COLOR_WHITE .. '. Please select a different role to rejoin the queue.')
+                                        return false
+                                    end
+                                end
+                            end
+                        end
+                        LFG.LFMGroup.healer = arg4
+                    end
+
+                    if roleEx[2] == 'damage' then
+
+                        local dpsFilled = false
+
+                        if LFG.LFMGroup.damage1 == '' then
+                            LFG.LFMGroup.damage1 = arg4
+                        elseif LFG.LFMGroup.damage2 == '' then
+                            LFG.LFMGroup.damage2 = arg4
+                        elseif LFG.LFMGroup.damage3 == '' then
+                            LFG.LFMGroup.damage3 = arg4
+
+                            dpsFilled = true
+                            _G['roleCheckDamage']:SetChecked(false)
+                            _G['roleCheckDamage']:Disable()
+                            _G['LFGRoleCheckRoleDamage']:SetDesaturated(1)
+
+                            if _G['LFGRoleCheck']:IsVisible() and LFG_ROLE == 'damage' then
+                                _G['LFGRoleCheckAcceptRole']:Disable()
+                            end
+
+                        end
+
+                        if LFG_ROLE == 'damage' or dpsFilled then
+
+                            if _G['LFGRoleCheck']:IsVisible() then
+
+                                -- lock accept buttons if we have 3 dps already
+                                if LFG.LFMGroup.damage1 ~= '' and
+                                        LFG.LFMGroup.damage2 ~= '' and
+                                        LFG.LFMGroup.damage3 ~= '' then
+                                    --_G['LFGRoleCheckAcceptRole']:Disable()
+                                    _G['roleCheckDamage']:SetChecked(false)
+                                    _G['roleCheckDamage']:Disable()
+                                    _G['LFGRoleCheckRoleDamage']:SetDesaturated(1)
+                                end
+
+                            else
+                                if dpsFilled then
+                                    if LFG.isLeader then
+                                        if arg4 ~= me then
+                                            if LFG.LFMGroup.damage1 ~= '' and LFG.LFMGroup.damage2 ~= '' and LFG.LFMGroup.damage3 ~= '' then
+                                                lfprint(LFG.classColors[LFG.playerClass(arg4)].c .. arg4 .. COLOR_WHITE .. ' has chosen ' .. COLOR_DAMAGE .. 'Damage' .. COLOR_WHITE
+                                                        .. ' but the group already has ' .. COLOR_DAMAGE .. '3' .. COLOR_WHITE .. ' confirmed ' .. COLOR_DAMAGE .. 'Damage' .. COLOR_WHITE .. ' members.')
+                                                lfprint('Queueing aborted.')
+                                                leaveQueue('4 dps')
+                                                return false
+                                            end
+                                        end
+                                    else
+                                        if LFG.LFMGroup.damage1 ~= '' and LFG.LFMGroup.damage2 ~= '' and LFG.LFMGroup.damage3 ~= '' then
+                                            lfprint(COLOR_DAMAGE .. 'Damage ' .. COLOR_WHITE .. 'role has already been filled by ' .. COLOR_DAMAGE .. '3' .. COLOR_WHITE .. ' members. Please select a different role to rejoin the queue.')
+                                            return false
+                                        end
+                                    end
+                                end
+                            end
+                        end
+
+                    end
                 end
 
                 if arg4 ~= me then
@@ -1277,7 +1297,7 @@ LFGComms:SetScript("OnEvent", function()
 
             if string.sub(arg1, 1, 6) == 'found:' then
                 local foundLongEx = StringSplit(arg1, ' ')
-                
+
                 for i, found in ipairs(foundLongEx) do
                     if string.len(found) > 0 then
                         local foundEx = StringSplit(found, ':')
@@ -1290,11 +1310,11 @@ LFGComms:SetScript("OnEvent", function()
                                 prio = tonumber(foundEx[5])
                             end
                         end
-                        
+
                         if string.find(LFG_ROLE, mRole, 1, true) and not LFG.foundGroup and name == me then
                             LFG.dungeons[LFG.dungeonNameFromCode(mDungeon)].myRole = mRole
                             lfdebug('myRole for ' .. mDungeon .. ' set to ' .. mRole)
-                            
+
                             SendChatMessage('goingWith:' .. arg2 .. ':' .. mDungeon .. ':' .. mRole, "CHANNEL", DEFAULT_CHAT_FRAME.editBox.languageID, GetChannelName(LFG.channel))
                             LFG.foundGroup = true
                         end
@@ -1484,23 +1504,23 @@ function lfdebug(a)
     --lfprint('|cff0070de[LFGDEBUG:' .. time() .. ']|cffffffff[' .. a .. ']')
 end
 
-local hookChatFrame = function(frame) 
+local hookChatFrame = function(frame)
     lfdebug('chat frame hook using GetGameTime()')
-    
+
     -- Get hour and minute from server
     local hour, minute = GetGameTime()
-    
+
     -- Convert hours and minutes to seconds
     local totalSeconds = (hour * 3600) + (minute * 60)
-    
+
     -- Calculate just the seconds portion (0-59)
     LFGTime.second = totalSeconds % 60
     LFGTime.diff = 0
-    
+
     -- Reset and start the timer
     LFGTime:Hide()
     LFGTime:Show()
-    
+
     lfdebug('Using server time: ' .. hour .. ':' .. minute .. ' (second value: ' .. LFGTime.second .. ')')
 end
 
@@ -2236,8 +2256,14 @@ function LFG.getAvailableDungeons(level, type, mine, partyIndex)
     end
     local dungeons = {}
 
-    for _, data in next, LFG.dungeons do
+    local sourceData
+    if type == 2 then
+        sourceData = LFG.eliteEncounters
+    else
+        sourceData = LFG.allDungeons
+    end
 
+    for _, data in next, sourceData do
         if level >= data.minLevel and (level <= data.maxLevel or (not mine)) and type ~= 3 then
             dungeons[data.code] = true
         end
@@ -2251,7 +2277,13 @@ end
 
 function LFG.fillAvailableDungeons(queueAfter, dont_scroll)
 
+    if LFG_TYPE == 2 then
+        -- Elite Encounters
+        LFG.dungeons = LFG.eliteEncounters
+    else
+        -- Regular dungeons
         LFG.dungeons = LFG.allDungeons
+    end
 
     --unqueue queued
     for dungeon, data in next, LFG.dungeons do
@@ -2354,7 +2386,7 @@ function LFG.fillAvailableDungeons(queueAfter, dont_scroll)
             end
 
             _G['Dungeon_' .. data.code .. 'Text']:SetText(color .. dungeon)
-			
+
             _G['Dungeon_' .. data.code .. 'Levels']:SetText(color .. '(' .. data.minLevel .. ' - ' .. data.maxLevel .. ')')
 
             _G['Dungeon_' .. data.code .. '_Button']:SetID(dungeonIndex)
@@ -2563,42 +2595,131 @@ function LFG.resetGroup()
 end
 
 function LFG.addTank(dungeon, name, faux, add)
-
-    if LFG.group[dungeon].tank == '' then
-        if add then
-            LFG.group[dungeon].tank = name
-        end
-        if not faux then
-            --SendChatMessage('found:tank:' .. dungeon .. ':' .. name, "CHANNEL", DEFAULT_CHAT_FRAME.editBox.languageID, GetChannelName(LFG.channel))
-        end
-        return true
-    end
-    return false
-end
-
-function LFG.addHealer(dungeon, name, faux, add)
-    --prevent adding same person twice, added damage too, multiple roles
-    if LFG.group[dungeon].healer == name or
+    -- Prevent adding same person twice, for both elite and regular dungeons
+    if LFG.group[dungeon].tank == name or
+            LFG.group[dungeon].healer == name or
             LFG.group[dungeon].damage1 == name or
             LFG.group[dungeon].damage2 == name or
             LFG.group[dungeon].damage3 == name then
-
         return false
     end
 
-    if LFG.group[dungeon].healer == '' then
-        if add then
-            LFG.group[dungeon].healer = name
+    if LFG.isEliteEncounter(dungeon) then
+        -- For Elite Encounters, allow any role to fill any slot
+        if LFG.group[dungeon].tank == '' then
+            if add then LFG.group[dungeon].tank = name end
+            if not faux then
+                --SendChatMessage('found:tank:' .. dungeon .. ':' .. name, "CHANNEL", DEFAULT_CHAT_FRAME.editBox.languageID, GetChannelName(LFG.channel))
+            end
+            return true
+        elseif LFG.group[dungeon].healer == '' then
+            if add then LFG.group[dungeon].healer = name end
+            if not faux then
+                --SendChatMessage('found:tank:' .. dungeon .. ':' .. name, "CHANNEL", DEFAULT_CHAT_FRAME.editBox.languageID, GetChannelName(LFG.channel))
+            end
+            return true
+        elseif LFG.group[dungeon].damage1 == '' then
+            if add then LFG.group[dungeon].damage1 = name end
+            if not faux then
+                --SendChatMessage('found:tank:' .. dungeon .. ':' .. name, "CHANNEL", DEFAULT_CHAT_FRAME.editBox.languageID, GetChannelName(LFG.channel))
+            end
+            return true
+        elseif LFG.group[dungeon].damage2 == '' then
+            if add then LFG.group[dungeon].damage2 = name end
+            if not faux then
+                --SendChatMessage('found:tank:' .. dungeon .. ':' .. name, "CHANNEL", DEFAULT_CHAT_FRAME.editBox.languageID, GetChannelName(LFG.channel))
+            end
+            return true
+        elseif LFG.group[dungeon].damage3 == '' then
+            if add then LFG.group[dungeon].damage3 = name end
+            if not faux then
+                --SendChatMessage('found:tank:' .. dungeon .. ':' .. name, "CHANNEL", DEFAULT_CHAT_FRAME.editBox.languageID, GetChannelName(LFG.channel))
+            end
+            return true
         end
-        if not faux then
-            --SendChatMessage('found:healer:' .. dungeon .. ':' .. name, "CHANNEL", DEFAULT_CHAT_FRAME.editBox.languageID, GetChannelName(LFG.channel))
+        return false -- Group is full
+    else
+        -- Regular dungeons: strict tank role validation
+        if LFG.group[dungeon].tank == '' then
+            if add then
+                LFG.group[dungeon].tank = name
+            end
+            if not faux then
+                --SendChatMessage('found:tank:' .. dungeon .. ':' .. name, "CHANNEL", DEFAULT_CHAT_FRAME.editBox.languageID, GetChannelName(LFG.channel))
+            end
+            return true
         end
-        return true
+        return false
     end
-    return false
+end
+
+function LFG.addHealer(dungeon, name, faux, add)
+    -- Prevent adding same person twice, for both elite and regular dungeons
+    if LFG.group[dungeon].healer == name or
+            LFG.group[dungeon].damage1 == name or
+            LFG.group[dungeon].damage2 == name or
+            LFG.group[dungeon].damage3 == name or
+            LFG.group[dungeon].tank == name then
+        return false
+    end
+
+    if LFG.isEliteEncounter(dungeon) then
+        -- For Elite Encounters, allow any role to fill any slot
+        if LFG.group[dungeon].tank == '' then
+            if add then LFG.group[dungeon].tank = name end
+            if not faux then
+                --SendChatMessage('found:healer:' .. dungeon .. ':' .. name, "CHANNEL", DEFAULT_CHAT_FRAME.editBox.languageID, GetChannelName(LFG.channel))
+            end
+            return true
+        elseif LFG.group[dungeon].healer == '' then
+            if add then LFG.group[dungeon].healer = name end
+            if not faux then
+                --SendChatMessage('found:healer:' .. dungeon .. ':' .. name, "CHANNEL", DEFAULT_CHAT_FRAME.editBox.languageID, GetChannelName(LFG.channel))
+            end
+            return true
+        elseif LFG.group[dungeon].damage1 == '' then
+            if add then LFG.group[dungeon].damage1 = name end
+            if not faux then
+                --SendChatMessage('found:healer:' .. dungeon .. ':' .. name, "CHANNEL", DEFAULT_CHAT_FRAME.editBox.languageID, GetChannelName(LFG.channel))
+            end
+            return true
+        elseif LFG.group[dungeon].damage2 == '' then
+            if add then LFG.group[dungeon].damage2 = name end
+            if not faux then
+                --SendChatMessage('found:healer:' .. dungeon .. ':' .. name, "CHANNEL", DEFAULT_CHAT_FRAME.editBox.languageID, GetChannelName(LFG.channel))
+            end
+            return true
+        elseif LFG.group[dungeon].damage3 == '' then
+            if add then LFG.group[dungeon].damage3 = name end
+            if not faux then
+                --SendChatMessage('found:healer:' .. dungeon .. ':' .. name, "CHANNEL", DEFAULT_CHAT_FRAME.editBox.languageID, GetChannelName(LFG.channel))
+            end
+            return true
+        end
+        return false -- Group is full
+    else
+        -- Regular dungeons: strict healer role validation
+        if LFG.group[dungeon].healer == '' then
+            if add then
+                LFG.group[dungeon].healer = name
+            end
+            if not faux then
+                --SendChatMessage('found:healer:' .. dungeon .. ':' .. name, "CHANNEL", DEFAULT_CHAT_FRAME.editBox.languageID, GetChannelName(LFG.channel))
+            end
+            return true
+        end
+        return false
+    end
 end
 
 function LFG.remHealerOrDamage(dungeon, name)
+    if LFG.isEliteEncounter(dungeon) then
+        -- For Elite Encounters, check all slots since any role can be in any slot
+        if LFG.group[dungeon].tank == name then
+            LFG.group[dungeon].tank = ''
+        end
+    end
+
     if LFG.group[dungeon].healer == name then
         LFG.group[dungeon].healer = ''
     end
@@ -2614,7 +2735,6 @@ function LFG.remHealerOrDamage(dungeon, name)
 end
 
 function LFG.addDamage(dungeon, name, faux, add)
-
     if not LFG.group[dungeon] then
         LFG.group[dungeon] = {
             tank = '',
@@ -2625,7 +2745,7 @@ function LFG.addDamage(dungeon, name, faux, add)
         }
     end
 
-    --prevent adding same person twice, added tank and healer too, for 2.5+ multipleroles
+    -- Prevent adding same person twice, for both elite and regular dungeons
     if LFG.group[dungeon].tank == name or
             LFG.group[dungeon].healer == name or
             LFG.group[dungeon].damage1 == name or
@@ -2634,32 +2754,63 @@ function LFG.addDamage(dungeon, name, faux, add)
         return false
     end
 
-    if LFG.group[dungeon].damage1 == '' then
-        if add then
-            LFG.group[dungeon].damage1 = name
+    if LFG.isEliteEncounter(dungeon) then
+        -- For Elite Encounters, allow any role to fill any slot
+        if LFG.group[dungeon].tank == '' then
+            if add then LFG.group[dungeon].tank = name end
+            if not faux then
+                --SendChatMessage('found:damage:' .. dungeon .. ':' .. name, "CHANNEL", DEFAULT_CHAT_FRAME.editBox.languageID, GetChannelName(LFG.channel))
+            end
+            return true
+        elseif LFG.group[dungeon].healer == '' then
+            if add then LFG.group[dungeon].healer = name end
+            if not faux then
+                --SendChatMessage('found:damage:' .. dungeon .. ':' .. name, "CHANNEL", DEFAULT_CHAT_FRAME.editBox.languageID, GetChannelName(LFG.channel))
+            end
+            return true
+        elseif LFG.group[dungeon].damage1 == '' then
+            if add then LFG.group[dungeon].damage1 = name end
+            if not faux then
+                --SendChatMessage('found:damage:' .. dungeon .. ':' .. name, "CHANNEL", DEFAULT_CHAT_FRAME.editBox.languageID, GetChannelName(LFG.channel))
+            end
+            return true
+        elseif LFG.group[dungeon].damage2 == '' then
+            if add then LFG.group[dungeon].damage2 = name end
+            if not faux then
+                --SendChatMessage('found:damage:' .. dungeon .. ':' .. name, "CHANNEL", DEFAULT_CHAT_FRAME.editBox.languageID, GetChannelName(LFG.channel))
+            end
+            return true
+        elseif LFG.group[dungeon].damage3 == '' then
+            if add then LFG.group[dungeon].damage3 = name end
+            if not faux then
+                --SendChatMessage('found:damage:' .. dungeon .. ':' .. name, "CHANNEL", DEFAULT_CHAT_FRAME.editBox.languageID, GetChannelName(LFG.channel))
+            end
+            return true
         end
-        if not faux then
-            --            SendChatMessage('found:damage:' .. dungeon .. ':' .. name, "CHANNEL", DEFAULT_CHAT_FRAME.editBox.languageID, GetChannelName(LFG.channel))
+        return false -- Group is full
+    else
+        -- Regular dungeons: strict damage role validation (up to 3 damage slots)
+        if LFG.group[dungeon].damage1 == '' then
+            if add then LFG.group[dungeon].damage1 = name end
+            if not faux then
+                --SendChatMessage('found:damage:' .. dungeon .. ':' .. name, "CHANNEL", DEFAULT_CHAT_FRAME.editBox.languageID, GetChannelName(LFG.channel))
+            end
+            return true
+        elseif LFG.group[dungeon].damage2 == '' then
+            if add then LFG.group[dungeon].damage2 = name end
+            if not faux then
+                --SendChatMessage('found:damage:' .. dungeon .. ':' .. name, "CHANNEL", DEFAULT_CHAT_FRAME.editBox.languageID, GetChannelName(LFG.channel))
+            end
+            return true
+        elseif LFG.group[dungeon].damage3 == '' then
+            if add then LFG.group[dungeon].damage3 = name end
+            if not faux then
+                --SendChatMessage('found:damage:' .. dungeon .. ':' .. name, "CHANNEL", DEFAULT_CHAT_FRAME.editBox.languageID, GetChannelName(LFG.channel))
+            end
+            return true
         end
-        return true
-    elseif LFG.group[dungeon].damage2 == '' then
-        if add then
-            LFG.group[dungeon].damage2 = name
-        end
-        if not faux then
-            --            SendChatMessage('found:damage:' .. dungeon .. ':' .. name, "CHANNEL", DEFAULT_CHAT_FRAME.editBox.languageID, GetChannelName(LFG.channel))
-        end
-        return true
-    elseif LFG.group[dungeon].damage3 == '' then
-        if add then
-            LFG.group[dungeon].damage3 = name
-        end
-        if not faux then
-            --            SendChatMessage('found:damage:' .. dungeon .. ':' .. name, "CHANNEL", DEFAULT_CHAT_FRAME.editBox.languageID, GetChannelName(LFG.channel))
-        end
-        return true
+        return false -- Group full on damage
     end
-    return false --group full on damage
 end
 
 function LFG.checkGroupFull()
@@ -3316,18 +3467,18 @@ function LFG.LFGBrowse_Update()
     end
 
     local dungeonIndex = 0
-    
+
     -- Fix: Use a regular for loop instead of relying on fuckingSortAlready
     local sortedDungeons = {}
     for dungeon, data in next, LFG.dungeons do
         table.insert(sortedDungeons, {name = dungeon, data = data})
     end
-    
+
     -- Sort dungeons by minLevel in descending order
     table.sort(sortedDungeons, function(a, b)
         return a.data.minLevel > b.data.minLevel
     end)
-    
+
     -- Now iterate through the sorted table
     for _, dungeonData in ipairs(sortedDungeons) do
         local dungeon = dungeonData.name
@@ -3695,8 +3846,6 @@ function DungeonType_OnClick(self, arg1)
         LFG.dungeons[dungeon].queued = false
     end
 
-    LFG.dungeons = LFG.allDungeons
-
     -- dequeue everything after too
     for dungeon, data in next, LFG.dungeons do
         if data.queued then
@@ -3705,6 +3854,12 @@ function DungeonType_OnClick(self, arg1)
             end
             LFG.dungeons[dungeon].queued = false
         end
+    end
+
+    if LFG_TYPE == 2 then
+        LFG.dungeons = LFG.eliteEncounters
+    else
+        LFG.dungeons = LFG.allDungeons
     end
 
     for dungeon, data in next, LFG.dungeons do
@@ -3723,7 +3878,9 @@ function DungeonType_OnClick(self, arg1)
             }
             LFG.dungeonsSpamDisplayLFM[data.code] = 0
         end
-
+        if not LFG.supress[data.code] then
+            LFG.supress[data.code] = ''
+        end
     end
 
     LFG.fillAvailableDungeons()
@@ -4389,6 +4546,10 @@ LFG.allDungeons = {
 
 }
 
+LFG.eliteEncounters = {
+    ['Jintha\'Alor'] = { minLevel = 45, maxLevel = 60, code = 'ja', queued = false, canQueue = true, background = 'jinthaalor', myRole = '' },
+}
+
 LFG.bosses = {
     ['rfc'] = {
         'Oggleflint',
@@ -4546,13 +4707,13 @@ LFG.bosses = {
         'High Justice Grimstone',
         'Pyromancer Loregrain',
         'General Angerforge',
-		'Verek',
+        'Verek',
         'Golem Lord Argelmach',
         'Ribbly Screwspigot',
-		'Hurley Blackbreath',
-		'Plugger Spazzring',
-		'Phalanx',
-		'Lord Incendius',
+        'Hurley Blackbreath',
+        'Plugger Spazzring',
+        'Phalanx',
+        'Lord Incendius',
         'Fineous Darkvire',
         'Warder Stilgiss',
         'Watchman Doomgrip',
@@ -4596,7 +4757,7 @@ LFG.bosses = {
         'Nazrasash',
         'Pirate Lord Blackstone'
     },
-	-- ['stp'] = { --Stonetalon Peaks
+    -- ['stp'] = { --Stonetalon Peaks
         -- '',
         -- '',
         -- '',
@@ -4649,9 +4810,21 @@ LFG.bosses = {
         'The Beast',
         'General Drakkisath'
     },
+    ['ja'] = {
+        'Vile Priestess Hexx',
+    },
 };
 
 -- utils
+
+function LFG.isEliteEncounter(dungeonCode)
+    for _, data in next, LFG.eliteEncounters do
+        if data.code == dungeonCode then
+            return true
+        end
+    end
+    return false
+end
 
 function LFG.playerClass(name)
     if name == me then
@@ -4710,7 +4883,7 @@ eventMonitorFrame:SetScript("OnEvent", function(self, event, ...)
         if me == 'Bennylava' then
             return
         end
-        
+
         local currentTime = GetTime()
         if currentTime - lastCheck > 2 then -- check every 2 seconds
             lastCheck = currentTime
