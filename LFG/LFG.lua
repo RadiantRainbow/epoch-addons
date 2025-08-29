@@ -2905,6 +2905,19 @@ function LFG.dungeonNameFromCode(code)
             return name, data.background
         end
     end
+
+    for name, data in next, LFG.allDungeons do
+        if data.code == code then
+            return name, data.background
+        end
+    end
+
+    for name, data in next, LFG.eliteEncounters do
+        if data.code == code then
+            return name, data.background
+        end
+    end
+
     return 'Unknown', 'UnknownBackground'
 end
 
@@ -3791,28 +3804,20 @@ function LFGsetRole(role, status, readyCheck)
 
     local newRole = ''
 
-    if LFG.inGroup then
-        tankCheck:SetChecked(role == 'tank')
-        healerCheck:SetChecked(role == 'healer')
-        damageCheck:SetChecked(role == 'damage')
-        newRole = role
-    else
-        if tankCheck:GetChecked() then
-            newRole = newRole .. 'tank'
-        end
-        if healerCheck:GetChecked() then
-            newRole = newRole .. 'healer'
-        end
-        if damageCheck:GetChecked() then
-            newRole = newRole .. 'damage'
-        end
+    if tankCheck:GetChecked() then
+        newRole = newRole .. 'tank'
+    end
+    if healerCheck:GetChecked() then
+        newRole = newRole .. 'healer'
+    end
+    if damageCheck:GetChecked() then
+        newRole = newRole .. 'damage'
     end
 
     LFG_ROLE = newRole
 
     LFG.fixMainButton()
     lfdebug('newRole = ' .. newRole)
-    --LFG_ROLE = newRole
     BrowseDungeonListFrame_Update()
 end
 
@@ -4548,6 +4553,7 @@ LFG.allDungeons = {
 
 LFG.eliteEncounters = {
     ['Jintha\'Alor'] = { minLevel = 45, maxLevel = 60, code = 'ja', queued = false, canQueue = true, background = 'jinthaalor', myRole = '' },
+    ['Felstone Fortress'] = { minLevel = 50, maxLevel = 60, code = 'ff', queued = false, canQueue = true, background = 'felstonefort', myRole = '' },
 }
 
 LFG.bosses = {
@@ -4812,6 +4818,9 @@ LFG.bosses = {
     },
     ['ja'] = {
         'Vile Priestess Hexx',
+    },
+    ['ff'] = {
+        --'Vile Priestess Hexx',
     },
 };
 
