@@ -27,6 +27,8 @@ local QuestieCombatQueue = QuestieLoader:ImportModule("QuestieCombatQueue")
 local AvailableQuests = QuestieLoader:ImportModule("AvailableQuests")
 ---@type Townsfolk
 local Townsfolk = QuestieLoader:ImportModule("Townsfolk")
+---@type QuestieDataCollector
+local QuestieDataCollector = QuestieLoader:ImportModule("QuestieDataCollector")
 
 --- COMPATIBILITY ---
 local C_Timer = QuestieCompat.C_Timer
@@ -324,6 +326,17 @@ function QuestieMenu:Show(hideDelay)
             QuestieJourney.ToggleJourneyWindow()
         end)
     end})
+
+    -- Data Collection Export option (only show if data collection is enabled)
+    if Questie.db.profile.enableDataCollection then
+        tinsert(menuTable, { text= l10n('Export Quest Data'), func=function()
+            if QuestieDataCollector and QuestieDataCollector.ShowExportWindow then
+                QuestieDataCollector:ShowExportWindow()
+            else
+                DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[Questie] Data collector not initialized. Use /qdc export|r", 1, 0, 0)
+            end
+        end, icon="Interface\\Icons\\inv_inscription_papyrus"})
+    end
 
     if Questie.db.profile.debugEnabled then -- add recompile db & reload buttons when debugging is enabled
         tinsert(menuTable, { text= l10n('Recompile Database'), func=function()

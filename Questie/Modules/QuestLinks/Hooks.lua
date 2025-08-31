@@ -35,13 +35,20 @@ function Hooks:HookQuestLogTitle()
             local title, level, _, _, _, _, _, questId = GetQuestLogTitle(questLogLineIndex)
             ChatEdit_InsertLink(QuestieLink:GetQuestLinkString(level, title, questId))
         else
-            -- only call if we actually want to fix this quest (normal quests already call AQW_insert)
-            if Questie.db.profile.trackerEnabled and GetNumQuestLeaderBoards(questLogLineIndex) == 0 and (not IsQuestWatched(questLogLineIndex)) then
-                QuestieTracker:AQW_Insert(questLogLineIndex, QUEST_WATCH_NO_EXPIRE)
+            -- Toggle quest tracking when shift-clicking
+            if Questie.db.profile.trackerEnabled then
+                if IsQuestWatched(questLogLineIndex) then
+                    -- Quest is tracked, remove it
+                    RemoveQuestWatch(questLogLineIndex)
+                else
+                    -- Quest is not tracked, add it
+                    QuestieTracker:AQW_Insert(questLogLineIndex, QUEST_WATCH_NO_EXPIRE)
+                end
                 WatchFrame_Update()
                 QuestLog_SetSelection(questLogLineIndex)
                 QuestLog_Update()
             else
+                -- Tracker disabled, use default behavior
                 baseQLTB_OnClick(self, button)
             end
         end

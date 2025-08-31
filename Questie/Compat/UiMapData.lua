@@ -600,6 +600,79 @@ QuestieCompat.UiMapData =
 		["instance"] = 0,
 		["name"] = "Undercity",
 	},
+	-- Classic zone ID mappings for cities (these are the zone IDs used in the NPC database)
+	[1519] = -- Stormwind (classic zone ID)
+	{
+		[1] = 1344.2708053589,
+		[2] = 896.3544921875,
+		[3] = 1380.9714355469,
+		[4] = -8278.8505859375,
+		["mapType"] = 3,
+		["parentMapID"] = 1415,
+		["mapID"] = 302,
+		["instance"] = 0,
+		["name"] = "Stormwind City",
+	},
+	[1537] = -- Ironforge (classic zone ID)
+	{
+		[1] = 790.62506103519,
+		[2] = 527.6044921875,
+		[3] = -713.59136962891,
+		[4] = -4569.2412109375,
+		["mapType"] = 3,
+		["parentMapID"] = 1415,
+		["mapID"] = 342,
+		["instance"] = 0,
+		["name"] = "Ironforge",
+	},
+	[1637] = -- Orgrimmar (classic zone ID)
+	{
+		[1] = 1402.6044921874,
+		[2] = 935.4166259765,
+		[3] = -3680.6010742188,
+		[4] = 2273.8771972656,
+		["mapType"] = 3,
+		["parentMapID"] = 1414,
+		["mapID"] = 322,
+		["instance"] = 1,
+		["name"] = "Orgrimmar",
+	},
+	[1638] = -- Thunder Bluff (classic zone ID)
+	{
+		[1] = 1043.7499389648,
+		[2] = 695.83331298826,
+		[3] = 516.66662597656,
+		[4] = -849.99993896484,
+		["mapType"] = 3,
+		["parentMapID"] = 1414,
+		["mapID"] = 363,
+		["instance"] = 1,
+		["name"] = "Thunder Bluff",
+	},
+	[1657] = -- Darnassus (classic zone ID)
+	{
+		[1] = 1058.3332519532,
+		[2] = 705.7294921875,
+		[3] = 2938.3627929688,
+		[4] = 10238.31640625,
+		["mapType"] = 3,
+		["parentMapID"] = 1414,
+		["mapID"] = 382,
+		["instance"] = 1,
+		["name"] = "Darnassus",
+	},
+	[1497] = -- Undercity (classic zone ID)
+	{
+		[1] = 959.37503051758,
+		[2] = 640.1041259766,
+		[3] = 873.19262695313,
+		[4] = 1877.9453125,
+		["mapType"] = 3,
+		["parentMapID"] = 1415,
+		["mapID"] = 383,
+		["instance"] = 0,
+		["name"] = "Undercity",
+	},
     [1459] =
 	{
 		[1] = 4237.4998779297,

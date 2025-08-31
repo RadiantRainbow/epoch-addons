@@ -2435,13 +2435,13 @@ function QuestieNPCFixes:Load()
                 [zoneIDs.UNDERCITY]={{66.73,43.37}},
             },
         },
-        [15892] = {
-            [npcKeys.spawns] = {
-                [zoneIDs.STORMWIND_CITY]={{54.36,66.29}},
-                [zoneIDs.IRONFORGE]={{30.93,61.59}},
-                [zoneIDs.DARNASSUS]={{42.16,43.97}},
-            },
-        },
+        -- [15892] = { -- Lunar Festival Emissary - removed incorrect Stormwind spawn
+        --     [npcKeys.spawns] = {
+        --         [zoneIDs.STORMWIND_CITY]={{54.36,66.29}},
+        --         [zoneIDs.IRONFORGE]={{30.93,61.59}},
+        --         [zoneIDs.DARNASSUS]={{42.16,43.97}},
+        --     },
+        -- },
         [15893] = {
             [npcKeys.spawns] = {},
         },

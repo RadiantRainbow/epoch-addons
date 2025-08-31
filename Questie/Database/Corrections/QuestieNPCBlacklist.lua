@@ -15,6 +15,8 @@ function QuestieNPCBlacklist:Load()
         [13377] = QuestieCorrections.CLASSIC_ONLY, -- Master Engineer Zinfizzlex
         [13446] = QuestieCorrections.CLASSIC_ONLY, -- Field Marshal Teravaine
         [13449] = QuestieCorrections.CLASSIC_ONLY, -- Warmaster Garrick
+        [14305] = true, -- Human Orphan (Children's Week event NPC - removed for Project Epoch)
+        [14450] = true, -- Orphan Matron Nightingale (Children's Week event NPC - removed for Project Epoch)
         [15799] = QuestieCorrections.CLASSIC_ONLY, -- Colossus Researcher Eazel (AQ Opening event)
         [17544] = true, -- M'uru in Silvermoon City removed starting with SWP patch
         [21155] = true, -- Bloodelf War Effort Recruiter

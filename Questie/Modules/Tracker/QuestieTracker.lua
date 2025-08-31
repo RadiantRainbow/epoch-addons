@@ -22,6 +22,8 @@ local TrackerUtils = QuestieLoader:ImportModule("TrackerUtils")
 -------------------------
 ---@type QuestieQuest
 local QuestieQuest = QuestieLoader:ImportModule("QuestieQuest")
+---@type QuestLogCache
+local QuestLogCache = QuestieLoader:ImportModule("QuestLogCache")
 ---@type QuestieMap
 local QuestieMap = QuestieLoader:ImportModule("QuestieMap")
 ---@type QuestieTooltips
@@ -41,6 +43,8 @@ local QuestieDB = QuestieLoader:ImportModule("QuestieDB")
 local l10n = QuestieLoader:ImportModule("l10n")
 ---@type QuestieDebugOffer
 local QuestieDebugOffer = QuestieLoader:ImportModule("QuestieDebugOffer")
+---@type TomTomAuto
+local TomTomAuto = QuestieLoader:ImportModule("TomTomAuto")
 
 --- COMPATIBILITY ---
 local C_Timer = QuestieCompat.C_Timer
@@ -83,32 +87,45 @@ local QuestLogFrame = QuestLogExFrame or ClassicQuestLog or QuestLogFrame
 function QuestieTracker.Initialize()
     if QuestieTracker.started then
         -- The Tracker was already initialized, so we don't need to do it again.
+        Questie:Debug(Questie.DEBUG_CRITICAL, "[QuestieTracker] Already initialized, skipping")
+        -- Questie:Print("[QuestieTracker] Already initialized") -- Removed to reduce login spam
         return
     end
+    
+    -- Ensure database is available
+    if not Questie.db or not Questie.db.char or not Questie.db.profile then
+        Questie:Error("[QuestieTracker] Database not initialized yet, cannot start tracker")
+        Questie:Print("|cFFFF0000[QuestieTracker] ERROR: Database not initialized! Please /reload or restart WoW.|r")
+        return
+    end
+    
+    -- Questie:Print("[QuestieTracker] Starting initialization...") -- Removed to reduce login spam
+    Questie:Debug(Questie.DEBUG_CRITICAL, "[QuestieTracker] Starting initialization")
 
     -- These values might also be accessed by other modules, so we need to make sure they exist. Even when the Tracker is disabled
-    if (not Questie.db.char.TrackerHiddenQuests) then
+    -- Also handle corrupted data by resetting to empty tables if the type is wrong
+    if (not Questie.db.char.TrackerHiddenQuests) or (type(Questie.db.char.TrackerHiddenQuests) ~= "table") then
         Questie.db.char.TrackerHiddenQuests = {}
     end
-    if (not Questie.db.char.TrackerHiddenObjectives) then
+    if (not Questie.db.char.TrackerHiddenObjectives) or (type(Questie.db.char.TrackerHiddenObjectives) ~= "table") then
         Questie.db.char.TrackerHiddenObjectives = {}
     end
-    if (not Questie.db.char.TrackedQuests) then
+    if (not Questie.db.char.TrackedQuests) or (type(Questie.db.char.TrackedQuests) ~= "table") then
         Questie.db.char.TrackedQuests = {}
     end
-    if (not Questie.db.char.AutoUntrackedQuests) then
+    if (not Questie.db.char.AutoUntrackedQuests) or (type(Questie.db.char.AutoUntrackedQuests) ~= "table") then
         Questie.db.char.AutoUntrackedQuests = {}
     end
-    if (not Questie.db.char.collapsedZones) then
+    if (not Questie.db.char.collapsedZones) or (type(Questie.db.char.collapsedZones) ~= "table") then
         Questie.db.char.collapsedZones = {}
     end
-    if (not Questie.db.char.minAllQuestsInZone) then
+    if (not Questie.db.char.minAllQuestsInZone) or (type(Questie.db.char.minAllQuestsInZone) ~= "table") then
         Questie.db.char.minAllQuestsInZone = {}
     end
-    if (not Questie.db.char.collapsedQuests) then
+    if (not Questie.db.char.collapsedQuests) or (type(Questie.db.char.collapsedQuests) ~= "table") then
         Questie.db.char.collapsedQuests = {}
     end
-    if (not Questie.db.char.trackedAchievementIds) then
+    if (not Questie.db.char.trackedAchievementIds) or (type(Questie.db.char.trackedAchievementIds) ~= "table") then
         Questie.db.char.trackedAchievementIds = {}
     end
     if (not Questie.db.profile.TrackerWidth) then
@@ -123,25 +140,86 @@ function QuestieTracker.Initialize()
 
     if (not Questie.db.profile.trackerEnabled) then
         -- The Tracker is disabled, no need to continue
+        Questie:Debug(Questie.DEBUG_CRITICAL, "[QuestieTracker] Tracker disabled in profile, not initializing")
+        Questie:Print("[QuestieTracker] Tracker is disabled in settings")
         return
     end
+    
+    -- Questie:Print("[QuestieTracker] Tracker enabled, initializing frames...") -- Removed to reduce login spam
+    Questie:Debug(Questie.DEBUG_CRITICAL, "[QuestieTracker] Tracker enabled, continuing initialization")
 
-    -- Initialize tracker frames
-    trackerBaseFrame = TrackerBaseFrame.Initialize()
-    trackerHeaderFrame = TrackerHeaderFrame.Initialize(trackerBaseFrame)
-    trackerQuestFrame = TrackerQuestFrame.Initialize(trackerBaseFrame, trackerHeaderFrame)
+    -- Initialize tracker frames with error handling
+    local success, err
+    
+    success, err = pcall(function()
+        trackerBaseFrame = TrackerBaseFrame.Initialize()
+    end)
+    if not success then
+        Questie:Print("|cFFFF0000[QuestieTracker] ERROR: Failed to initialize base frame: " .. tostring(err) .. "|r")
+        return
+    end
+    -- Questie:Print("[QuestieTracker] Base frame initialized") -- Removed to reduce login spam
+    
+    success, err = pcall(function()
+        trackerHeaderFrame = TrackerHeaderFrame.Initialize(trackerBaseFrame)
+    end)
+    if not success then
+        Questie:Print("|cFFFF0000[QuestieTracker] ERROR: Failed to initialize header frame: " .. tostring(err) .. "|r")
+        return
+    end
+    -- Questie:Print("[QuestieTracker] Header frame initialized") -- Removed to reduce login spam
+    
+    success, err = pcall(function()
+        trackerQuestFrame = TrackerQuestFrame.Initialize(trackerBaseFrame, trackerHeaderFrame)
+    end)
+    if not success then
+        Questie:Print("|cFFFF0000[QuestieTracker] ERROR: Failed to initialize quest frame: " .. tostring(err) .. "|r")
+        return
+    end
+    -- Questie:Print("[QuestieTracker] Quest frame initialized") -- Removed to reduce login spam
+
+    if TomTom and Questie.db.profile.tomtomAutoTargetMode then
+        success, err = pcall(function()
+            TomTomAuto:StartTomTomAutoTracking()
+        end)
+        if not success then
+            Questie:Print("|cFFFF0000[TomTom] ERROR: Failed to start TomTom Auto tracking: " .. tostring(err) .. "|r")
+            return
+        end
+        Questie:Print("[TomTom] TomTom Auto tracking started")
+    end
 
     -- Initialize tracker functions
     TrackerLinePool.Initialize(trackerQuestFrame)
     TrackerFadeTicker.Initialize(trackerBaseFrame, trackerHeaderFrame)
     QuestieTracker.started = true
+    
+    -- Questie:Print("|cFF00FF00[QuestieTracker] Initialization complete! Tracker started successfully.|r") -- Removed to reduce login spam
+    Questie:Debug(Questie.DEBUG_CRITICAL, "[QuestieTracker] Initialization complete, tracker started")
 
     -- Initialize hooks
     QuestieTracker:HookBaseTracker()
+    
+    -- Force initial update to show tracker if there are quests
+    C_Timer.After(0.5, function()
+        QuestieTracker:Update()
+    end)
 
     -- Insures all other data we're getting from other addons and WoW is loaded. There are edge
     -- cases where Questie loads too fast before everything else is available.
+    -- IMPORTANT: This must run AFTER QuestieQuest:GetAllQuestIds() populates currentQuestlog
+    
+    -- Delay sync until quest log is populated
+    -- Try multiple times to catch the quest log when it's ready
+    C_Timer.After(0.5, function()
+        QuestieTracker:SyncWatchedQuests()
+    end)
+    
     C_Timer.After(1.0, function()
+        QuestieTracker:SyncWatchedQuests()
+    end)
+
+    C_Timer.After(1.5, function()
         -- Hide frames during startup
         if QuestieTracker.alreadyHooked then
             if Questie.db.profile.stickyDurabilityFrame then DurabilityFrame:Hide() end
@@ -182,40 +260,73 @@ function QuestieTracker.Initialize()
             -- Sync and populate the QuestieTracker - this should only run when a player has loaded
             -- Questie for the first time or when Re-enabling the QuestieTracker after it's disabled.
 
-            -- The questsWatched variable is populated by the Unhooked GetNumQuestWatches(). If Questie
-            -- is enabled, this is always 0 unless it's run with a true var RE:GetNumQuestWatches(true).
-            if questsWatched > 0 then
-                -- When a quest is removed from the Watch Frame, the questIndex can change so we need to snag
-                -- the entire list and build a temp table with QuestIDs instead to ensure we remove them all.
-                local tempQuestIDs = {}
-                for i = 1, questsWatched do
-                    local questIndex = GetQuestIndexForWatch(i)
-                    if questIndex then
-                        local questId = select(8, GetQuestLogTitle(questIndex))
-                        if questId then
-                            tempQuestIDs[i] = questId
-                        end
-                    end
-                end
-
-                -- Remove quest from the Blizzard Quest Watch and populate the tracker.
-                for _, questId in pairs(tempQuestIDs) do
-                    local questIndex = GetQuestLogIndexByID(questId)
-                    if questIndex then
-                        QuestieTracker:AQW_Insert(questIndex, QUEST_WATCH_NO_EXPIRE)
-                    end
-                end
-            end
+            -- Final sync attempt after everything is loaded
+            QuestieTracker:SyncWatchedQuests()
+            
+            -- One more attempt a bit later
+            C_Timer.After(1.0, function()
+                QuestieTracker:SyncWatchedQuests()
+            end)
 
             -- Look for any QuestID's that don't belong in the Questie.db.char.TrackedQuests or
             -- the Questie.db.char.AutoUntrackedQuests tables. They can get out of sync.
-            if Questie.db.profile.autoTrackQuests and Questie.db.char.AutoUntrackedQuests then
+            -- Also ensure runtime stub quests aren't incorrectly untracked.
+            -- IMPORTANT: Only clean up if quest log is populated, otherwise we'll wrongly remove valid entries
+            local questLogCount = 0
+            if QuestiePlayer and QuestiePlayer.currentQuestlog then
+                for _ in pairs(QuestiePlayer.currentQuestlog) do
+                    questLogCount = questLogCount + 1
+                end
+            end
+            -- Quest log populated
+            
+            -- If AutoUntrackedQuests is empty but we have quests in the log, we need to populate it
+            -- based on what was actually watched in Blizzard UI
+            if Questie.db.profile.autoTrackQuests and questLogCount > 0 then
+                if not Questie.db.char.AutoUntrackedQuests then
+                    Questie.db.char.AutoUntrackedQuests = {}
+                end
+                
+                -- Removed broken code that referenced undefined tempQuestIDs variable
+                
+                -- Now clean up AutoUntrackedQuests
+                -- Clean up AutoUntrackedQuests
+                local toRemove = {}
+                local keepCount = 0
                 for untrackedQuestId in pairs(Questie.db.char.AutoUntrackedQuests) do
                     if not QuestiePlayer.currentQuestlog[untrackedQuestId] then
-                        Questie.db.char.AutoUntrackedQuests[untrackedQuestId] = nil
+                        -- Quest no longer in log, remove from untracked list
+                        toRemove[untrackedQuestId] = true
+                    else
+                        -- Check if this is a runtime stub quest that shouldn't be untracked
+                        local quest = QuestiePlayer.currentQuestlog[untrackedQuestId]
+                        if quest and quest.__isRuntimeStub then
+                            -- Runtime stub quests should be tracked by default when autoTrackQuests is on
+                            -- BUT: Only re-track if this is the first time we're seeing this stub
+                            -- Users should still be able to manually untrack stub quests
+                            -- This is commented out to respect user choice
+                            -- toRemove[untrackedQuestId] = true
+                            Questie:Debug(Questie.DEBUG_INFO, "[QuestieTracker] Keeping runtime stub quest untracked per user choice:", untrackedQuestId)
+                        end
+                        -- Removed automatic re-tracking of Epoch quests (>= 26000)
+                        -- Users should be able to untrack any quest they want
                     end
                 end
-            elseif Questie.db.char.TrackedQuests then
+                for questId in pairs(toRemove) do
+                    Questie.db.char.AutoUntrackedQuests[questId] = nil
+                    -- Removed from AutoUntrackedQuests
+                end
+                
+                -- Count what's left
+                local remaining = 0
+                for k in pairs(Questie.db.char.AutoUntrackedQuests) do
+                    remaining = remaining + 1
+                end
+                -- Cleanup complete
+            end
+            
+            -- Clean up manual mode TrackedQuests  
+            if not Questie.db.profile.autoTrackQuests and Questie.db.char.TrackedQuests and questLogCount > 0 then
                 for trackedQuestId in pairs(Questie.db.char.TrackedQuests) do
                     if not QuestiePlayer.currentQuestlog[trackedQuestId] then
                         Questie.db.char.TrackedQuests[trackedQuestId] = nil
@@ -261,8 +372,393 @@ function QuestieTracker.Initialize()
 
             if QuestLogFrame:IsShown() then QuestLog_Update() end
             QuestieTracker:Update()
-            trackerBaseFrame:Hide()
+            -- Don't hide the tracker after initialization!
         end)
+    end)
+end
+
+-- New function to sync watched quests - can be called multiple times
+function QuestieTracker:SyncWatchedQuests()
+    if not Questie.db.profile.autoTrackQuests then
+        return -- Only needed in auto-track mode
+    end
+    
+    -- Don't sync more than once per session
+    if QuestieTracker._alreadySynced then
+        return
+    end
+    
+    -- Starting sync
+    
+    -- Force populate the quest log cache first
+    if QuestLogCache and QuestLogCache.CheckForChanges then
+        -- Force cache update
+        QuestLogCache.CheckForChanges()
+    end
+    
+    -- Then populate QuestiePlayer.currentQuestlog
+    if QuestieQuest and QuestieQuest.GetAllQuestIds then
+        -- Force quest log population
+        QuestieQuest:GetAllQuestIds()
+    end
+    
+    if not QuestiePlayer.currentQuestlog then
+        -- Quest log not ready
+        return -- Quest log not ready yet
+    end
+    
+    -- Count quests in log
+    local questCount = 0
+    for _ in pairs(QuestiePlayer.currentQuestlog) do
+        questCount = questCount + 1
+    end
+    
+    -- Also check actual quest log entries
+    local actualQuestCount = select(2, GetNumQuestLogEntries()) or 0
+    
+    -- Check quest counts
+    
+    -- If QuestiePlayer has significantly fewer quests than Blizzard, it's not ready
+    if actualQuestCount > 10 and questCount < (actualQuestCount * 0.5) then
+        -- Quest log not fully populated
+        return
+    end
+    
+    if questCount == 0 then
+        return -- No quests to process
+    end
+    
+    -- Processing quests
+    
+    -- Initialize AutoUntrackedQuests if needed
+    if not Questie.db.char.AutoUntrackedQuests then
+        Questie.db.char.AutoUntrackedQuests = {}
+    end
+    
+    -- Remove quests no longer in log
+    local toRemove = {}
+    for questId in pairs(Questie.db.char.AutoUntrackedQuests) do
+        if not QuestiePlayer.currentQuestlog[questId] then
+            toRemove[questId] = true
+        end
+    end
+    for questId in pairs(toRemove) do
+        Questie.db.char.AutoUntrackedQuests[questId] = nil
+        -- Removed from AutoUntrackedQuests
+    end
+    
+    -- Track which quests Blizzard thinks are watched
+    local blizzardWatched = {}
+    local watchedCount = 0
+    for i = 1, GetNumQuestLogEntries() do
+        local _, _, _, isHeader, _, _, _, questId = GetQuestLogTitle(i)
+        if not isHeader and questId and questId > 0 then
+            if IsQuestWatched(i) then
+                blizzardWatched[questId] = true
+                watchedCount = watchedCount + 1
+            end
+        end
+    end
+    -- Blizzard watched count
+    
+    -- Check what's in AutoUntrackedQuests
+    local untrackedCount = 0
+    local untrackedList = {}
+    for questId in pairs(Questie.db.char.AutoUntrackedQuests or {}) do
+        if QuestiePlayer.currentQuestlog[questId] then
+            untrackedCount = untrackedCount + 1
+            table.insert(untrackedList, tostring(questId))
+        end
+    end
+    -- Check AutoUntrackedQuests
+    
+    -- In auto-track mode on initial login, we should track ALL quests by default
+    -- unless the user explicitly untracked them before
+    local shouldTrackAll = not QuestieTracker._hasEverSynced
+    if shouldTrackAll then
+        -- First sync - track all
+    end
+    
+    -- Try to track all quests that should be tracked
+    local successCount = 0
+    local failCount = 0
+    local failedQuests = {}
+    local skippedCount = 0
+    
+    for questId, quest in pairs(QuestiePlayer.currentQuestlog) do
+        -- On first sync, try to track everything
+        -- On subsequent syncs, respect AutoUntrackedQuests
+        local shouldSkip = (not shouldTrackAll) and Questie.db.char.AutoUntrackedQuests[questId]
+        
+        if shouldSkip then
+            skippedCount = skippedCount + 1
+            -- Skipping untracked quest
+        else
+            -- This quest should be tracked
+            local questIndex = GetQuestLogIndexByID(questId)
+            if questIndex and questIndex > 0 then
+                if not IsQuestWatched(questIndex) then
+                    -- Try to track it
+                    -- Attempting to track quest
+                    AddQuestWatch(questIndex)
+                    
+                    -- Check if it worked
+                    if IsQuestWatched(questIndex) then
+                        successCount = successCount + 1
+                        -- Successfully tracked
+                    else
+                        failCount = failCount + 1
+                        failedQuests[questId] = true
+                        
+                        -- Get quest details to understand why it failed
+                        local title, level, tag, isHeader, isCollapsed, isComplete = GetQuestLogTitle(questIndex)
+                        -- Failed to track quest
+                        
+                        -- Check objectives to see if they're malformed
+                        local numObjectives = GetNumQuestLeaderBoards(questIndex)
+                        -- Check objectives
+                        for objIndex = 1, numObjectives do
+                            local text, objectiveType, finished = GetQuestLogLeaderBoard(objIndex, questIndex)
+                            if not text or text == "" then
+                                -- Invalid objective
+                            else
+                                -- Valid objective
+                            end
+                        end
+                        
+                        -- Check if it's a runtime stub or Epoch quest
+                        if quest and quest.__isRuntimeStub then
+                            -- Runtime stub quest
+                        end
+                        if quest and quest.name and string.find(quest.name, "^%[Epoch%]") then
+                            -- Epoch quest
+                        end
+                    end
+                else
+                    successCount = successCount + 1
+                end
+            else
+                -- No valid index
+            end
+        end  -- end of shouldSkip check
+    end
+    
+    -- Tracking complete
+    if failCount > 0 then
+        local failedList = {}
+        for questId in pairs(failedQuests) do
+            table.insert(failedList, tostring(questId))
+        end
+        -- Some quests failed to track
+    end
+    
+    -- Mark sync as complete
+    QuestieTracker._alreadySynced = true
+    QuestieTracker._hasEverSynced = true  -- Persistent flag for this session
+    -- Sync complete
+    
+    -- If AutoUntrackedQuests has very few entries compared to quest log, 
+    -- it's likely corrupted or not properly initialized
+    local untrackedCount = 0
+    for _ in pairs(Questie.db.char.AutoUntrackedQuests) do
+        untrackedCount = untrackedCount + 1
+    end
+    
+    -- REMOVED: This logic was flawed - having all quests tracked is valid!
+    -- Only reset if we just loaded and have NO data at all
+    if false then  -- Disabled this broken reset logic
+        -- Reset logic disabled
+        
+        -- Clear and rebuild AutoUntrackedQuests
+        Questie.db.char.AutoUntrackedQuests = {}
+        
+        -- Mark MOST quests as untracked, but keep some tracked to show in tracker
+        local trackedCount = 0
+        local maxToTrack = math.min(5, questCount)  -- Track up to 5 quests
+        
+        for questId, quest in pairs(QuestiePlayer.currentQuestlog) do
+            -- Check if quest is complete - always untrack complete quests
+            local isComplete = false
+            if quest and quest.IsComplete then
+                isComplete = quest:IsComplete() == 1
+            end
+            
+            -- Check if quest is untrackable
+            local isUntrackable = QuestieTracker._untrackableQuests and QuestieTracker._untrackableQuests[questId]
+            
+            -- Track incomplete, trackable quests up to our limit
+            if not isComplete and not isUntrackable and trackedCount < maxToTrack then
+                -- This quest will be tracked (not in AutoUntrackedQuests)
+                trackedCount = trackedCount + 1
+                -- Keep tracked
+            else
+                -- Mark as untracked
+                Questie.db.char.AutoUntrackedQuests[questId] = true
+            end
+        end
+        
+        -- Reset complete
+    else
+        -- AutoUntrackedQuests OK
+    end
+    
+    QuestieTracker._alreadySynced = true
+end
+
+function QuestieTracker:CheckStatus()
+    if not trackerBaseFrame then
+        print("|cFFFF0000[Questie]|r Tracker not initialized!")
+        return
+    end
+    
+    local visible = trackerBaseFrame:IsShown()
+    local point, relativeTo, relativePoint, xOfs, yOfs = trackerBaseFrame:GetPoint()
+    local width = trackerBaseFrame:GetWidth()
+    local height = trackerBaseFrame:GetHeight()
+    
+    print("|cFF00FF00[Questie]|r Tracker Status:")
+    print("  Visible: " .. tostring(visible))
+    print("  Position: " .. (point or "nil") .. " x:" .. (xOfs or 0) .. " y:" .. (yOfs or 0))
+    print("  Size: " .. width .. "x" .. height)
+    print("  Quest count: " .. tostring(GetNumQuestLogEntries()) .. " in log")
+    
+    local tracked = 0
+    if QuestiePlayer.currentQuestlog then
+        for questId, quest in pairs(QuestiePlayer.currentQuestlog) do
+            if type(quest) == "table" then
+                local isUntracked = Questie.db.char.AutoUntrackedQuests and Questie.db.char.AutoUntrackedQuests[questId]
+                if not isUntracked then
+                    tracked = tracked + 1
+                end
+            end
+        end
+    end
+    print("  Tracked: " .. tracked .. " quests")
+end
+
+function QuestieTracker:ForceScanQuests()
+    print("|cFF00FF00[Questie]|r Force scanning all quests...")
+    
+    -- Clear and rebuild the cache from scratch
+    local cache = QuestLogCache.questLog_DO_NOT_MODIFY
+    
+    -- Clear existing cache
+    for k in pairs(cache) do
+        cache[k] = nil
+    end
+    
+    local count = 0
+    local questList = {}
+    
+    -- Scan all quests in the quest log
+    for i = 1, GetNumQuestLogEntries() do
+        local title, level, questTag, isHeader, isCollapsed, isComplete, frequency, questId = GetQuestLogTitle(i)
+        if not isHeader and questId and questId > 0 then
+            -- Get objectives for this quest
+            local objectives = {}
+            SelectQuestLogEntry(i)
+            local numObjectives = GetNumQuestLeaderBoards(i)
+            
+            if numObjectives and numObjectives > 0 then
+                for objIndex = 1, numObjectives do
+                    local description, objectiveType, isCompleted = GetQuestLogLeaderBoard(objIndex, i)
+                    if description then
+                        objectives[objIndex] = {
+                            description = description,
+                            type = objectiveType,
+                            finished = isCompleted,
+                            numFulfilled = 0,
+                            numRequired = 0,
+                        }
+                    end
+                end
+            end
+            
+            cache[questId] = {
+                title = title,
+                level = level,
+                questTag = questTag,
+                isComplete = isComplete,
+                objectives = objectives,
+            }
+            count = count + 1
+            table.insert(questList, questId .. ":" .. (title or "Unknown"))
+        end
+    end
+    
+    print("|cFF00FF00[Questie]|r Added " .. count .. " quests to cache:")
+    for _, info in ipairs(questList) do
+        print("  " .. info)
+    end
+    
+    -- Now rebuild currentQuestlog
+    QuestieQuest:GetAllQuestIds()
+    
+    -- Check what's in currentQuestlog
+    local logCount = 0
+    for _ in pairs(QuestiePlayer.currentQuestlog) do
+        logCount = logCount + 1
+    end
+    print("|cFF00FF00[Questie]|r currentQuestlog now has " .. logCount .. " quests")
+    
+    -- Force update
+    QuestieTracker:Update()
+    
+    print("|cFF00FF00[Questie]|r Force scan complete")
+end
+
+function QuestieTracker:ForceShow()
+    if not trackerBaseFrame then
+        print("|cFFFF0000[Questie]|r Tracker not initialized!")
+        return
+    end
+    
+    print("|cFF00FF00[Questie]|r Forcing tracker to show...")
+    
+    -- Debug: Check what quests we have
+    local questCount = 0
+    local trackedCount = 0
+    if QuestiePlayer.currentQuestlog then
+        for questId, quest in pairs(QuestiePlayer.currentQuestlog) do
+            questCount = questCount + 1
+            if type(quest) == "table" then
+                local isUntracked = Questie.db.char.AutoUntrackedQuests and Questie.db.char.AutoUntrackedQuests[questId]
+                if not isUntracked then
+                    trackedCount = trackedCount + 1
+                    print("  Tracking quest " .. questId .. ": " .. (quest.name or "Unknown"))
+                end
+            end
+        end
+    end
+    print("|cFF00FF00[Questie]|r Found " .. questCount .. " quests, " .. trackedCount .. " tracked")
+    
+    -- Force show the frame
+    trackerBaseFrame:Show()
+    trackerBaseFrame:SetSize(200, 400)  -- Set a reasonable size
+    
+    -- Check if header frame exists
+    if trackerHeaderFrame then
+        trackerHeaderFrame:Show()
+        print("|cFF00FF00[Questie]|r Header frame shown")
+    else
+        print("|cFFFF0000[Questie]|r No header frame!")
+    end
+    
+    -- Force update
+    print("|cFF00FF00[Questie]|r Calling Update()...")
+    QuestieTracker:Update()
+    
+    -- Check status after update
+    C_Timer.After(0.1, function()
+        print("|cFF00FF00[Questie]|r After forcing:")
+        print("  Visible: " .. tostring(trackerBaseFrame:IsShown()))
+        print("  Size: " .. trackerBaseFrame:GetWidth() .. "x" .. trackerBaseFrame:GetHeight())
+        
+        -- Check line pool
+        if TrackerLinePool then
+            local lineCount = TrackerLinePool.GetCurrentLine and TrackerLinePool.GetCurrentLine() or 0
+            print("  Line pool has " .. tostring(lineCount) .. " lines")
+        end
     end)
 end
 
@@ -434,11 +930,17 @@ end
 -- Quest Item Button can be switched on and appear in the tracker.
 ---@param text string
 function QuestieTracker:QuestItemLooted(text)
+    -- TEMPORARILY DISABLED: This function is causing tracker state issues
+    -- When looting quest items (like bananas), it triggers UpdateAllQuests which
+    -- somehow toggles quest tracking state. Needs investigation.
+    return
+    
+    --[[
     local playerLoot = strmatch(text, "You receive ") or strmatch(text, "You create")
     local itemId = tonumber(string.match(text, "item:(%d+)"))
 
     if playerLoot and itemId then
-        local _, _, _, _, _, itemType, _, _, _, _, _, classID = GetItemInfo(itemId)
+        local itemName, _, _, _, _, itemType, _, _, _, _, _, classID = GetItemInfo(itemId)
         local usableItem = TrackerUtils:IsQuestItemUsable(itemId)
 
         if (itemType == "Quest" or classID == 12 or QuestieDB.QueryItemSingle(itemId, "class") == 12) and usableItem then
@@ -456,45 +958,81 @@ function QuestieTracker:QuestItemLooted(text)
             end)
         end
     end
+    --]]
 end
 
 function QuestieTracker:HasQuest()
-    local hasQuest
-
-    if (GetNumQuestWatches(true) == 0) then
-        if Questie.IsWotlk or QuestieCompat.Is335 then
-            if (GetNumTrackedAchievements(true) == 0) then
-                hasQuest = false
-            else
+    local hasQuest = false
+    
+    -- Check if we have any tracked quests in our actual tracking lists
+    -- This is more reliable than GetNumQuestWatches which may not be updated yet
+    if Questie.db.profile.autoTrackQuests then
+        -- In auto-track mode, check if we have quests that aren't untracked
+        for questId in pairs(QuestiePlayer.currentQuestlog or {}) do
+            if not (Questie.db.char.AutoUntrackedQuests and Questie.db.char.AutoUntrackedQuests[questId]) then
                 hasQuest = true
+                break
             end
-        else
-            hasQuest = false
         end
     else
-        if not Questie.db.profile.trackerShowCompleteQuests then
-            local completedQuests = 0
-            -- Keep track of the number of completed quests
-            for questId, quest in pairs(QuestiePlayer.currentQuestlog) do
-                if not quest then break end
-                if quest:IsComplete() == 1 then
-                    completedQuests = completedQuests + 1
+        -- In manual tracking mode, check if we have any tracked quests
+        if Questie.db.char.TrackedQuests then
+            for questId in pairs(Questie.db.char.TrackedQuests) do
+                if QuestiePlayer.currentQuestlog[questId] then
+                    hasQuest = true
+                    break
                 end
             end
-
-            -- This hides the Tracker when all tracked Quests are complete
-            if completedQuests == GetNumQuestWatches(true) then
-                hasQuest = false
-            else
+        end
+    end
+    
+    -- If we still haven't found a quest, fall back to the old method
+    if not hasQuest then
+        if (GetNumQuestWatches(true) > 0) then
+            hasQuest = true
+        elseif Questie.IsWotlk or QuestieCompat.Is335 then
+            if (GetNumTrackedAchievements(true) > 0) then
                 hasQuest = true
             end
-        else
-            hasQuest = true
         end
+    end
+    
+    -- Handle completed quests visibility
+    if hasQuest and not Questie.db.profile.trackerShowCompleteQuests then
+        local hasIncompleteQuest = false
+        if Questie.db.profile.autoTrackQuests then
+            for questId, quest in pairs(QuestiePlayer.currentQuestlog or {}) do
+                if not (Questie.db.char.AutoUntrackedQuests and Questie.db.char.AutoUntrackedQuests[questId]) then
+                    if quest and quest.IsComplete and quest:IsComplete() ~= 1 then
+                        hasIncompleteQuest = true
+                        break
+                    end
+                end
+            end
+        else
+            for questId in pairs(Questie.db.char.TrackedQuests or {}) do
+                local quest = QuestiePlayer.currentQuestlog[questId]
+                if quest and quest.IsComplete and quest:IsComplete() ~= 1 then
+                    hasIncompleteQuest = true
+                    break
+                end
+            end
+        end
+        hasQuest = hasIncompleteQuest
     end
 
     Questie:Debug(Questie.DEBUG_SPAM, "[QuestieTracker:HasQuest] - ", hasQuest)
     return hasQuest
+end
+
+function QuestieTracker:ForceShow()
+    -- Force the tracker to show when we know we have quests
+    if trackerBaseFrame and not trackerBaseFrame:IsShown() then
+        if QuestieTracker:HasQuest() then
+            trackerBaseFrame:Show()
+            Questie:Debug(Questie.DEBUG_INFO, "[QuestieTracker] Force showing tracker")
+        end
+    end
 end
 
 function QuestieTracker:Enable()
@@ -619,15 +1157,21 @@ function QuestieTracker:Update()
 
     -- Begin populating the Tracker with Quests
     local _UpdateQuests = function()
+        
         for _, questId in pairs(sortedQuestIds) do
             if not questId then break end
 
             local quest = questDetails[questId].quest
+            -- Check if quest has IsComplete method (defensive check for malformed quests)
+            if not quest or type(quest) ~= "table" or not quest.IsComplete then
+                Questie:Debug(Questie.DEBUG_CRITICAL, "[QuestieTracker] Skipping malformed quest:", questId)
+                break
+            end
             local complete = quest:IsComplete()
             local zoneName = questDetails[questId].zoneName
             local remainingSeconds = TrackerQuestTimers:GetRemainingTime(quest, nil, true)
             local timedQuest = (quest.trackTimedQuest or quest.timedBlizzardQuest)
-
+            
             if (complete ~= 1 or Questie.db.profile.trackerShowCompleteQuests or timedQuest)
                 and ((Questie.db.profile.autoTrackQuests and not Questie.db.char.AutoUntrackedQuests[questId])
                 or (not Questie.db.profile.autoTrackQuests and Questie.db.char.TrackedQuests[questId])) then
@@ -1681,7 +2225,8 @@ function QuestieTracker:Update()
 
     -- First run clean up
     if isFirstRun then
-        trackerBaseFrame:Hide()
+        -- Don't hide the tracker on first run - let it show immediately
+        -- trackerBaseFrame:Hide() -- Removed to fix empty tracker on new characters
         for questId, quest in pairs(QuestiePlayer.currentQuestlog) do
             if quest then
                 if Questie.db.char.TrackerHiddenQuests[questId] then
@@ -1714,9 +2259,11 @@ function QuestieTracker:Update()
             end
         end
         isFirstRun = false
+        -- Allow immediate formatting for new characters
+        allowFormattingUpdate = true
+        -- Still queue a delayed update for safety, but tracker should work immediately
         C_Timer.After(1.0, function()
             QuestieCombatQueue:Queue(function()
-                allowFormattingUpdate = true
                 QuestieTracker:Update()
             end)
         end)
@@ -1928,8 +2475,14 @@ function QuestieTracker:HookBaseTracker()
             hooksecurefunc("AutoQuestWatch_Insert", function(index, watchTimer) QuestieTracker:AQW_Insert(index, watchTimer) end)
         end
 
-        hooksecurefunc("AddQuestWatch", function(index, watchTimer) QuestieTracker:AQW_Insert(index, watchTimer) end)
-        hooksecurefunc("RemoveQuestWatch", QuestieTracker.RemoveQuestWatch)
+        hooksecurefunc("AddQuestWatch", function(index, watchTimer) 
+            -- AddQuestWatch hook
+            QuestieTracker:AQW_Insert(index, watchTimer) 
+        end)
+        hooksecurefunc("RemoveQuestWatch", function(index, isInternalCall)
+            -- RemoveQuestWatch hook
+            QuestieTracker.RemoveQuestWatch(index, isInternalCall)
+        end)
 
         -- Achievement secure hooks
         if Questie.IsWotlk or QuestieCompat.Is335 then
@@ -1960,11 +2513,9 @@ function QuestieTracker:HookBaseTracker()
         if not Questie.db.profile.autoTrackQuests then
             return Questie.db.char.TrackedQuests[questId or -1]
         else
-            -- Ensure AutoUntrackedQuests table exists before accessing it
-            if not Questie.db.char.AutoUntrackedQuests then
-                Questie.db.char.AutoUntrackedQuests = {}
-            end
-            return questId and QuestiePlayer.currentQuestlog[questId] and (not Questie.db.char.AutoUntrackedQuests[questId])
+            local inQuestlog = questId and QuestiePlayer.currentQuestlog[questId]
+            local isUntracked = Questie.db.char.AutoUntrackedQuests and Questie.db.char.AutoUntrackedQuests[questId]
+            return inQuestlog and not isUntracked
         end
     end
 
@@ -2059,20 +2610,40 @@ function QuestieTracker:RemoveQuest(questId)
 end
 
 function QuestieTracker.RemoveQuestWatch(index, isQuestie)
+    -- RemoveQuestWatch called
     if QuestieTracker.disableHooks then
+        -- Hooks disabled
         return
     end
 
     if not isQuestie then
         if index then
             local questId = select(8, GetQuestLogTitle(index))
+            -- Got questId from title
             if questId == 0 then
                 -- When an objective progresses in TBC "index" is the questId, but when a quest is manually removed from
                 --  the quest watch (e.g. shift clicking it in the quest log) "index" is the questLogIndex.
                 questId = index
+                -- Using index as questId
             end
 
             if questId then
+                -- Check if this was just added (within last 0.5 seconds)
+                -- If so, Blizzard is rejecting the track - mark as untrackable
+                local now = GetTime()
+                if QuestieTracker._lastTrackedQuest and QuestieTracker._lastTrackedQuest.id == questId and 
+                   (now - QuestieTracker._lastTrackedQuest.time) < 0.5 then
+                    -- Try to understand why Blizzard rejected it
+                    local questIndex = GetQuestLogIndexByID(questId)
+                    local title, level, tag, isHeader, isCollapsed, isComplete = GetQuestLogTitle(questIndex or index)
+                    -- Quest immediately untracked by Blizzard
+                    if not QuestieTracker._untrackableQuests then
+                        QuestieTracker._untrackableQuests = {}
+                    end
+                    QuestieTracker._untrackableQuests[questId] = true
+                end
+                
+                -- Untracking quest
                 QuestieTracker:UntrackQuestId(questId)
                 Questie:Debug(Questie.DEBUG_DEVELOP, "[QuestieTracker.RemoveQuestWatch] - by Blizzard")
             end
@@ -2083,14 +2654,17 @@ function QuestieTracker.RemoveQuestWatch(index, isQuestie)
 end
 
 function QuestieTracker:UntrackQuestId(questId)
-    Questie:Debug(Questie.DEBUG_DEVELOP, "[QuestieTracker:UntrackQuestId] - ", questId)
+    -- Untrack quest
     if not Questie.db.profile.autoTrackQuests then
+        -- Manual mode
         Questie.db.char.TrackedQuests[questId] = nil
     else
-        -- Ensure AutoUntrackedQuests table exists before accessing it (fix for initialization error)
         if not Questie.db.char.AutoUntrackedQuests then
             Questie.db.char.AutoUntrackedQuests = {}
         end
+        -- Allow users to untrack any quest, including Epoch quests
+        -- Data collection happens separately and doesn't depend on tracker visibility
+        -- Auto mode
         Questie.db.char.AutoUntrackedQuests[questId] = true
     end
 
@@ -2108,14 +2682,16 @@ function QuestieTracker:UntrackQuestId(questId)
 end
 
 function QuestieTracker:AQW_Insert(index, expire)
-    Questie:Debug(Questie.DEBUG_DEVELOP, "[QuestieTracker:AQW_Insert]")
+    -- AQW_Insert called
     if (not Questie.db.profile.trackerEnabled) or (index == 0) or (index == nil) then
+        -- Early return
         return
     end
 
     -- This prevents double calling this function
     local now = GetTime()
     if index and index == QuestieTracker.last_aqw and (now - lastAQW) < 0.1 then
+        -- Prevented double call
         return
     end
 
@@ -2127,13 +2703,44 @@ function QuestieTracker:AQW_Insert(index, expire)
     RemoveQuestWatch(index, true)
 
     local questId = select(8, GetQuestLogTitle(index))
+    -- Got questId
     if questId == 0 then
         -- When an objective progresses in TBC "index" is the questId, but when a quest is manually added to the quest watch
         -- (e.g. shift clicking it in the quest log) "index" is the questLogIndex.
         questId = index
+        -- Using index as questId
     end
 
     if questId > 0 then
+        -- FIRST: Ensure we have quest data (create runtime stub if needed)
+        local quest = QuestiePlayer.currentQuestlog[questId] or QuestieDB.GetQuest(questId)
+        
+        -- If quest not found anywhere, try to create a runtime stub BEFORE making tracking decisions
+        if not quest then
+            local qli = GetQuestLogIndexByID and GetQuestLogIndexByID(questId)
+            if not qli then
+                -- Try using the index directly if GetQuestLogIndexByID doesn't exist
+                qli = index
+            end
+            
+            if qli then
+                -- Create runtime stub for missing quest
+                local title, _, _, isHeader = GetQuestLogTitle(qli)
+                if not isHeader and title and title ~= "" then
+                    -- Create a basic stub so tracking logic can work
+                    Questie:Debug(Questie.DEBUG_INFO, "[QuestieTracker] Creating runtime stub for quest", questId, "before tracking")
+                    -- This will be enhanced later, but we need something in currentQuestlog NOW
+                    QuestiePlayer.currentQuestlog[questId] = {
+                        Id = questId,
+                        name = title,
+                        __isRuntimeStub = true,
+                        Objectives = {}
+                    }
+                end
+            end
+        end
+        
+        -- THEN: Handle tracking logic with quest data available
         -- These checks makes sure the only way to track a quest is through the Blizzard Quest Log
         -- or another Addon hooked into the Blizzard Quest Log that replaces the default Quest Log.
         if not Questie.db.profile.autoTrackQuests then
@@ -2144,24 +2751,77 @@ function QuestieTracker:AQW_Insert(index, expire)
                 Questie.db.char.TrackedQuests[questId] = true
             end
         else
-            -- Ensure AutoUntrackedQuests table exists before accessing it
+            -- Auto-track mode
+            -- For newly accepted quests, ensure they're tracked
+            -- This function is called both when accepting quests AND when manually clicking tracker checkbox
+            
+            -- Check if this is a manual tracking toggle (quest log is open and not shift-clicking)
+            -- During initialization sync, treat as automatic tracking (not manual toggle)
+            local isManualToggle = QuestLogFrame and QuestLogFrame:IsShown() and not IsShiftKeyDown() and not QuestieTracker._syncingWatchedQuests
+            
             if not Questie.db.char.AutoUntrackedQuests then
                 Questie.db.char.AutoUntrackedQuests = {}
             end
             
-            if Questie.db.char.AutoUntrackedQuests[questId] then
-                Questie.db.char.AutoUntrackedQuests[questId] = nil
-
-                -- Add quest to the tracker
-            elseif IsShiftKeyDown() and QuestLogFrame:IsShown() then
-                Questie.db.char.AutoUntrackedQuests[questId] = true
+            -- Determine if quest is currently tracked
+            -- IMPORTANT: If AutoUntrackedQuests is empty or nil, we should check the actual tracker state
+            local isCurrentlyTracked = false
+            if Questie.db.char.AutoUntrackedQuests and next(Questie.db.char.AutoUntrackedQuests) then
+                -- AutoUntrackedQuests has data, use it
+                isCurrentlyTracked = not Questie.db.char.AutoUntrackedQuests[questId]
+            else
+                -- AutoUntrackedQuests is empty - need to check actual state
+                -- During initial login, assume quests are NOT tracked unless proven otherwise
+                isCurrentlyTracked = false
+                -- AutoUntrackedQuests empty
+            end
+            -- Check tracking status
+            
+            -- Don't handle shift-click here - it's already handled in Hooks.lua
+            -- which properly toggles tracking. This was causing shift-click to only untrack.
+            if isManualToggle then
+                -- Manual toggle from quest log checkbox
+                if isCurrentlyTracked then
+                    -- Currently tracked, untrack it
+                    -- Allow untracking any quest including Epoch quests
+                    Questie.db.char.AutoUntrackedQuests[questId] = true
+                    -- Manual untrack
+                else
+                    -- Currently untracked, track it
+                    Questie.db.char.AutoUntrackedQuests[questId] = nil
+                    -- Manual track
+                end
+                
+                -- Remember this quest was just tracked (for detecting immediate untracks)
+                QuestieTracker._lastTrackedQuest = {id = questId, time = GetTime()}
+            else
+                -- Quest acceptance, initialization sync, or other automatic tracking
+                if QuestieTracker._syncingWatchedQuests then
+                    -- During initialization, watched quests should stay tracked
+                    -- Don't add them to the untracked list
+                    if Questie.db.char.AutoUntrackedQuests[questId] then
+                        -- Quest was manually untracked before, respect that choice
+                        -- Keep untracked (user choice)
+                    else
+                        -- Quest is watched in Blizzard UI, ensure it's tracked in Questie
+                        -- Should be tracked
+                    end
+                else
+                    -- Normal quest acceptance or automatic tracking
+                    -- In auto-track mode, new quests should be tracked by default
+                    -- Remove from untracked list if it's there
+                    if Questie.db.char.AutoUntrackedQuests[questId] then
+                        Questie.db.char.AutoUntrackedQuests[questId] = nil
+                        -- Auto-tracking new quest
+                    end
+                end
             end
         end
 
-        -- Check for runtime stubs first, then fall back to QuestieDB
-        local quest = QuestiePlayer.currentQuestlog[questId] or QuestieDB.GetQuest(questId)
+        -- Re-check for quest after potential stub creation
+        quest = QuestiePlayer.currentQuestlog[questId] or QuestieDB.GetQuest(questId)
         
-        -- If quest not found anywhere, try to create a runtime stub on the spot
+        -- If still not found (shouldn't happen now), create a more detailed stub
         if not quest then
             local qli = GetQuestLogIndexByID and GetQuestLogIndexByID(questId)
             if qli then
@@ -2274,6 +2934,7 @@ function QuestieTracker:AQW_Insert(index, expire)
             end
         end
     end
+    -- Queue tracker update
     QuestieCombatQueue:Queue(function()
         QuestieTracker:Update()
     end)

@@ -1,4 +1,3 @@
--- AUTO GENERATED FILE! DO NOT EDIT!
 
 ---@type QuestieDB
 local QuestieDB = QuestieLoader:ImportModule("QuestieDB");
@@ -2943,7 +2942,7 @@ QuestieDB.objectData = [[return {
 [144128] = {"Mailbox",nil,nil,{[1519]={{70.91,40.01}}},1519,12},
 [144129] = {"Mailbox",nil,nil,{[1519]={{39.94,84.4}}},1519,12},
 [144130] = {"Mailbox",nil,nil,nil,0,12},
-[144131] = {"Mailbox",nil,nil,{[1519]={{54.23,66.73}}},1519,12},
+-- [144131] = {"Mailbox",nil,nil,{[1519]={{54.23,66.73}}},1519,12}, -- Removed: incorrect location
 [144132] = {"Anvil",nil,nil,{[38]={{34.49,46.58}}},38},
 [144133] = {"Forge",nil,nil,{[38]={{34.33,46.35}}},38},
 [144159] = {"Dwarven Brazier",nil,nil,{[1537]={{32.61,81.03}}},1537},

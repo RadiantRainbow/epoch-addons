@@ -494,7 +494,7 @@ tinsert(QuestieEvent.eventQuests, {"Children's Week", 910}) -- Down at the Docks
 tinsert(QuestieEvent.eventQuests, {"Children's Week", 911}) -- Gateway to the Frontier
 tinsert(QuestieEvent.eventQuests, {"Children's Week", 915}) -- You Scream, I Scream...
 tinsert(QuestieEvent.eventQuests, {"Children's Week", 925}) -- Cairne's Hoofprint
-tinsert(QuestieEvent.eventQuests, {"Children's Week", 1468}) -- Children's Week
+-- tinsert(QuestieEvent.eventQuests, {"Children's Week", 1468}) -- Children's Week -- Removed for Project Epoch (seasonal event shouldn't show year-round)
 tinsert(QuestieEvent.eventQuests, {"Children's Week", 1479}) -- The Bough of the Eternals
 tinsert(QuestieEvent.eventQuests, {"Children's Week", 1558}) -- The Stonewrought Dam
 tinsert(QuestieEvent.eventQuests, {"Children's Week", 1687}) -- Spooky Lighthouse

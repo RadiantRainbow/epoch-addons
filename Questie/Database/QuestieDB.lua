@@ -243,6 +243,84 @@ function QuestieDB:Initialize()
         preferredIndex = 3
     }
 
+    -- Version 1.0.18: Add corruption detection for cached database
+    local function ValidateCachedDatabase()
+        -- Check version mismatch
+        local currentVersion = GetAddOnMetadata("Questie", "Version")
+        if Questie.db.global.dbCacheVersion and Questie.db.global.dbCacheVersion ~= currentVersion then
+            Questie:Print("|cFFFFFF00Database cache outdated (was " .. tostring(Questie.db.global.dbCacheVersion) .. ", now " .. currentVersion .. "), rebuilding...|r")
+            return false
+        end
+        
+        -- Sanity check the binary data
+        local function ValidateBinary(binData, binName)
+            if not binData then
+                return true  -- No cache yet, that's fine
+            end
+            
+            -- Check if it's a string
+            if type(binData) ~= "string" then
+                Questie:Print("|cFFFF0000Database cache corrupted (" .. binName .. " is not a string), rebuilding...|r")
+                return false
+            end
+            
+            -- Check size is reasonable (100 bytes to 10MB)
+            local size = string.len(binData)
+            if size < 100 or size > 10000000 then
+                Questie:Print("|cFFFF0000Database cache corrupted (" .. binName .. " size " .. size .. " bytes), rebuilding...|r")
+                return false
+            end
+            
+            -- Binary data should have null bytes
+            if not string.find(binData, "\000") then
+                Questie:Print("|cFFFF0000Database cache corrupted (" .. binName .. " invalid format), rebuilding...|r")
+                return false
+            end
+            
+            return true
+        end
+        
+        -- Validate each binary cache
+        if Questie.IsSoD then
+            if not ValidateBinary(Questie.db.global.sod.npcBin, "npcBin") then return false end
+            if not ValidateBinary(Questie.db.global.sod.questBin, "questBin") then return false end
+            if not ValidateBinary(Questie.db.global.sod.objBin, "objBin") then return false end
+            if not ValidateBinary(Questie.db.global.sod.itemBin, "itemBin") then return false end
+        else
+            if not ValidateBinary(Questie.db.global.npcBin, "npcBin") then return false end
+            if not ValidateBinary(Questie.db.global.questBin, "questBin") then return false end
+            if not ValidateBinary(Questie.db.global.objBin, "objBin") then return false end
+            if not ValidateBinary(Questie.db.global.itemBin, "itemBin") then return false end
+        end
+        
+        return true
+    end
+    
+    -- Clear cache if validation fails
+    if not ValidateCachedDatabase() then
+        Questie:Debug(Questie.DEBUG_CRITICAL, "[QuestieDB] Clearing corrupted database cache")
+        if Questie.IsSoD then
+            Questie.db.global.sod.npcBin = nil
+            Questie.db.global.sod.npcPtrs = nil
+            Questie.db.global.sod.questBin = nil
+            Questie.db.global.sod.questPtrs = nil
+            Questie.db.global.sod.objBin = nil
+            Questie.db.global.sod.objPtrs = nil
+            Questie.db.global.sod.itemBin = nil
+            Questie.db.global.sod.itemPtrs = nil
+        else
+            Questie.db.global.npcBin = nil
+            Questie.db.global.npcPtrs = nil
+            Questie.db.global.questBin = nil
+            Questie.db.global.questPtrs = nil
+            Questie.db.global.objBin = nil
+            Questie.db.global.objPtrs = nil
+            Questie.db.global.itemBin = nil
+            Questie.db.global.itemPtrs = nil
+        end
+        Questie.db.global.dbCacheVersion = nil
+    end
+    
     -- For now we store both, the SoD database and the Era/HC database
     local npcBin, npcPtrs, questBin, questPtrs, objBin, objPtrs, itemBin, itemPtrs
     if Questie.IsSoD then
@@ -279,6 +357,15 @@ function QuestieDB:Initialize()
     QuestieDB.QuestPointers = QuestieDB.QueryQuest.pointers
     QuestieDB.ObjectPointers = QuestieDB.QueryObject.pointers
     QuestieDB.ItemPointers = QuestieDB.QueryItem.pointers
+    
+    -- Debug: Check if pointers were loaded
+    local questPtrCount = 0
+    if QuestieDB.QuestPointers then
+        for _ in pairs(QuestieDB.QuestPointers) do
+            questPtrCount = questPtrCount + 1
+        end
+    end
+    Questie:Print("|cFF00FF00[QuestieDB] Initialized with " .. questPtrCount .. " quest pointers|r")
 
     QuestieDB._QueryNPC = QuestieDB.QueryNPC.Query
     QuestieDB._QueryQuest = QuestieDB.QueryQuest.Query
@@ -1093,19 +1180,139 @@ end
 ---@param questId QuestId
 ---@return Quest|nil @The quest object or nil if the quest is missing
 function QuestieDB.GetQuest(questId) -- /dump QuestieDB.GetQuest(867)
-    if not questId then
-        Questie:Debug(Questie.DEBUG_CRITICAL, "[QuestieDB.GetQuest] No questId.")
+    -- Wrap entire function in error handler
+    local success, result = pcall(function()
+        if not questId then
+            Questie:Debug(Questie.DEBUG_CRITICAL, "[QuestieDB.GetQuest] No questId.")
+            return nil
+        end
+        
+        -- Handle case where questId might be passed as a table
+        if type(questId) == "table" then
+            if questId.Id then
+                questId = questId.Id
+            elseif questId == QuestieDB then
+                -- Critical error - QuestieDB itself was passed as questId
+                -- This is likely from incorrect method call syntax (: vs .)
+                Questie:Print("|cFFFF0000[CRITICAL ERROR] QuestieDB was passed as questId!|r")
+                Questie:Print("|cFFFFFF00This is usually caused by using : instead of . when calling GetQuest|r")
+                Questie:Print("|cFFFFFF00Check QuestieDataCollector or other modules for incorrect syntax|r")
+                return nil
+            else
+                -- Unknown table passed
+                Questie:Debug(Questie.DEBUG_CRITICAL, "[QuestieDB.GetQuest] questId is unknown table type")
+                return nil
+            end
+        end
+        
+        -- Ensure questId is a number
+        questId = tonumber(questId)
+        if not questId then
+            Questie:Debug(Questie.DEBUG_CRITICAL, "[QuestieDB.GetQuest] questId could not be converted to number.")
+            return nil
+        end
+        
+        -- Return cached or continue to load
+        return questId
+    end)
+    
+    if not success then
+        -- Only show error in debug mode to avoid spam
+        Questie:Debug(Questie.DEBUG_CRITICAL, "[QuestieDB.GetQuest] GetQuest failed:", tostring(result))
         return nil
     end
+    
+    questId = result
+    if not questId then
+        return nil
+    end
+    
     if _QuestieDB.questCache[questId] then
         return _QuestieDB.questCache[questId];
     end
 
+    -- Check if database is initialized before querying
+    if not QuestieDB.QueryQuest then
+        Questie:Debug(Questie.DEBUG_DEVELOP, "[QuestieDB.GetQuest] Database not yet initialized for questID:", questId)
+        return nil
+    end
+    
     local rawdata = QuestieDB.QueryQuest(questId, QuestieDB._questAdapterQueryOrder)
 
     if (not rawdata) then
         Questie:Debug(Questie.DEBUG_CRITICAL, "[QuestieDB.GetQuest] rawdata is nil for questID:", questId)
-        return nil
+        
+        -- Create runtime stub for missing Epoch quests
+        -- Include: Any quest >= 26000 (Epoch range), or any quest currently in the quest log
+        local isInQuestLog = false
+        for i = 1, GetNumQuestLogEntries() do
+            local _, _, _, _, _, _, _, id = GetQuestLogTitle(i)
+            if id == questId then
+                isInQuestLog = true
+                break
+            end
+        end
+        
+        if questId >= 26000 or isInQuestLog then
+            -- Get quest name from game API (GetQuestLogIndexByID doesn't exist in 3.3.5a)
+            local questTitle = nil
+            -- Try to get from active quest log
+            for i = 1, GetNumQuestLogEntries() do
+                local title, level, _, _, _, _, _, id = GetQuestLogTitle(i)
+                if id == questId then
+                    questTitle = title
+                    break
+                end
+            end
+            
+            -- Create minimal stub data for the tracker with error protection
+            local stubSuccess, stubData = pcall(function()
+                -- Use different prefix based on quest ID range
+                local prefix = questId >= 26000 and "[Epoch] " or "[Missing] "
+                return {
+                    prefix .. (questTitle or ("Quest " .. questId)), -- [1] name
+                    {{}, {}, {}}, -- [2] startedBy (properly structured: {NPCs, GameObjects, Items})
+                    {{}, {}}, -- [3] finishedBy (properly structured: {NPCs, GameObjects})
+                    1,   -- [4] requiredLevel (default)
+                    60,  -- [5] questLevel (default max)
+                    0,   -- [6] requiredRaces (all)
+                    0,   -- [7] requiredClasses (all)
+                    nil, -- [8] objectivesText
+                    nil, -- [9] triggerEnd
+                    nil, -- [10] objectives
+                    0,   -- [11] sourceItemId (0 = no source item)
+                    nil, -- [12] preQuestGroup
+                    nil, -- [13] preQuestSingle
+                    nil, -- [14] childQuests
+                    nil, -- [15] inGroupWith
+                    nil, -- [16] exclusiveTo
+                    0,   -- [17] zoneOrSort (unknown zone)
+                    nil, -- [18] requiredSkill
+                    nil, -- [19] requiredMinRep
+                    nil, -- [20] requiredMaxRep
+                    nil, -- [21] requiredSourceItems
+                    nil, -- [22] nextQuestInChain
+                    0,   -- [23] questFlags (0 = normal)
+                    0,   -- [24] specialFlags (0 = not repeatable)
+                    nil, -- [25] parentQuest
+                    nil, -- [26] reputationReward
+                    nil, -- [27] extraObjectives
+                    nil, -- [28] requiredSpell
+                    nil, -- [29] requiredSpecialization
+                    nil, -- [30] requiredMaxLevel
+                }
+            end)
+            
+            if stubSuccess then
+                rawdata = stubData
+                Questie:Debug(Questie.DEBUG_DEVELOP, "[QuestieDB.GetQuest] Created runtime stub for quest:", questId)
+            else
+                Questie:Print("|cFFFF0000[ERROR] Failed to create stub for quest " .. questId .. "|r")
+                return nil
+            end
+        else
+            return nil
+        end
     end
 
     ---@class Quest
@@ -1138,19 +1345,55 @@ function QuestieDB.GetQuest(questId) -- /dump QuestieDB.GetQuest(867)
     ---@field public reputationReward ReputationPair[]
     ---@field public extraObjectives ExtraObjective[]
     ---@field public requiredMaxLevel Level
-    local QO = {
-        Id = questId
-    }
+    -- Wrap quest object creation in error handler to prevent single quest from breaking everything
+    local createSuccess, QO = pcall(function()
+        local questObj = {
+            Id = questId
+        }
 
-    -- General filling of the QuestObjective with all database values
-    local questKeys = QuestieDB.questKeys
-    for stringKey, intKey in pairs(questKeys) do
-        QO[stringKey] = rawdata[intKey]
+        -- General filling of the QuestObjective with all database values
+        local questKeys = QuestieDB.questKeys
+        for stringKey, intKey in pairs(questKeys) do
+            questObj[stringKey] = rawdata[intKey]
+        end
+        
+        return questObj
+    end)
+    
+    if not createSuccess then
+        Questie:Print("|cFFFF0000[ERROR] Failed to create quest object for ID " .. questId .. ": " .. tostring(QO) .. "|r")
+        return nil
     end
 
     local questLevel, requiredLevel = QuestieLib.GetTbcLevel(questId)
     QO.level = questLevel
     QO.requiredLevel = requiredLevel
+
+    -- Check if this is an incomplete Epoch quest that needs the [Epoch] prefix
+    if questId >= 26000 and questId < 27000 then
+        local hasIncompleteData = false
+        
+        -- Check for missing quest givers
+        local startedBy = QO.startedBy
+        if not startedBy or 
+           (type(startedBy) == "table" and 
+            (not startedBy[1] or #startedBy[1] == 0) and
+            (not startedBy[2] or #startedBy[2] == 0) and
+            (not startedBy[3] or #startedBy[3] == 0)) then
+            hasIncompleteData = true
+        end
+        
+        -- Check for missing objectives
+        if not QO.objectives and not QO.objectivesText then
+            hasIncompleteData = true
+        end
+        
+        -- Add [Epoch] prefix if quest data is incomplete and doesn't already have it
+        if hasIncompleteData and QO.name and not string.find(QO.name, "%[Epoch%]") then
+            QO.name = "[Epoch] " .. QO.name
+            QO.LocalizedName = "[Epoch] " .. (QO.LocalizedName or QO.name)
+        end
+    end
 
     ---@type StartedBy
     local startedBy = QO.startedBy
@@ -1163,13 +1406,17 @@ function QuestieDB.GetQuest(questId) -- /dump QuestieDB.GetQuest(867)
     QO.Description = QO.objectivesText
     if QO.specialFlags then
         QO.IsRepeatable = bitband(QO.specialFlags, 1) ~= 0
+        -- Debug logging for repeatable quest issues (GitHub #90)
+        if QO.IsRepeatable and questId >= 26000 then
+            Questie:Debug(Questie.DEBUG_INFO, "[REPEATABLE] Epoch quest " .. questId .. " (" .. (QO.name or "Unknown") .. ") marked as repeatable with specialFlags: " .. QO.specialFlags)
+        end
     end
 
     QO.IsComplete = _IsComplete
 
     ---@type FinishedBy
     local finishedBy = QO.finishedBy
-    if finishedBy[1] then
+    if finishedBy and finishedBy[1] then
         for _, id in pairs(finishedBy[1]) do
             if id then
                 QO.Finisher = {
@@ -1230,12 +1477,40 @@ function QuestieDB.GetQuest(questId) -- /dump QuestieDB.GetQuest(867)
         if objectives[3] then
             for _, itemObjective in pairs(objectives[3]) do
                 if itemObjective then
-                    ---@type ItemObjective
-                    QO.ObjectiveData[#QO.ObjectiveData+1] = {
-                        Type = "item",
-                        Id = itemObjective[1],
-                        Text = itemObjective[2]
-                    }
+                    local itemId = nil
+                    local itemText = nil
+                    
+                    -- Handle both malformed {{itemId}} and proper {{itemId, qty, "name"}} formats
+                    if type(itemObjective) == "number" then
+                        -- Malformed: single number like 182 instead of {182, 1, "Head"}
+                        itemId = itemObjective
+                        -- Try to get item name from database
+                        local itemName = QuestieDB.QueryItemSingle(itemId, "name")
+                        itemText = itemName or ("Item " .. tostring(itemId))
+                    elseif type(itemObjective) == "table" then
+                        -- Proper format: {itemId, quantity, "name"}
+                        itemId = itemObjective[1]
+                        if itemObjective[3] then
+                            -- Has name in third position: {itemId, qty, "name"}
+                            itemText = tostring(itemObjective[2]) .. " " .. itemObjective[3]
+                        elseif itemObjective[2] then
+                            -- Has text/quantity in second position
+                            itemText = itemObjective[2]
+                        else
+                            -- No text, try to get from database
+                            local itemName = QuestieDB.QueryItemSingle(itemId, "name")
+                            itemText = itemName or ("Item " .. tostring(itemId))
+                        end
+                    end
+                    
+                    if itemId then
+                        ---@type ItemObjective
+                        QO.ObjectiveData[#QO.ObjectiveData+1] = {
+                            Type = "item",
+                            Id = itemId,
+                            Text = itemText
+                        }
+                    end
                 end
             end
         end
@@ -1598,33 +1873,42 @@ function QuestieDB:GetQuestsByZoneId(zoneId)
     local alternativeZoneID = ZoneDB:GetAlternativeZoneId(zoneId)
     -- loop over all quests to populate a zone
     for qid, _ in pairs(QuestieDB.QuestPointers or QuestieDB.questData) do
-        local quest = QuestieDB.GetQuest(qid);
-        if quest then
-            if quest.zoneOrSort > 0 then
-                if (quest.zoneOrSort == zoneId or (alternativeZoneID and quest.zoneOrSort == alternativeZoneID)) then
-                    zoneQuests[qid] = quest;
-                end
-            elseif quest.Starts.NPC and (not zoneQuests[qid]) then
-                local npc = QuestieDB:GetNPC(quest.Starts.NPC[1]);
-                if npc and npc.friendly and npc.spawns then
-                    for zone, _ in pairs(npc.spawns) do
-                        if zone == zoneId  or (alternativeZoneID and zone == alternativeZoneID) then
+        -- Ensure qid is a number (sometimes it might be a table)
+        if type(qid) == "table" then
+            -- Skip invalid entries
+            Questie:Debug(Questie.DEBUG_DEVELOP, "[GetQuestsByZoneId] Skipping table questId entry")
+        else
+            qid = tonumber(qid)
+            if qid then
+                local quest = QuestieDB.GetQuest(qid);
+                if quest then
+                    if quest.zoneOrSort > 0 then
+                        if (quest.zoneOrSort == zoneId or (alternativeZoneID and quest.zoneOrSort == alternativeZoneID)) then
                             zoneQuests[qid] = quest;
+                        end
+                    elseif quest.Starts.NPC and (not zoneQuests[qid]) then
+                        local npc = QuestieDB:GetNPC(quest.Starts.NPC[1]);
+                        if npc and npc.friendly and npc.spawns then
+                            for zone, _ in pairs(npc.spawns) do
+                                if zone == zoneId  or (alternativeZoneID and zone == alternativeZoneID) then
+                                    zoneQuests[qid] = quest;
+                                end
+                            end
+                        end
+                    elseif quest.Starts.GameObject and (not zoneQuests[qid]) then
+                        local obj = QuestieDB:GetObject(quest.Starts.GameObject[1]);
+                        if obj and obj.spawns then
+                            for zone, _ in pairs(obj.spawns) do
+                                if zone == zoneId  or (alternativeZoneID and zone == alternativeZoneID) then
+                                    zoneQuests[qid] = quest;
+                                end
+                            end
                         end
                     end
                 end
-            elseif quest.Starts.GameObject and (not zoneQuests[qid]) then
-                local obj = QuestieDB:GetObject(quest.Starts.GameObject[1]);
-                if obj and obj.spawns then
-                    for zone, _ in pairs(obj.spawns) do
-                        if zone == zoneId  or (alternativeZoneID and zone == alternativeZoneID) then
-                            zoneQuests[qid] = quest;
-                        end
-                    end
-                end
-            end
-        end
-    end
+            end -- close if qid
+        end -- close else (not table)
+    end -- close for loop
     _QuestieDB.zoneCache[zoneId] = zoneQuests;
     return zoneQuests;
 end

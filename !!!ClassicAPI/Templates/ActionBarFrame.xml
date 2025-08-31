@@ -134,9 +134,6 @@
           </OnPlay>
           <OnStop>
             local frame = self:GetParent()
-            frame.outerGlow:Hide()
-            frame.ants:Hide()
-
             frame.outerGlowOver.animOut:Stop()
             frame.outerGlow.animOut:Stop()
             frame.ants.animOut:Stop()

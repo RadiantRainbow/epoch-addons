@@ -47,8 +47,6 @@ end
 local function ActionButton_OverlayGlowAnimOutFinished(animGroup)
 	local overlay = animGroup:GetParent()
 	local actionButton = overlay:GetParent()
-	overlay.outerGlow:Hide()
-	overlay.ants:Hide()
 
 	if ( unusedOverlayGlows ) then
 		unusedOverlayGlows[#unusedOverlayGlows+1] = overlay

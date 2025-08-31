@@ -1,4 +1,3 @@
--- AUTO GENERATED FILE! DO NOT EDIT!
 
 ---@type QuestieDB
 local QuestieDB = QuestieLoader:ImportModule("QuestieDB");
@@ -26,8 +25,13 @@ local epochItemData = {
 [60099] = {"Lost Tablet",nil,{4000024}},
 [60100] = {"Joseph's Watch",nil,{4000009},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26939}},
 [60101] = {"Sealed Scarlet Documents",nil,{4000057}},
+[60102] = {"[Epoch] Item 60102",{},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26942}},
 [60111] = {"Case of Ore",nil,{4000003}},
 [60113] = {"Felstalker Blood",{3102},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{27267}},
+-- Issue #86: The Argus Wake quest items
+[62691] = {"Pinch of Bone Marrow",{4872,4873,4874},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26529}}, -- From skeletons in Kodo Graveyard
+[62692] = {"Vial of Vulture Blood",{4158,4159},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26530}}, -- From vultures in Kodo Graveyard
+[62693] = {"Kratok's Horn",{45531},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26533}}, -- From Kratok
 [60114] = {"Bloodtalon Claw",{46124},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{27267}},
 [60115] = {"Thistleweed",nil,{4001006},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{27267}},
 [60117] = {"Venture Co. Debris",nil,{4001008},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{27346}},
@@ -252,6 +256,8 @@ local epochItemData = {
 [62743] = {"Wrinkled Furbolg Brain",{7442,7440,7441,10916,7439,7438},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{27551}},
 [62745] = {"Restless Ectoplasm",{7523,7524},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{27554}},
 [62757] = {"Thresher Saliva Gland",{46330},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26971}},
+[62803] = {"Case of Ore",{},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26934}},
+[62811] = {"Joseph's Journal",nil,{4000009},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26939}},
 [62759] = {"Putrid Spider Silk",{1824,1821,1822},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26964}},
 [62760] = {"Sharlot's Spinneret",{46332},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26965}},
 [62762] = {"Fungus Sample",{1812,1813},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26967}},
@@ -300,6 +306,52 @@ local epochItemData = {
 [63503] = {"Misty Core",{46904},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26655}},
 [63504] = {"Ember Worg Pelt",{9694,9690},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26656}},
 [67288] = {"Spinescale's Head",{46352},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{27509}},
+[62620] = {"Eston's Key",nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26796}},
+[62648] = {"Zygor's Head",nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26824}},
+[62271] = {"Symbol of Life",nil,nil,nil,nil,{26460},nil,nil,nil,13,13,nil,nil,nil}, -- Paladin quest item
+[62796] = {"Box of Collected Relics",nil,nil,nil,nil,{26926},nil,nil,nil,nil,nil,nil,nil,nil}, -- Quest item from object in Tirisfal Glades (22.4, 50.9)
+[62815] = {"Sealed Scarlet Documents",nil,{4000057},nil,nil,{26941},nil,nil,nil,nil,nil,nil,nil,nil}, -- Quest item from chest for quest 26941 (reduced object ID to fit 24-bit limit)
+[17242] = {"Lieutenant Sanders' Key",{13158},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil}, -- Key dropped by Lieutenant Sanders
+[62391] = {"Nethergarde Insignia",{5999,6000,6001},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26605}},
+[62392] = {"Nethergarde Ore Shipment",nil,{4001027},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26606}},
+[62393] = {"Redstone Flank",{5991},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26607}},
+[62395] = {"Ragged Ear",{6004,6005,6006},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26608}},
+[62396] = {"Felstone Gold Ore",{6007},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26609}},
+[60763] = {"Glyph of Affliction",{6004,6005,6006},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26267}},
+[62385] = {"Elaborate Timepiece",{6008},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26611}},
+[62386] = {"Magic Drum",{6009},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26611}},
+[62387] = {"Twisted Staff",{6010},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26611}},
+[63509] = {"Tainted Essence",{62026},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{27484}},
+
+-- Issue #70: The Hinterlands quest items
+[8684] = {"Hinterlands Honey Ripple",nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26167}},
+[60081] = {"Shadraspawn Egg",nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26168}},
+[60083] = {"Witherbark Shawl Scrap",nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26171}},
+[60084] = {"Perfect Broodguard Silk",nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26171}},
+
+-- Issue #68: Westfall quest items
+[3575] = {"Cask of Merlot",nil,{400001},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26697}}, -- From Sack of Oats object
+[13926] = {"Golden Scale Gauntlets",nil,{400002},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26699}}, -- From Fishing Bobber object
+[62859] = {"Nancy Eastworth's Braid",nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26987}},
+[62823] = {"A Tattered Acceptance Letter",nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26953}},
+
+-- Issue #75: Missing quest items
+[110000] = {"Commission Item",nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{28535,28618}},
+
+-- Issue #73: Missing quest batch submission items
+[110001] = {"Raw Springsocket Eel",nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26126}},
+[63195] = {"Slaver's Records",{5844,5846,5843},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26864}}, -- Dark Iron Taskmasters drop
+
+-- Issue #208: Two-Legged Vultures quest items (Tanaris)
+[63284] = {"Marvon's Pocket Watch",{46196},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{27420}}, -- Ravenous Looter drop
+[63285] = {"Marvon's Brimmed Hat",{46196},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{27420}}, -- Ravenous Looter drop
+[63286] = {"Marvon's Ham Radio",{46196},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{27420}}, -- Ravenous Looter drop
+
+-- Issue #203: Reagents For The Undercity quest items (Desolace)
+[6246] = {"Hatefury Claw",{4670,4671,4672,4673},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{27254}}, -- Hatefury creatures drop (issue #197)
+[6247] = {"Hatefury Horn",{4670,4671,4672,4673},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{27254}}, -- Hatefury creatures drop (issue #197)
+[6250] = {"Felhound Brain",{4676,4677},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{27256}}, -- Ley Hunters, Mage Hunters drop
+[6251] = {"Nether Wing",{4684,4686},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{27256}}, -- Nether Sorceresses, Nether Sister drop
 }
 
 -- Stage the Epoch itemData for later merge during compilation

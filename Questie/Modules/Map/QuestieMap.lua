@@ -208,6 +208,12 @@ function QuestieMap.GetScaleValue()
             scaling = 0.9
         end
     end
+    
+    -- Maintain icon scale when zooming (from PR #44)
+    if WorldMapDetailFrame then
+        scaling = scaling / WorldMapDetailFrame:GetScale()
+    end
+    
     return scaling
 end
 
@@ -313,6 +319,7 @@ function QuestieMap.ProcessQueue()
 
             --? If you ever chanage this logic, make sure you change the logic in QuestieMap.utils:RescaleIcon function too!
             local size = (16 * (frame.data.IconScale or 1) * (Questie.db.profile.globalScale or 0.7)) * scaleValue;
+            
             frame:SetSize(size, size)
 
             QuestieMap.utils:SetDrawOrder(frame);
@@ -591,7 +598,8 @@ function QuestieMap:DrawWorldIcon(data, areaID, x, y, showFlag)
         end
 
         if (not parentMapId) then
-            error("No UiMapID or fitting parentAreaId for areaId : " .. areaID .. " - " .. tostring(data.Name))
+            -- Log as warning instead of error for unknown zones (like custom Project Epoch zones)
+            Questie:Warning("No UiMapID or fitting parentAreaId for areaId : " .. areaID .. " - " .. tostring(data.Name))
             return nil, nil
         else
             areaID = parentMapId
@@ -605,6 +613,11 @@ function QuestieMap:DrawWorldIcon(data, areaID, x, y, showFlag)
 
     --print("UIMAPID: " .. tostring(uiMapId))
     if not uiMapId then
+        -- Handle continent zones gracefully (1414=Kalimdor, 1415=Eastern Kingdoms)
+        if areaID == 1414 or areaID == 1415 then
+            Questie:Debug(Questie.DEBUG_DEVELOP, "[QuestieMap] Skipping continent-level icon for zone:", areaID, data.Name)
+            return nil, nil
+        end
         --ZoneDB:GetUiMapIdByAreaId
         error("No UiMapID or fitting uiMapId for areaId : " .. areaID .. " - " .. tostring(data.Name))
         return nil, nil
@@ -884,7 +897,8 @@ function QuestieMap:GetNearestQuestSpawn(quest)
     if not quest then
         return nil
     end
-    if quest:IsComplete() == 1 then
+    -- Check if quest has IsComplete method (runtime stub quests might not)
+    if quest.IsComplete and quest:IsComplete() == 1 then
         local finisherSpawns
         local finisherName
         if quest.Finisher ~= nil then

@@ -166,17 +166,45 @@ function QuestLogCache.CheckForChanges(questIdsToCheck)
     local cacheMiss = false
     local changes = {} -- table key = questid of the changed quest, table value = list of changed objective ids
     local questIdsChecked = {} -- for debug / error detection
+    
+    -- Debug: Check questIdsToCheck parameter
+    if questIdsToCheck then
+        local checkCount = 0
+        for _ in pairs(questIdsToCheck) do
+            checkCount = checkCount + 1
+        end
+        -- Check specific quests
+    else
+        -- Check all quests
+    end
+    
+    -- Debug: Check how many quests Blizzard says we have
+    local numEntries, numQuests = GetNumQuestLogEntries()
+    -- Check quest log counts
+    
+    local processedCount = 0
+    local headerCount = 0
+    local noDataCount = 0
+    local cachedCount = 0
 
     for questLogIndex = 1, MAX_QUEST_LOG_INDEX do
         ----- title, level, questTag, isHeader, isCollapsed, isComplete, frequency, questID, startEvent, displayQuestID, isOnMap, hasLocalPOI, isTask, isBounty, isStory, isHidden, isScaling = GetQuestLogTitle(questLogIndex)
 
         local title, _, questTag, isHeader, _, isComplete, _, questId = GetQuestLogTitle(questLogIndex)
         if (not title) then
+            -- End of quest log
             break -- We exceeded the valid quest log entries
         end
-        if (not isHeader) and ((not questIdsToCheck) or questIdsToCheck[questId]) then -- check all quests if no list what to check, otherwise just ones in the list
+        if isHeader then
+            headerCount = headerCount + 1
+        elseif ((not questIdsToCheck) or questIdsToCheck[questId]) then -- check all quests if no list what to check, otherwise just ones in the list
+            processedCount = processedCount + 1
             questIdsChecked[questId] = true
-            if HaveQuestData(questId) then
+            if not HaveQuestData(questId) then
+                noDataCount = noDataCount + 1
+                -- No quest data available
+            else
+                cachedCount = cachedCount + 1
                 local cachedQuest = cache[questId]
                 local cachedObjectives = cachedQuest and cachedQuest.objectives or {}
 
@@ -219,24 +247,13 @@ function QuestLogCache.CheckForChanges(questIdsToCheck)
                             objectives = newObjectives,
                         }
                         changes[questId] = changedObjIds
+                        -- Quest saved to cache
+                    else
+                        -- No changes detected
                     end
                 else
                     cacheMiss = true
                 end
-            else
-                Questie:Debug(Questie.DEBUG_CRITICAL, "[QuestLogCache.CheckForChanges] HaveQuestData() == false. questId, index:", questId, questLogIndex)
-
-                -- In theory this shouldn't happen. This is not error but an edge case.
-
-                -- Game's quest log has the questId, but game doesn't have data of the quest right now.
-                -- Use earlier cached version of the quest. This may very well be nonexisting version, which is okey.
-                -- Query with HaveQuestData() triggers game to get the data and fire QUEST_LOG_UPDATE once game has the data.
-                --   Does NOT trigger getting objectives data! (read: item data related to objectives)
-
-                -- Speed up caching of objective items as HaveQuestData() won't trigger game to cache those.
-                C_QuestLog_GetQuestObjectives(questId, questLogIndex)
-
-                cacheMiss = true
             end
         end
     end
@@ -286,6 +303,13 @@ function QuestLogCache.CheckForChanges(questIdsToCheck)
     QuestLogCache.DebugPrintCacheChanges(cacheMiss, changes)
 ]]--
 
+    -- Debug: Report what we cached
+    local cacheCount = 0
+    for _ in pairs(cache) do
+        cacheCount = cacheCount + 1
+    end
+    -- Cache update complete
+    
     return cacheMiss, changes
 end
 

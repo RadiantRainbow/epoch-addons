@@ -27,6 +27,8 @@ local QuestieLib = QuestieLoader:ImportModule("QuestieLib")
 local QuestiePlayer = QuestieLoader:ImportModule("QuestiePlayer")
 ---@type TaskQueue
 local TaskQueue = QuestieLoader:ImportModule("TaskQueue")
+---@type QuestieQuestUtils
+local QuestieQuestUtils = QuestieLoader:ImportModule("QuestieQuestUtils")
 ---@type QuestieDB
 local QuestieDB = QuestieLoader:ImportModule("QuestieDB")
 ---@type ZoneDB
@@ -60,6 +62,7 @@ local pairs = pairs;
 local ipairs = ipairs;
 local yield = coroutine.yield
 local NewThread = ThreadLib.ThreadSimple
+local bitband = bit.band
 
 local NOP_FUNCTION = function()
 end
@@ -250,38 +253,35 @@ local function _UpdateRuntimeQuestStub(questId, stub)
     local newObjectives = {}
     local foundObjectives = false
     
-    if SelectQuestLogEntry and GetNumQuestLeaderBoards and GetQuestLogLeaderBoard then
-        SelectQuestLogEntry(qli)
-        local numObjectives = GetNumQuestLeaderBoards()
-        if numObjectives and numObjectives > 0 then
-            foundObjectives = true
-            for i = 1, numObjectives do
-                local description, type, finished, numFulfilled, numRequired = GetQuestLogLeaderBoard(i)
-                if description then
-                    newObjectives[i] = {
-                        Id = nil,
-                        Index = i,
-                        questId = questId,
-                        _lastUpdate = 0,
-                        Description = description,
-                        spawnList = {},
-                        AlreadySpawned = {},
-                        isUpdated = true,
-                        Collected = tonumber(numFulfilled) or 0,
-                        Needed = tonumber(numRequired) or 0,
-                        Completed = finished or false,
-                        Coordinates = nil,
-                        RequiredRepValue = nil,
-                    }
-                    -- Assign the Update function to the objective
-                    newObjectives[i].Update = _QuestieQuest.ObjectiveUpdate
-                    -- For runtime stubs, force the objective to update immediately
-                    newObjectives[i].isUpdated = false
-                    newObjectives[i]:Update()
-                    
-                    Questie:Debug(Questie.DEBUG_INFO, "[_UpdateRuntimeQuestStub] Objective", i, "desc:", description, "progress:", numFulfilled, "/", numRequired)
-                end
-            end
+    -- Use the new safe function to get objectives without taint
+    local QuestieQuestUtils = QuestieLoader:ImportModule("QuestieQuestUtils")
+    local safeObjectives = QuestieQuestUtils:GetQuestObjectivesSafe(questId, qli)
+    
+    if safeObjectives and #safeObjectives > 0 then
+        foundObjectives = true
+        for i, objData in ipairs(safeObjectives) do
+            newObjectives[i] = {
+                Id = nil,
+                Index = i,
+                questId = questId,
+                _lastUpdate = 0,
+                Description = objData.description,
+                spawnList = {},
+                AlreadySpawned = {},
+                isUpdated = true,
+                Collected = objData.numFulfilled,
+                Needed = objData.numRequired,
+                Completed = objData.finished,
+                Coordinates = nil,
+                RequiredRepValue = nil,
+            }
+            -- Assign the Update function to the objective
+            newObjectives[i].Update = _QuestieQuest.ObjectiveUpdate
+            -- For runtime stubs, force the objective to update immediately
+            newObjectives[i].isUpdated = false
+            newObjectives[i]:Update()
+            
+            Questie:Debug(Questie.DEBUG_INFO, "[_UpdateRuntimeQuestStub] Objective", i, "desc:", objData.description, "progress:", objData.numFulfilled, "/", objData.numRequired)
         end
     end
     
@@ -670,7 +670,31 @@ local hordeTournamentMarkerQuests = {[13691] = true, [13693] = true, [13694] = t
 
 ---@param questId number
 function QuestieQuest:AcceptQuest(questId)
+    -- ALWAYS clear auto-untracked status when accepting ANY quest
+    -- This must happen for both database quests AND runtime stubs
+    if Questie.db.char.AutoUntrackedQuests and Questie.db.char.AutoUntrackedQuests[questId] then
+        Questie.db.char.AutoUntrackedQuests[questId] = nil
+        Questie:Debug(Questie.DEBUG_INFO, "[QuestieQuest:AcceptQuest] Removed quest from AutoUntrackedQuests:", questId)
+    end
+    
+    -- IMPORTANT: Check if we already have a good runtime stub BEFORE calling GetQuest
+    -- GetQuest creates a generic stub that would replace our good stub with correct name
+    local existingStub = QuestiePlayer.currentQuestlog[questId]
+    if existingStub and existingStub.__isRuntimeStub then
+        Questie:Debug(Questie.DEBUG_INFO, "[QuestieQuest:AcceptQuest] Using existing runtime stub:", questId, existingStub.name or "Unknown")
+        -- For runtime stubs, trigger the tracker update
+        QuestieCombatQueue:Queue(function()
+            QuestieTracker:Update()
+            QuestieTracker:ForceShow()
+        end)
+        return
+    end
+    
     local quest = QuestieDB.GetQuest(questId)
+    if not quest then
+        Questie:Debug(Questie.DEBUG_INFO, "[QuestieQuest:AcceptQuest] No quest data found for", questId)
+        return
+    end
 
     if quest then
         local complete = quest:IsComplete()
@@ -696,6 +720,11 @@ function QuestieQuest:AcceptQuest(questId)
             Questie:Debug(Questie.DEBUG_INFO, "[QuestieQuest] Accepted Quest:", questId)
 
             QuestiePlayer.currentQuestlog[questId] = quest
+            
+            -- Re-accepted quest can be collapsed. Expand it immediately.
+            if Questie.db.char.collapsedQuests and Questie.db.char.collapsedQuests[questId] then
+                Questie.db.char.collapsedQuests[questId] = nil
+            end
 
             if allianceTournamentMarkerQuests[questId] then
                 Questie.db.char.complete[13686] = true -- Alliance Tournament Eligibility Marker
@@ -708,16 +737,6 @@ function QuestieQuest:AcceptQuest(questId)
                 function() QuestieMap:UnloadQuestFrames(questId) end,
                 -- Make sure there isn't any lingering tooltip data hanging around in the quest table.
                 function() QuestieTooltips:RemoveQuest(questId) end,
-                function()
-                    -- Re-accepted quest can be collapsed. Expand it. Especially dailies.
-                    if Questie.db.char.collapsedQuests then
-                        Questie.db.char.collapsedQuests[questId] = nil
-                    end
-                    -- Re-accepted quest can be untracked. Clear it. Especially timed quests.
-                    if Questie.db.char.AutoUntrackedQuests[questId] then
-                        Questie.db.char.AutoUntrackedQuests[questId] = nil
-                    end
-                end,
                 function() QuestieQuest:PopulateQuestLogInfo(quest) end,
                 function()
                     -- This needs to happen after QuestieQuest:PopulateQuestLogInfo because that is the place where quest.Objectives is generated
@@ -871,7 +890,7 @@ function QuestieQuest:UpdateQuest(questId)
             -- Quest was somehow reset back to incomplete after being completed (quest.WasComplete == true).
             -- The "or" check looks for a sourceItemId then checks to see if it's NOT in the players bag.
             -- Player destroyed quest items? Or some other quest mechanic removed the needed quest item.
-            if quest and (quest.WasComplete or (quest.sourceItemId > 0 and QuestieQuest:CheckQuestSourceItem(questId) == false)) then
+            if quest and (quest.WasComplete or (quest.sourceItemId and quest.sourceItemId > 0 and QuestieQuest:CheckQuestSourceItem(questId) == false)) then
                 Questie:Debug(Questie.DEBUG_DEVELOP, "[QuestieQuest:UpdateQuest] Quest was once complete or Quest Item(s) were removed. Resetting quest.")
 
                 -- Reset quest objectives
@@ -940,6 +959,19 @@ end
 function QuestieQuest:GetAllQuestIds()
     Questie:Debug(Questie.DEBUG_DEVELOP, "[QuestieQuest] Getting all quests")
 
+    -- Ensure QuestLogCache is loaded
+    if not QuestLogCache or not QuestLogCache.questLog_DO_NOT_MODIFY then
+        Questie:Print("[ERROR] QuestLogCache not initialized! QuestLogCache=", tostring(QuestLogCache))
+        if QuestLogCache then
+            Questie:Print("[ERROR] questLog_DO_NOT_MODIFY=", tostring(QuestLogCache.questLog_DO_NOT_MODIFY))
+        end
+        -- Initialize empty questlog and return
+        QuestiePlayer.currentQuestlog = {}
+        return
+    end
+
+    -- Set flag to prevent tracker updates during population
+    QuestiePlayer._populatingQuestlog = true
     QuestiePlayer.currentQuestlog = {}
 
     for questId, data in pairs(QuestLogCache.questLog_DO_NOT_MODIFY) do -- DO NOT MODIFY THE RETURNED TABLE
@@ -981,6 +1013,9 @@ function QuestieQuest:GetAllQuestIds()
     -- Update runtime stubs to ensure they have current objective progress data
     -- This is especially important after reload/relog when stubs are recreated
     QuestieQuest:UpdateRuntimeStubs()
+    
+    -- Clear flag after population is complete
+    QuestiePlayer._populatingQuestlog = false
     
     -- Schedule another update with a delay to ensure quest log is fully populated
     C_Timer.After(0.5, function()
@@ -1107,7 +1142,7 @@ function QuestieQuest:GetAllQuestIdsNoObjectives()
     Questie:Debug(Questie.DEBUG_DEVELOP, "[QuestieQuest] Getting all quests without objectives")
     QuestiePlayer.currentQuestlog = {}
 
-    for questId, data in pairs(QuestLogCache.questLog_DO_NOT_MODIFY) do -- DO NOT MODIFY THE RETURNED TABLE
+    for questId, data in pairs(QuestLogCache.questLog_DO_NOT_MODIFY or {}) do -- DO NOT MODIFY THE RETURNED TABLE
         if (not QuestieDB.QuestPointers[questId]) then
             -- Insert a light-weight runtime stub here as well so resets keep the tracker populated.
             local stub = _CreateRuntimeQuestStub(questId, data)
@@ -1161,7 +1196,7 @@ end
 function QuestieQuest:CheckQuestSourceItem(questId, makeObjective)
     local quest = QuestieDB.GetQuest(questId)
     local sourceItem = true
-    if quest and quest.sourceItemId > 0 then
+    if quest and quest.sourceItemId and quest.sourceItemId > 0 then
         for bag = -2, 4 do
             for slot = 1, QuestieCompat.GetContainerNumSlots(bag) do
                 local itemId = select(10, QuestieCompat.GetContainerItemInfo(bag, slot))
@@ -1289,7 +1324,14 @@ function QuestieQuest:AddFinisher(quest)
                         elseif QuestieDB.IsPvPQuest(quest.Id) then
                             data.Icon = Questie.ICON_TYPE_PVPQUEST_COMPLETE
                         elseif quest.IsRepeatable then
-                            data.Icon = Questie.ICON_TYPE_REPEATABLE_COMPLETE
+                            -- Extra validation for Epoch quests (GitHub #90)
+                            -- Only show repeatable icon if we're certain it's actually repeatable
+                            if quest.Id >= 26000 and quest.specialFlags and bitband(quest.specialFlags, 1) == 0 then
+                                -- Epoch quest incorrectly marked as repeatable, skip repeatable icon
+                                Questie:Debug(Questie.DEBUG_INFO, "[REPEATABLE FIX] Epoch quest " .. quest.Id .. " was marked repeatable but specialFlags=" .. (quest.specialFlags or "nil"))
+                            else
+                                data.Icon = Questie.ICON_TYPE_REPEATABLE_COMPLETE
+                            end
                         end
 
                         if (coords[1] == -1 or coords[2] == -1) then
@@ -1438,7 +1480,10 @@ _RegisterObjectiveTooltips = function(objective, questId, blockItemTooltips)
             objective.hasRegisteredTooltips = true
         end
     else
-        Questie:Error("[QuestieQuest]: [Tooltips] " .. l10n("There was an error populating objectives for %s %s %s %s", objective.Description or "No objective text", questId or "No quest id", 0 or "No objective", "No error"));
+        -- Some objectives (like event/script objectives) don't have spawn lists
+        -- This is normal for quests like "Read the Second Tablet" which are triggered by scripts
+        -- Only log as debug, not error
+        Questie:Debug(Questie.DEBUG_DEVELOP, "[QuestieQuest]: Quest", questId, "has objective without spawn data:", objective.Description or "Unknown objective");
     end
 
     if (not objective.registeredItemTooltips) and objective.Type == "item" and (not blockItemTooltips) and objective.Id then
@@ -1864,6 +1909,27 @@ function _QuestieQuest.ObjectiveUpdate(self)
             self.Description = obj.text
             self.Collected = tonumber(numFulfilled);
             self.Needed = tonumber(numRequired);
+            
+            -- For item objectives, also check actual item count in bags
+            -- This helps with regular items like linen cloth that aren't quest items
+            if self.Type == "item" and self.Id then
+                local GetItemCount = GetItemCount or C_Item and C_Item.GetItemCount
+                if GetItemCount then
+                    local actualCount = GetItemCount(self.Id, nil, true) -- include bank = true
+                    if actualCount and actualCount > 0 then
+                        -- Use the actual item count if it's higher than what the API reports
+                        -- This helps when the quest log hasn't updated yet
+                        if actualCount > self.Collected then
+                            self.Collected = actualCount
+                        end
+                        -- Clamp to needed amount if we have more
+                        if self.Collected > self.Needed and self.Needed > 0 then
+                            self.Collected = self.Needed
+                        end
+                    end
+                end
+            end
+            
             self.Completed = (self.Needed == self.Collected and self.Needed > 0) or (finished and (self.Needed == 0 or (not self.Needed))) -- some objectives get removed on PLAYER_LOGIN because isComplete is set to true at random????
             -- Mark objective updated
             self.isUpdated = true

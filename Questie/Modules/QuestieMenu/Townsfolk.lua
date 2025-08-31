@@ -209,6 +209,35 @@ function Townsfolk.Initialize()
     factionSpecificTownsfolk["Horde"]["Spirit Healer"]  = townsfolkData["Spirit Healer"].data
     factionSpecificTownsfolk["Alliance"]["Spirit Healer"]  = townsfolkData["Spirit Healer"].data
 
+    -- Add Innkeepers to faction-specific lists (they're faction-neutral service NPCs)
+    factionSpecificTownsfolk["Horde"]["Innkeeper"] = townfolk["Innkeeper"]
+    factionSpecificTownsfolk["Alliance"]["Innkeeper"] = townfolk["Innkeeper"]
+    
+    -- Add other faction-neutral service NPCs
+    factionSpecificTownsfolk["Horde"]["Repair"] = townfolk["Repair"]
+    factionSpecificTownsfolk["Alliance"]["Repair"] = townfolk["Repair"]
+    
+    factionSpecificTownsfolk["Horde"]["Auctioneer"] = townfolk["Auctioneer"]
+    factionSpecificTownsfolk["Alliance"]["Auctioneer"] = townfolk["Auctioneer"]
+    
+    factionSpecificTownsfolk["Horde"]["Banker"] = townfolk["Banker"]
+    factionSpecificTownsfolk["Alliance"]["Banker"] = townfolk["Banker"]
+    
+    factionSpecificTownsfolk["Horde"]["Battlemaster"] = townfolk["Battlemaster"]
+    factionSpecificTownsfolk["Alliance"]["Battlemaster"] = townfolk["Battlemaster"]
+    
+    factionSpecificTownsfolk["Horde"]["Flight Master"] = townfolk["Flight Master"]
+    factionSpecificTownsfolk["Alliance"]["Flight Master"] = townfolk["Flight Master"]
+    
+    factionSpecificTownsfolk["Horde"]["Weapon Master"] = townfolk["Weapon Master"]
+    factionSpecificTownsfolk["Alliance"]["Weapon Master"] = townfolk["Weapon Master"]
+    
+    -- Add Meeting Stones for WotLK/TBC
+    if Questie.IsWotlk or Questie.IsTBC then
+        factionSpecificTownsfolk["Horde"]["Meeting Stones"] = townfolk["Meeting Stones"]
+        factionSpecificTownsfolk["Alliance"]["Meeting Stones"] = townfolk["Meeting Stones"]
+    end
+
     factionSpecificTownsfolk["Horde"]["Mailbox"] = {}
     factionSpecificTownsfolk["Alliance"]["Mailbox"] = {}
 

@@ -29,7 +29,7 @@ local QuestieClassicQuestReputationFixes = QuestieLoader:ImportModule("QuestieCl
 ---@type QuestieNPCFixes
 local QuestieNPCFixes = QuestieLoader:ImportModule("QuestieNPCFixes")
 ---@type QuestieEpochStormwindFixes
-local QuestieEpochStormwindFixes = QuestieLoader:ImportModule("QuestieEpochStormwindFixes")
+-- local QuestieEpochStormwindFixes = QuestieLoader:ImportModule("QuestieEpochStormwindFixes") -- Disabled: causing issues
 ---@type QuestieEpochStormwindObjectFixes
 local QuestieEpochStormwindObjectFixes = QuestieLoader:ImportModule("QuestieEpochStormwindObjectFixes")
 ---@type QuestieEpochElwynnFixes
@@ -327,13 +327,20 @@ function QuestieCorrections:Initialize(validationTables)
     _LoadCorrections("questData", QuestieQuestFixes:Load(), QuestieDB.questKeysReversed, validationTables)
     _LoadCorrections("npcData", QuestieNPCFixes:Load(), QuestieDB.npcKeysReversed, validationTables)
     -- Epoch-specific Stormwind fixes for WotLK coordinates
-    _LoadCorrections("npcData", QuestieEpochStormwindFixes:Load(), QuestieDB.npcKeysReversed, validationTables)
-    -- Epoch-specific Elwynn Forest fixes for WotLK coordinates
-    _LoadCorrections("npcData", QuestieEpochElwynnFixes:Load(), QuestieDB.npcKeysReversed, validationTables)
+    -- Disabled: epochStormwindFixes causing issues with seasonal NPCs and incorrect positions
+    -- if QuestieEpochStormwindFixes and QuestieEpochStormwindFixes.Load then
+    --     _LoadCorrections("npcData", QuestieEpochStormwindFixes:Load(), QuestieDB.npcKeysReversed, validationTables)
+    -- end
+    -- Epoch-specific Elwynn Forest fixes for WotLK coordinates  
+    if QuestieEpochElwynnFixes and QuestieEpochElwynnFixes.Load then
+        _LoadCorrections("npcData", QuestieEpochElwynnFixes:Load(), QuestieDB.npcKeysReversed, validationTables)
+    end
     _LoadCorrections("itemData", QuestieItemFixes:Load(), QuestieDB.itemKeysReversed, validationTables)
     _LoadCorrections("objectData", QuestieObjectFixes:Load(), QuestieDB.objectKeysReversed, validationTables)
     -- Epoch-specific Stormwind object fixes for WotLK coordinates
-    _LoadCorrections("objectData", QuestieEpochStormwindObjectFixes:Load(), QuestieDB.objectKeysReversed, validationTables)
+    if QuestieEpochStormwindObjectFixes and QuestieEpochStormwindObjectFixes.Load then
+        _LoadCorrections("objectData", QuestieEpochStormwindObjectFixes:Load(), QuestieDB.objectKeysReversed, validationTables)
+    end
 
     if Questie.IsTBC or Questie.IsWotlk then
         if QuestieTBCQuestFixes and QuestieTBCQuestFixes.Load then

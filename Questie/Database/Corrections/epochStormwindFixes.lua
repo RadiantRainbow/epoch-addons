@@ -10,6 +10,7 @@ local QuestieEpochStormwindFixes = QuestieLoader:CreateModule("QuestieEpochStorm
 ---@type QuestieDB
 local QuestieDB = QuestieLoader:ImportModule("QuestieDB")
 local npcKeys = QuestieDB.npcKeys
+local npcFlags = QuestieDB.npcFlags
 
 function QuestieEpochStormwindFixes:Load()
     return {
@@ -37,13 +38,15 @@ function QuestieEpochStormwindFixes:Load()
         [340] = {
             [npcKeys.spawns] = {[1519]={{77.47,52.69}}},
         },
-        -- NPC ID 352: Dungar Longdrink
+        -- NPC ID 352: Dungar Longdrink (Flight Master)
         [352] = {
             [npcKeys.spawns] = {[1519]={{70.95,72.51}}},
+            [npcKeys.npcFlags] = npcFlags.GOSSIP + npcFlags.QUEST_GIVER + npcFlags.FLIGHT_MASTER,
         },
-        -- NPC ID 376: High Priestess Laurena
+        -- NPC ID 376: High Priestess Laurena (Priest Trainer)
         [376] = {
             [npcKeys.spawns] = {[1519]={{49.53,44.6}}},
+            [npcKeys.npcFlags] = npcFlags.GOSSIP + npcFlags.TRAINER,
         },
         -- NPC ID 461: Demisette Cloyce
         [461] = {
@@ -69,13 +72,15 @@ function QuestieEpochStormwindFixes:Load()
         [914] = {
             [npcKeys.spawns] = {[1519]={{80.19,61.26}}},
         },
-        -- NPC ID 918: Osborne the Night Man
+        -- NPC ID 918: Osborne the Night Man (Rogue Trainer)
         [918] = {
             [npcKeys.spawns] = {[1519]={{77.43,65.31}}},
+            [npcKeys.npcFlags] = npcFlags.GOSSIP + npcFlags.TRAINER,
         },
-        -- NPC ID 928: Lord Grayson Shadowbreaker
+        -- NPC ID 928: Lord Grayson Shadowbreaker (Paladin Trainer)
         [928] = {
             [npcKeys.spawns] = {[1519]={{48.43,50.22}}},
+            [npcKeys.npcFlags] = npcFlags.GOSSIP + npcFlags.QUEST_GIVER + npcFlags.TRAINER,
         },
         -- NPC ID 957: Dane Lindgren
         [957] = {
@@ -169,9 +174,10 @@ function QuestieEpochStormwindFixes:Load()
         [1305] = {
             [npcKeys.spawns] = {[1519]={{41.97,82.72}}},
         },
-        -- NPC ID 1307: Charys Yserian
+        -- NPC ID 1307: Charys Yserian (Arcane Goods Vendor)
         [1307] = {
             [npcKeys.spawns] = {[1519]={{44.58,86.26}}},
+            [npcKeys.npcFlags] = npcFlags.GOSSIP + npcFlags.VENDOR + npcFlags.REPAIR,
         },
         -- NPC ID 1308: Owen Vaughn
         [1308] = {
@@ -193,21 +199,24 @@ function QuestieEpochStormwindFixes:Load()
         [1312] = {
             [npcKeys.spawns] = {[1519]={{52.86,74.82}}},
         },
-        -- NPC ID 1313: Maria Lumere
+        -- NPC ID 1313: Maria Lumere (Alchemy Supplies)
         [1313] = {
             [npcKeys.spawns] = {[1519]={{55.89,85.63}}},
+            [npcKeys.npcFlags] = npcFlags.GOSSIP + npcFlags.VENDOR,
         },
-        -- NPC ID 1314: Duncan Cullen
+        -- NPC ID 1314: Duncan Cullen (Light Armor Merchant)
         [1314] = {
             [npcKeys.spawns] = {[1519]={{53.18,82.04}}},
+            [npcKeys.npcFlags] = npcFlags.GOSSIP + npcFlags.VENDOR + npcFlags.REPAIR,
         },
         -- NPC ID 1315: Allan Hafgan
         [1315] = {
             [npcKeys.spawns] = {[1519]={{53.01,74.9}}},
         },
-        -- NPC ID 1316: Adair Gilroy
+        -- NPC ID 1316: Adair Gilroy (Armor Merchant)
         [1316] = {
             [npcKeys.spawns] = {[1519]={{51.83,75.08}}},
+            [npcKeys.npcFlags] = npcFlags.GOSSIP + npcFlags.VENDOR + npcFlags.REPAIR,
         },
         -- NPC ID 1317: Lucan Cordell
         [1317] = {
@@ -345,9 +354,10 @@ function QuestieEpochStormwindFixes:Load()
         [1423] = {
             [npcKeys.spawns] = {[1519]={{74.57,93.02}}},
         },
-        -- NPC ID 1427: Harlan Bagley
+        -- NPC ID 1427: Harlan Bagley (Weaponsmith)
         [1427] = {
             [npcKeys.spawns] = {[1519]={{62.32,67.95}}},
+            [npcKeys.npcFlags] = npcFlags.GOSSIP + npcFlags.VENDOR + npcFlags.REPAIR,
         },
         -- NPC ID 1428: Rema Schneider
         [1428] = {
@@ -449,17 +459,20 @@ function QuestieEpochStormwindFixes:Load()
         [2439] = {
             [npcKeys.spawns] = {[1519]={{75.82,36.72}}},
         },
-        -- NPC ID 2455: Olivia Burnside
+        -- NPC ID 2455: Olivia Burnside (Banker)
         [2455] = {
             [npcKeys.spawns] = {[1519]={{64.29,80.75}}},
+            [npcKeys.npcFlags] = npcFlags.BANKER,
         },
-        -- NPC ID 2456: Newton Burnside
+        -- NPC ID 2456: Newton Burnside (Banker)
         [2456] = {
             [npcKeys.spawns] = {[1519]={{63.87,81.1}}},
+            [npcKeys.npcFlags] = npcFlags.BANKER,
         },
-        -- NPC ID 2457: John Burnside
+        -- NPC ID 2457: John Burnside (Banker)
         [2457] = {
             [npcKeys.spawns] = {[1519]={{63.45,81.45}}},
+            [npcKeys.npcFlags] = npcFlags.BANKER,
         },
         -- NPC ID 2485: Larimaine Purdue
         [2485] = {
@@ -597,9 +610,10 @@ function QuestieEpochStormwindFixes:Load()
         [5413] = {
             [npcKeys.spawns] = {[1519]={{64.62,37.22}}},
         },
-        -- NPC ID 5479: Wu Shen
+        -- NPC ID 5479: Wu Shen (Warrior Trainer)
         [5479] = {
             [npcKeys.spawns] = {[1519]={{80.56,59.87}}},
+            [npcKeys.npcFlags] = npcFlags.GOSSIP + npcFlags.TRAINER,
         },
         -- NPC ID 5480: Ilsa Corbin
         [5480] = {
@@ -645,9 +659,10 @@ function QuestieEpochStormwindFixes:Load()
         [5496] = {
             [npcKeys.spawns] = {[1519]={{39.66,85.74}}},
         },
-        -- NPC ID 5497: Jennea Cannon
+        -- NPC ID 5497: Jennea Cannon (Mage Trainer)
         [5497] = {
             [npcKeys.spawns] = {[1519]={{49.56,85.8}}},
+            [npcKeys.npcFlags] = npcFlags.GOSSIP + npcFlags.TRAINER,
         },
         -- NPC ID 5498: Elsharin
         [5498] = {
@@ -673,9 +688,10 @@ function QuestieEpochStormwindFixes:Load()
         [5504] = {
             [npcKeys.spawns] = {[1519]={{35.85,67.35}}},
         },
-        -- NPC ID 5505: Theridran
+        -- NPC ID 5505: Theridran (Druid Trainer)
         [5505] = {
             [npcKeys.spawns] = {[1519]={{36.12,64.42}}},
+            [npcKeys.npcFlags] = npcFlags.GOSSIP + npcFlags.TRAINER,
         },
         -- NPC ID 5506: Maldryn
         [5506] = {
@@ -705,9 +721,10 @@ function QuestieEpochStormwindFixes:Load()
         [5514] = {
             [npcKeys.spawns] = {[1519]={{59.15,37.48}}},
         },
-        -- NPC ID 5515: Einris Brightspear
+        -- NPC ID 5515: Einris Brightspear (Hunter Trainer)
         [5515] = {
             [npcKeys.spawns] = {[1519]={{67.35,36.25}}},
+            [npcKeys.npcFlags] = npcFlags.GOSSIP + npcFlags.TRAINER,
         },
         -- NPC ID 5516: Ulfir Ironbeard
         [5516] = {
@@ -757,9 +774,10 @@ function QuestieEpochStormwindFixes:Load()
         [6090] = {
             [npcKeys.spawns] = {[1519]={{76.77,52.54}}},
         },
-        -- NPC ID 6122: Gakin the Darkbinder
+        -- NPC ID 6122: Gakin the Darkbinder (Warlock Trainer)
         [6122] = {
             [npcKeys.spawns] = {[1519]={{39.22,85.22}}},
+            [npcKeys.npcFlags] = npcFlags.GOSSIP + npcFlags.QUEST_GIVER + npcFlags.TRAINER,
         },
         -- NPC ID 6171: Duthorian Rall
         [6171] = {
@@ -781,9 +799,19 @@ function QuestieEpochStormwindFixes:Load()
         [6579] = {
             [npcKeys.spawns] = {[1519]={{62.63,34.12}}},
         },
-        -- NPC ID 6740: Innkeeper Allison
+        -- NPC ID 6740: Innkeeper Allison (Innkeeper)
+        -- Removed spawn override - using correct coordinates from epochNpcDB (52.62,65.7 in Trade District)
         [6740] = {
-            [npcKeys.spawns] = {[1519]={{60.39,75.28}}},
+            [npcKeys.npcFlags] = npcFlags.GOSSIP + npcFlags.QUEST_GIVER + npcFlags.VENDOR + npcFlags.INNKEEPER,
+        },
+        -- NPC ID 5112: Gwenna Firebrew (Barmaid - Cathedral Square innkeeper)
+        [5112] = {
+            [npcKeys.spawns] = {[1519]={{74.49,54.09}}},
+            [npcKeys.npcFlags] = npcFlags.GOSSIP + npcFlags.VENDOR + npcFlags.INNKEEPER,
+        },
+        -- NPC ID 6778: Melika Isenstrider (Assistant Innkeeper - Goldshire/Elwynn but appears in Stormwind)
+        [6778] = {
+            [npcKeys.npcFlags] = npcFlags.GOSSIP + npcFlags.QUEST_GIVER + npcFlags.INNKEEPER,
         },
         -- NPC ID 6946: Renzik "The Shiv"
         [6946] = {
@@ -836,10 +864,12 @@ function QuestieEpochStormwindFixes:Load()
         -- NPC ID 8670: Auctioneer Chilton
         [8670] = {
             [npcKeys.spawns] = {[1519]={{60.85,71.52}}},
+            [npcKeys.npcFlags] = npcFlags.AUCTIONEER,
         },
         -- NPC ID 8719: Auctioneer Fitch
         [8719] = {
             [npcKeys.spawns] = {[1519]={{61.18,71.28}}},
+            [npcKeys.npcFlags] = npcFlags.AUCTIONEER,
         },
         -- NPC ID 8856: Tyrion\
         [8856] = {
@@ -885,9 +915,10 @@ function QuestieEpochStormwindFixes:Load()
         [11828] = {
             [npcKeys.spawns] = {[1519]={{37.82,64.85}}},
         },
-        -- NPC ID 11867: Woo Ping
+        -- NPC ID 11867: Woo Ping (Weapon Master)
         [11867] = {
             [npcKeys.spawns] = {[1519]={{63.88,69.09}}},
+            [npcKeys.npcFlags] = npcFlags.GOSSIP + npcFlags.TRAINER,
         },
         -- NPC ID 11916: Imelda
         [11916] = {
@@ -934,9 +965,9 @@ function QuestieEpochStormwindFixes:Load()
             [npcKeys.spawns] = {[1519]={{68.88,52.11}}},
         },
         -- NPC ID 14450: Orphan Matron Nightingale
-        [14450] = {
-            [npcKeys.spawns] = {[1519]={{56.32,53.99}}},
-        },
+        -- [14450] = { -- Orphan Matron Nightingale - Children's Week event NPC (removed - seasonal)
+        --     [npcKeys.spawns] = {[1519]={{56.32,53.99}}},
+        -- },
         -- NPC ID 14481: Emmithue Smails
         [14481] = {
             [npcKeys.spawns] = {[1519]={{61.26,74.99}}},
@@ -976,7 +1007,8 @@ function QuestieEpochStormwindFixes:Load()
         -- NPC ID 15659: Auctioneer Jaxon
         [15659] = {
             [npcKeys.spawns] = {[1519]={{61.16,70.68}}},
-        },
+            [npcKeys.npcFlags] = npcFlags.AUCTIONEER,
+        }
         -- NPC ID 15708: Master Sergeant Maclure
         [15708] = {
             [npcKeys.spawns] = {[1519]={{61.52,70.61}}},
@@ -1053,6 +1085,7 @@ function QuestieEpochStormwindFixes:Load()
         -- Special WotLK Addition (Alliance Shaman Trainer)
         [20407] = {
             [npcKeys.spawns] = {[1519]={{67.52,89.42}}},
+            [npcKeys.npcFlags] = npcFlags.GOSSIP + npcFlags.QUEST_GIVER + npcFlags.TRAINER,
         }, -- Farseer Umbrua (Shaman Trainer)
     }
 end

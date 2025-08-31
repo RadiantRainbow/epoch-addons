@@ -840,6 +840,15 @@ function QuestieDBCompiler:CompileObjects()
 end
 
 function QuestieDBCompiler:CompileQuests()
+    -- Debug: Check quest data before compilation
+    local questCount = 0
+    if QuestieDB.questData then
+        for _ in pairs(QuestieDB.questData) do
+            questCount = questCount + 1
+        end
+    end
+    Questie:Print("|cFF00FFFF[CompileQuests] Compiling " .. questCount .. " quests|r")
+    
     QuestieDBCompiler:CompileTableCoroutine(QuestieDB.questData, QuestieDB.questCompilerTypes, QuestieDB.questCompilerOrder, QuestieDB.questKeys, "quest", "Quest", 28)
 end
 
@@ -956,6 +965,8 @@ function QuestieDBCompiler:CompileTableCoroutine(tbl, types, order, lookup, data
                     Questie.db.global[databaseKey.."Bin"] = stream:Save()
                     Questie.db.global[databaseKey.."Ptrs"] = QuestieDBCompiler:EncodePointerMap(stream, pointerMap)
                 end
+                -- Save version for corruption detection (v1.0.18)
+                Questie.db.global.dbCacheVersion = GetAddOnMetadata("Questie", "Version")
                 stream:finished() -- relief memory pressure
                 return
             end

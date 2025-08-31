@@ -58,7 +58,7 @@ Questie._sessionWarnings = {}
 local clientVersion = GetBuildInfo()
 --- Addon is running on Classic Wotlk client
 ---@type boolean
-Questie.IsWotlk = WOW_PROJECT_ID == WOW_PROJECT_WRATH_CLASSIC
+Questie.IsWotlk = WOW_PROJECT_ID == WOW_PROJECT_WRATH_CLASSIC or QuestieCompat.Is335
 
 --- Addon is running on Classic TBC client
 ---@type boolean

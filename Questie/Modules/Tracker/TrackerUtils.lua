@@ -33,8 +33,16 @@ local C_Map = QuestieCompat.C_Map
 local GetQuestLogTitle = QuestieCompat.GetQuestLogTitle
 local GetQuestLogIndexByID = QuestieCompat.GetQuestLogIndexByID
 local WorldMapFrame = QuestieCompat.WorldMapFrame
-
 local tinsert = table.insert
+
+-- TomTom auto-tracking timer
+local tomtomAutoTrackTimer
+local lastWaypoint
+
+-- Add config option for TomTom auto-target mode
+if not Questie.db.profile.tomtomAutoTargetMode and TomTom then
+    Questie.db.profile.tomtomAutoTargetMode = false
+end
 
 local objectiveFlashTicker
 local zoneCache = {}
@@ -67,6 +75,7 @@ local bindTruthTable = {
     end,
     ['disabled'] = function() return false end,
 }
+
 
 local _QuestLogScrollBar = QuestLogScrollFrameScrollBar or QuestLogListScrollFrame.ScrollBar or QuestLogListScrollFrameScrollBar
 
@@ -109,12 +118,21 @@ function TrackerUtils:SetTomTomTarget(title, zone, x, y)
             TomTom:RemoveWaypoint(Questie.db.char._tom_waypoint)
         end
         local uiMapId = ZoneDB:GetUiMapIdByAreaId(zone)
+        
+        -- Check if zone data is available (Project Epoch map fix)
+        if not uiMapId then
+            Questie:Debug(Questie.DEBUG_DEVELOP, "[TrackerUtils] Cannot set TomTom waypoint - missing UiMapID for zone:", zone)
+            return
+        end
 
         if QuestieCompat.Is335 then
             Questie.db.char._tom_waypoint = QuestieCompat.TomTom_AddWaypoint(title, uiMapId, x, y)
         else
             Questie.db.char._tom_waypoint = TomTom:AddWaypoint(uiMapId, x / 100, y / 100, { title = title, crazy = true })
         end
+    else
+        -- Warn the user that TomTom is not installed
+        Questie:Print("|cFFFF0000TomTom addon is not installed!|r Please install TomTom to use waypoint features.")
     end
 end
 
@@ -122,10 +140,14 @@ end
 function TrackerUtils:ShowObjectiveOnMap(objective)
     local spawn, zone = QuestieMap:GetNearestSpawn(objective)
     if spawn then
-        WorldMapFrame:Show()
         local uiMapId = ZoneDB:GetUiMapIdByAreaId(zone)
-        WorldMapFrame:SetMapID(uiMapId)
-        TrackerUtils:FlashObjective(objective)
+        if uiMapId then
+            WorldMapFrame:Show()
+            WorldMapFrame:SetMapID(uiMapId)
+            TrackerUtils:FlashObjective(objective)
+        else
+            Questie:Debug(Questie.DEBUG_DEVELOP, "[TrackerUtils] Cannot show objective on map - missing UiMapID for zone:", zone)
+        end
     end
 end
 
@@ -133,10 +155,14 @@ end
 function TrackerUtils:ShowFinisherOnMap(quest)
     local spawn, zone = QuestieMap:GetNearestQuestSpawn(quest)
     if spawn then
-        WorldMapFrame:Show()
         local uiMapId = ZoneDB:GetUiMapIdByAreaId(zone)
-        WorldMapFrame:SetMapID(uiMapId)
-        TrackerUtils:FlashFinisher(quest)
+        if uiMapId then
+            WorldMapFrame:Show()
+            WorldMapFrame:SetMapID(uiMapId)
+            TrackerUtils:FlashFinisher(quest)
+        else
+            Questie:Debug(Questie.DEBUG_DEVELOP, "[TrackerUtils] Cannot show finisher on map - missing UiMapID for zone:", zone)
+        end
     end
 end
 
@@ -366,8 +392,11 @@ function TrackerUtils:GetCompletionText(quest)
 
     if completionText then
         return completionText
-    else
+    elseif quest.Description and quest.Description[1] then
         return quest.Description[1]:gsub("%.", "")
+    else
+        -- Fallback for quests without descriptions (common in Epoch quests)
+        return "Complete quest objectives"
     end
 end
 
@@ -431,36 +460,42 @@ function TrackerUtils:UnFocus()
         return
     end
     for questId in pairs(QuestiePlayer.currentQuestlog) do
-        local quest = QuestieDB.GetQuest(questId)
+        -- Ensure questId is actually a number (the key), not a table
+        if type(questId) ~= "number" then
+            Questie:Debug(Questie.DEBUG_CRITICAL, "[TrackerUtils:UnFocus] Invalid questId type in currentQuestlog:", type(questId))
+            -- Skip this entry
+        else
+            local quest = QuestieDB.GetQuest(questId)
 
-        if quest then
-            quest.FadeIcons = nil
-            if next(quest.Objectives) then
-                if Questie.db.char.TrackerHiddenQuests[quest.Id] then
-                    quest.HideIcons = true
-                    quest.FadeIcons = nil
-                else
-                    quest.HideIcons = nil
-                    quest.FadeIcons = nil
-                end
-
-                for _, objective in pairs(quest.Objectives) do
-                    if Questie.db.char.TrackerHiddenObjectives[tostring(questId) .. " " .. tostring(objective.Index)] then
-                        objective.HideIcons = true
-                        objective.FadeIcons = nil
+            if quest then
+                quest.FadeIcons = nil
+                if next(quest.Objectives) then
+                    if Questie.db.char.TrackerHiddenQuests[quest.Id] then
+                        quest.HideIcons = true
+                        quest.FadeIcons = nil
                     else
-                        objective.HideIcons = nil
-                        objective.FadeIcons = nil
+                        quest.HideIcons = nil
+                        quest.FadeIcons = nil
                     end
-                end
 
-                for _, objective in pairs(quest.SpecialObjectives) do
-                    if Questie.db.char.TrackerHiddenObjectives[tostring(questId) .. " " .. tostring(objective.Index)] then
-                        objective.HideIcons = true
-                        objective.FadeIcons = nil
-                    else
-                        objective.HideIcons = nil
-                        objective.FadeIcons = nil
+                    for _, objective in pairs(quest.Objectives) do
+                        if Questie.db.char.TrackerHiddenObjectives[tostring(questId) .. " " .. tostring(objective.Index)] then
+                            objective.HideIcons = true
+                            objective.FadeIcons = nil
+                        else
+                            objective.HideIcons = nil
+                            objective.FadeIcons = nil
+                        end
+                    end
+
+                    for _, objective in pairs(quest.SpecialObjectives) do
+                        if Questie.db.char.TrackerHiddenObjectives[tostring(questId) .. " " .. tostring(objective.Index)] then
+                            objective.HideIcons = true
+                            objective.FadeIcons = nil
+                        else
+                            objective.HideIcons = nil
+                            objective.FadeIcons = nil
+                        end
                     end
                 end
             end
@@ -479,31 +514,35 @@ function TrackerUtils:FocusObjective(questId, objectiveIndex)
 
     Questie.db.char.TrackerFocus = tostring(questId) .. " " .. tostring(objectiveIndex)
     for questLogQuestId in pairs(QuestiePlayer.currentQuestlog) do
-        local quest = QuestieDB.GetQuest(questLogQuestId)
-        if quest and next(quest.Objectives) then
-            if questLogQuestId == questId then
-                quest.HideIcons = nil
-                quest.FadeIcons = nil
+        if type(questLogQuestId) ~= "number" then
+            Questie:Debug(Questie.DEBUG_CRITICAL, "[TrackerUtils:FocusObjective] Invalid questId type in currentQuestlog:", type(questLogQuestId))
+        else
+            local quest = QuestieDB.GetQuest(questLogQuestId)
+            if quest and next(quest.Objectives) then
+                if questLogQuestId == questId then
+                    quest.HideIcons = nil
+                    quest.FadeIcons = nil
 
-                for _, objective in pairs(quest.Objectives) do
-                    if objective.Index == objectiveIndex then
-                        objective.HideIcons = nil
-                        objective.FadeIcons = nil
-                    else
-                        objective.FadeIcons = true
+                    for _, objective in pairs(quest.Objectives) do
+                        if objective.Index == objectiveIndex then
+                            objective.HideIcons = nil
+                            objective.FadeIcons = nil
+                        else
+                            objective.FadeIcons = true
+                        end
                     end
-                end
 
-                for _, objective in pairs(quest.SpecialObjectives) do
-                    if objective.Index == objectiveIndex then
-                        objective.HideIcons = nil
-                        objective.FadeIcons = nil
-                    else
-                        objective.FadeIcons = true
+                    for _, objective in pairs(quest.SpecialObjectives) do
+                        if objective.Index == objectiveIndex then
+                            objective.HideIcons = nil
+                            objective.FadeIcons = nil
+                        else
+                            objective.FadeIcons = true
+                        end
                     end
+                else
+                    quest.FadeIcons = true
                 end
-            else
-                quest.FadeIcons = true
             end
         end
     end
@@ -517,13 +556,17 @@ function TrackerUtils:FocusQuest(questId)
 
     Questie.db.char.TrackerFocus = questId
     for questLogQuestId in pairs(QuestiePlayer.currentQuestlog) do
-        local quest = QuestieDB.GetQuest(questLogQuestId)
-        if quest then
-            if questLogQuestId == questId then
-                quest.HideIcons = nil
-                quest.FadeIcons = nil
-            else
-                quest.FadeIcons = true
+        if type(questLogQuestId) ~= "number" then
+            Questie:Debug(Questie.DEBUG_CRITICAL, "[TrackerUtils:FocusQuest] Invalid questId type in currentQuestlog:", type(questLogQuestId))
+        else
+            local quest = QuestieDB.GetQuest(questLogQuestId)
+            if quest then
+                if questLogQuestId == questId then
+                    quest.HideIcons = nil
+                    quest.FadeIcons = nil
+                else
+                    quest.FadeIcons = true
+                end
             end
         end
     end
@@ -607,6 +650,10 @@ local function _GetDistanceToClosestObjective(questId)
     return closestDistance
 end
 
+function TrackerUtils:GetDistanceToClosestObjective(questId)
+    return _GetDistanceToClosestObjective(questId)
+end
+
 ---@param uiMapId number Continent ID number
 ---@return string Continent Returns Continent Name or "UNKNOW"
 local function _GetContinent(uiMapId)
@@ -680,9 +727,17 @@ local function _GetZoneName(zoneOrSort, questId)
         elseif sortObj == "byLevelReversed" then
             zoneName = "Quests (By Level Reversed)"
         elseif sortObj == "byProximity" then
-            zoneName = "Quests (By Proximity)"
+            if Questie.db.profile.tomtomAutoTargetMode and TomTom then
+                zoneName = "Quests (TomTom Autoway)"
+            else
+                zoneName = "Quests (By Proximity)"
+            end
         elseif sortObj == "byProximityReversed" then
-            zoneName = "Quests (By Proximity Reversed)"
+            if Questie.db.profile.tomtomAutoTargetMode and TomTom then
+                zoneName = "Quests (TomTom Autoway Rev)"
+            else
+                zoneName = "Quests (By Proximity Reversed)"
+            end
         end
     end
     return zoneName
@@ -694,19 +749,46 @@ function TrackerUtils:GetSortedQuestIds()
     local sortedQuestIds = {}
     local questDetails = {}
     local sortObj = Questie.db.profile.trackerSortObjectives
+    
+    -- Debug: Count total quests and tracked quests
+    local totalQuests = 0
+    local trackedQuests = 0
+    for questId, quest in pairs(QuestiePlayer.currentQuestlog or {}) do
+        totalQuests = totalQuests + 1
+        if Questie.db.profile.autoTrackQuests then
+            if not Questie.db.char.AutoUntrackedQuests[questId] then
+                trackedQuests = trackedQuests + 1
+            end
+        else
+            if Questie.db.char.TrackedQuests[questId] then
+                trackedQuests = trackedQuests + 1
+            end
+        end
+    end
+    -- Tracker updated
+    
     -- Update quest objectives
     for questId, quest in pairs(QuestiePlayer.currentQuestlog) do
-        if quest then
+        -- Skip if quest is just a number (happens when QuestieDB.GetQuest fails)
+        if quest and type(quest) == "table" then
             -- Insert Quest Ids into sortedQuestIds table
             tinsert(sortedQuestIds, questId)
 
             -- Create questDetails table keys and insert values
-            questDetails[quest.Id] = {}
-            questDetails[quest.Id].quest = quest
-            questDetails[quest.Id].zoneName = _GetZoneName(quest.zoneOrSort, quest.Id)
+            questDetails[quest.Id or questId] = {}
+            questDetails[quest.Id or questId].quest = quest
+            questDetails[quest.Id or questId].zoneName = _GetZoneName(quest.zoneOrSort, quest.Id or questId)
 
-            if quest:IsComplete() == 1 or (not next(quest.Objectives)) then
-                questDetails[quest.Id].questCompletePercent = 1
+            -- Check if quest has IsComplete method (defensive check for malformed quests)
+            local isComplete = 0
+            if quest.IsComplete and type(quest.IsComplete) == "function" then
+                isComplete = quest:IsComplete()
+            elseif quest.isComplete ~= nil then
+                isComplete = quest.isComplete and 1 or 0
+            end
+            
+            if isComplete == 1 or (not quest.Objectives) or (not next(quest.Objectives)) then
+                questDetails[quest.Id or questId].questCompletePercent = 1
             else
                 local percent = 0
                 local count = 0
@@ -734,7 +816,7 @@ function TrackerUtils:GetSortedQuestIds()
                     percent = 0
                 end
 
-                questDetails[quest.Id].questCompletePercent = percent
+                questDetails[quest.Id or questId].questCompletePercent = percent
             end
         end
     end
@@ -774,7 +856,16 @@ function TrackerUtils:GetSortedQuestIds()
 
             -- Sort by Zone then by Level to mimic QuestLog sorting
             if qAZone == qBZone then
-                return qA.level < qB.level
+                -- Defensive check for nil levels
+                if qA.level and qB.level then
+                    return qA.level < qB.level
+                elseif qA.level then
+                    return true  -- qA has level, qB doesn't, qA goes first
+                elseif qB.level then
+                    return false  -- qB has level, qA doesn't, qB goes first
+                else
+                    return false  -- Both nil, maintain order
+                end
             else
                 if qAZone ~= nil and qBZone ~= nil then
                     return qAZone < qBZone
@@ -882,12 +973,18 @@ function TrackerUtils:GetSortedQuestIds()
             Questie:Debug(Questie.DEBUG_DEVELOP, "[TrackerUtils:GetSortedQuestIds] - Zone Proximity Timer Started!")
 
             local playerPosition
-            questZoneProximityTimer = C_Timer.NewTicker(5.0, function()
-                if IsInInstance() and questZoneProximityTimer then
-                    Questie:Debug(Questie.DEBUG_DEVELOP, "[TrackerUtils:GetSortedQuestIds] - Zone Proximity Timer Stoped!")
-                    questZoneProximityTimer:Cancel()
-                    questZoneProximityTimer = nil
-                else
+            -- Delay start to ensure quest log is populated
+            C_Timer.After(1.0, function()
+                questZoneProximityTimer = C_Timer.NewTicker(5.0, function()
+                    -- Don't run if quest log is being populated or isn't ready
+                    if QuestiePlayer._populatingQuestlog or not QuestiePlayer.currentQuestlog or next(QuestiePlayer.currentQuestlog) == nil then
+                        return
+                    end
+                    if IsInInstance() and questZoneProximityTimer then
+                        Questie:Debug(Questie.DEBUG_DEVELOP, "[TrackerUtils:GetSortedQuestIds] - Zone Proximity Timer Stoped!")
+                        questZoneProximityTimer:Cancel()
+                        questZoneProximityTimer = nil
+                    else
                     local position = _GetWorldPlayerPosition()
                     if position then
                         local distance = playerPosition and _GetDistance(position.x, position.y, playerPosition.x, playerPosition.y)
@@ -919,6 +1016,7 @@ function TrackerUtils:GetSortedQuestIds()
                         end
                     end
                 end
+                end)
             end)
         end
     elseif sortObj == "byProximity" or sortObj == "byProximityReversed" then
@@ -992,12 +1090,18 @@ function TrackerUtils:GetSortedQuestIds()
             Questie:Debug(Questie.DEBUG_DEVELOP, "[TrackerUtils:GetSortedQuestIds] - Proximity Timer Started!")
 
             local playerPosition
-            questProximityTimer = C_Timer.NewTicker(5.0, function()
-                if IsInInstance() and questProximityTimer then
-                    Questie:Debug(Questie.DEBUG_DEVELOP, "[TrackerUtils:GetSortedQuestIds] - Proximity Timer Stoped!")
-                    questProximityTimer:Cancel()
-                    questProximityTimer = nil
-                else
+            -- Delay start to ensure quest log is populated
+            C_Timer.After(1.0, function()
+                questProximityTimer = C_Timer.NewTicker(5.0, function()
+                    -- Don't run if quest log is being populated or isn't ready
+                    if QuestiePlayer._populatingQuestlog or not QuestiePlayer.currentQuestlog or next(QuestiePlayer.currentQuestlog) == nil then
+                        return
+                    end
+                    if IsInInstance() and questProximityTimer then
+                        Questie:Debug(Questie.DEBUG_DEVELOP, "[TrackerUtils:GetSortedQuestIds] - Proximity Timer Stoped!")
+                        questProximityTimer:Cancel()
+                        questProximityTimer = nil
+                    else
                     local position = _GetWorldPlayerPosition()
                     if position then
                         local distance = playerPosition and _GetDistance(position.x, position.y, playerPosition.x, playerPosition.y)
@@ -1029,6 +1133,7 @@ function TrackerUtils:GetSortedQuestIds()
                         end
                     end
                 end
+                end)
             end)
         end
     end

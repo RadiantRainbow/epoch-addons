@@ -168,6 +168,12 @@ end
 ---@param objective any
 ---@return { [1]: SpawnListEvent }?
 event = function(eventId, objective)
+    -- Skip event objectives for Northshore Mine quest as it has exploration mechanics that aren't properly supported
+    if objective and objective.Description and string.find(objective.Description, "Northshore Mine Explored") then
+        Questie:Debug(Questie.DEBUG_INFO, "[QuestieQuestPrivates] Skipping Northshore Mine exploration objective")
+        return {}
+    end
+    
     local spawns = objective.Coordinates
     if (not spawns) then
         Questie:Error("Missing event data for Objective:", objective.Description, "id:", eventId)
@@ -210,7 +216,11 @@ item = function(itemId, objective)
             if _QuestieQuest.objectiveSpawnListCallTable[source.Type] and source.Type ~= "item" then -- anti-recursive-loop check, should never be possible but would be bad if it was
                 local sourceList = _QuestieQuest.objectiveSpawnListCallTable[source.Type](source.Id, objective)
                 if not sourceList then
-                    Questie:Error("Missing objective data for", source.Type, "'", objective, "'", source.Id)
+                    -- Skip missing objective data, log at debug level for tracking
+                    if Questie.db.profile.debugEnabled and Questie.db.profile.debugLevel >= Questie.DEBUG_DEVELOP then
+                        local objDesc = type(objective) == "table" and (objective.Description or tostring(objective.Index or "unknown")) or tostring(objective)
+                        Questie:Debug(Questie.DEBUG_DEVELOP, "Missing", source.Type, "data for objective:", objDesc, "ID:", source.Id)
+                    end
                 else
                     for id, sourceData in pairs(sourceList) do
                         if (not ret[id]) then

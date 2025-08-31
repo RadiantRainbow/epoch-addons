@@ -18,6 +18,8 @@ local Migration = QuestieLoader:ImportModule("Migration")
 local QuestieProfessions = QuestieLoader:ImportModule("QuestieProfessions")
 ---@type QuestieTracker
 local QuestieTracker = QuestieLoader:ImportModule("QuestieTracker")
+---@type QuestieDataCollector
+local QuestieDataCollector = QuestieLoader:ImportModule("QuestieDataCollector")
 ---@type QuestieMap
 local QuestieMap = QuestieLoader:ImportModule("QuestieMap")
 ---@type QuestieLib
@@ -85,6 +87,8 @@ local WorldMapButton = QuestieLoader:ImportModule("WorldMapButton")
 local AvailableQuests = QuestieLoader:ImportModule("AvailableQuests")
 ---@type SeasonOfDiscovery
 local SeasonOfDiscovery = QuestieLoader:ImportModule("SeasonOfDiscovery")
+---@type QuestRewardTooltipFix
+local QuestRewardTooltipFix = QuestieLoader:ImportModule("QuestRewardTooltipFix")
 
 --- COMPATIBILITY ---
 local WOW_PROJECT_ID = QuestieCompat.WOW_PROJECT_ID
@@ -289,6 +293,7 @@ QuestieInit.Stages[3] = function() -- run as a coroutine
     QuestieCoords:Initialize()
     TrackerQuestTimers:Initialize()
     QuestieComms:Initialize()
+    QuestRewardTooltipFix:Initialize()
 
     QuestieSlash.RegisterSlashCommands()
 
@@ -310,6 +315,10 @@ QuestieInit.Stages[3] = function() -- run as a coroutine
     QuestieMap:InitializeQueue()
 
     coYield()
+    -- Initialize QuestieQuestUtils before QuestieQuest
+    QuestieQuestUtils = QuestieLoader:ImportModule("QuestieQuestUtils")
+    QuestieQuestUtils:Initialize()
+    coYield()
     QuestieQuest:Initialize()
     coYield()
     WorldMapButton.Initialize()
@@ -321,6 +330,28 @@ QuestieInit.Stages[3] = function() -- run as a coroutine
     QuestieQuest:GetAllQuestIds()
     Hooks:HookQuestLogTitle()
     QuestieCombatQueue.Initialize()
+    
+    -- Initialize Data Collector if enabled or prompt user
+    coYield()
+    if QuestieDataCollector then
+        Questie:Debug(Questie.DEBUG_CRITICAL, "[QuestieInit] QuestieDataCollector module found")
+        Questie:Debug(Questie.DEBUG_CRITICAL, "[QuestieInit] dataCollectionPrompted = " .. tostring(Questie.db.profile.dataCollectionPrompted))
+        Questie:Debug(Questie.DEBUG_CRITICAL, "[QuestieInit] enableDataCollection = " .. tostring(Questie.db.profile.enableDataCollection))
+        
+        -- Check if this is first run for community contribution
+        if Questie.db.profile.dataCollectionPrompted == nil then
+            C_Timer.After(5, function()
+                QuestieDataCollector:ShowContributionPopup()
+            end)
+        elseif Questie.db.profile.enableDataCollection then
+            Questie:Debug(Questie.DEBUG_CRITICAL, "[QuestieInit] Calling QuestieDataCollector:Initialize()")
+            QuestieDataCollector:Initialize()
+        else
+            Questie:Debug(Questie.DEBUG_CRITICAL, "[QuestieInit] Data collection not enabled, skipping initialization")
+        end
+    else
+        Questie:Debug(Questie.DEBUG_CRITICAL, "[QuestieInit] QuestieDataCollector module not found!")
+    end
 
     local dateToday = date("%y-%m-%d")
 
@@ -383,61 +414,198 @@ function QuestieInit:LoadDatabase(key)
 end
 
 function QuestieInit:LoadBaseDB()
+    -- Load Classic databases as the base (they will be in QuestieDB.xxxData)
     QuestieInit:LoadDatabase("npcData")
     QuestieInit:LoadDatabase("objectData")
     QuestieInit:LoadDatabase("questData")
     QuestieInit:LoadDatabase("itemData")
-    -- After base DB tables are loaded (converted from strings), merge Epoch supplemental data if present
-    if QuestieDB._epochQuestData and type(QuestieDB.questData) == "table" then
-        local added, skipped = 0, 0
+    
+    -- Load WotLK databases (they are stored separately in QuestieDB._wotlkXxxData)
+    QuestieInit:LoadDatabase("_wotlkNpcData")
+    QuestieInit:LoadDatabase("_wotlkObjectData")
+    QuestieInit:LoadDatabase("_wotlkQuestData")
+    QuestieInit:LoadDatabase("_wotlkItemData")
+    
+    -- Validate Epoch data before merging (if validator is available)
+    local EpochDatabaseValidator = QuestieLoader:ImportModule("EpochDatabaseValidator")
+    if EpochDatabaseValidator and Questie.db.global.epochValidationEnabled ~= false then
+        local validationPassed = EpochDatabaseValidator:ValidateEpochData()
+        if not validationPassed then
+            Questie:Print("|cFFFF0000[Epoch] Database validation failed! Check /epochvalidate for details.|r")
+        end
+    end
+    
+    
+    -- After Classic base DB tables are loaded, merge WotLK data selectively
+    -- For Project Epoch (WotLK 3.3.5 server), we need:
+    -- 1. All Northrend content (zones >= 65)
+    -- 2. Service NPCs from WotLK (vendors, trainers, etc.)
+    -- 3. WotLK-specific objects (mailboxes, portals, etc.)
+    
+    -- Initialize questData as empty table if it failed to load or doesn't exist
+    if type(QuestieDB.questData) ~= "table" then
+        QuestieDB.questData = {}
+    end
+    
+    -- Merge WotLK quest data (only Northrend and WotLK-specific quests)
+    if QuestieDB._wotlkQuestData then
+        local added, overwritten = 0, 0
+        for id, data in pairs(QuestieDB._wotlkQuestData) do
+            -- Add WotLK quests that don't exist in Classic
+            -- Skip overwriting Classic quests to prevent contamination
+            if QuestieDB.questData[id] == nil then
+                -- Only add if it's a Northrend quest or WotLK-specific content
+                -- Quest IDs > 11000 are generally WotLK content
+                if id > 11000 then
+                    QuestieDB.questData[id] = data
+                    added = added + 1
+                end
+            end
+        end
+        Questie:Print("Merged "..added.." WotLK quests (Northrend content)")
+        QuestieDB._wotlkQuestData = nil
+    end
+    
+    -- Initialize npcData as empty table if it failed to load or doesn't exist
+    if type(QuestieDB.npcData) ~= "table" then
+        QuestieDB.npcData = {}
+    end
+    
+    -- Merge WotLK NPC data (service NPCs and Northrend NPCs)
+    if QuestieDB._wotlkNpcData then
+        local added, overwritten = 0, 0
+        for id, data in pairs(QuestieDB._wotlkNpcData) do
+            local shouldMerge = false
+            
+            -- Check if it's a service NPC (vendor, trainer, innkeeper, etc.)
+            local npcFlags = data[15] -- npcFlags field
+            if npcFlags and npcFlags > 0 then
+                -- Service NPCs have flags like vendor (128), trainer (16), innkeeper (65536), etc.
+                -- But only merge if it doesn't exist in Classic or is in Northrend
+                local zoneID = data[9] -- zoneID field
+                if zoneID and zoneID >= 65 then -- Northrend zones
+                    shouldMerge = true
+                elseif QuestieDB.npcData[id] == nil then
+                    -- Add new WotLK NPCs that don't exist in Classic
+                    shouldMerge = true
+                end
+            elseif id > 23000 then -- Northrend NPCs generally have higher IDs
+                shouldMerge = true
+            end
+            
+            if shouldMerge then
+                if QuestieDB.npcData[id] == nil then
+                    QuestieDB.npcData[id] = data
+                    added = added + 1
+                else
+                    -- Only overwrite if it's a Northrend NPC
+                    local zoneID = data[9]
+                    if zoneID and zoneID >= 65 then
+                        QuestieDB.npcData[id] = data
+                        overwritten = overwritten + 1
+                    end
+                end
+            end
+        end
+        Questie:Print("Merged "..added.." WotLK NPCs ("..overwritten.." Northrend overwrites)")
+        QuestieDB._wotlkNpcData = nil
+    end
+    
+    -- Initialize objectData as empty table if it failed to load or doesn't exist
+    if type(QuestieDB.objectData) ~= "table" then
+        QuestieDB.objectData = {}
+    end
+    
+    -- Merge WotLK object data (keep all WotLK objects as they're usually important)
+    if QuestieDB._wotlkObjectData then
+        local added = 0
+        for id, data in pairs(QuestieDB._wotlkObjectData) do
+            if QuestieDB.objectData[id] == nil then
+                QuestieDB.objectData[id] = data
+                added = added + 1
+            end
+        end
+        Questie:Print("Merged "..added.." WotLK objects")
+        QuestieDB._wotlkObjectData = nil
+    end
+    
+    -- Initialize itemData as empty table if it failed to load or doesn't exist
+    if type(QuestieDB.itemData) ~= "table" then
+        QuestieDB.itemData = {}
+    end
+    
+    -- Merge WotLK item data
+    if QuestieDB._wotlkItemData then
+        local added = 0
+        for id, data in pairs(QuestieDB._wotlkItemData) do
+            if QuestieDB.itemData[id] == nil then
+                QuestieDB.itemData[id] = data
+                added = added + 1
+            end
+        end
+        Questie:Print("Merged "..added.." WotLK items")
+        QuestieDB._wotlkItemData = nil
+    end
+    
+    -- Finally, merge Epoch supplemental data (this has the highest priority)
+    if QuestieDB._epochQuestData then
+        local added, overwritten = 0, 0
         for id, data in pairs(QuestieDB._epochQuestData) do
             if QuestieDB.questData[id] == nil then
                 QuestieDB.questData[id] = data
                 added = added + 1
             else
-                skipped = skipped + 1
+                -- For Project Epoch, prefer Epoch data over Classic data
+                QuestieDB.questData[id] = data
+                overwritten = overwritten + 1
             end
         end
-        print("Questie Epoch: merged "..added.." quests ("..skipped.." collisions)")
+        print("Questie Epoch: merged "..added.." quests ("..overwritten.." overwritten)")
         QuestieDB._epochQuestData = nil
     end
-    if QuestieDB._epochNpcData and type(QuestieDB.npcData) == "table" then
-        local added, skipped = 0, 0
+    if QuestieDB._epochNpcData then
+        local added, overwritten = 0, 0
         for id, data in pairs(QuestieDB._epochNpcData) do
             if QuestieDB.npcData[id] == nil then
                 QuestieDB.npcData[id] = data
                 added = added + 1
             else
-                skipped = skipped + 1
+                -- For Project Epoch, prefer Epoch data over Classic data
+                QuestieDB.npcData[id] = data
+                overwritten = overwritten + 1
             end
         end
-        print("Questie Epoch: merged "..added.." NPCs ("..skipped.." collisions)")
+        print("Questie Epoch: merged "..added.." NPCs ("..overwritten.." overwritten)")
         QuestieDB._epochNpcData = nil
     end
-    if QuestieDB._epochObjectData and type(QuestieDB.objectData) == "table" then
-        local added, skipped = 0, 0
+    if QuestieDB._epochObjectData then
+        local added, overwritten = 0, 0
         for id, data in pairs(QuestieDB._epochObjectData) do
             if QuestieDB.objectData[id] == nil then
                 QuestieDB.objectData[id] = data
                 added = added + 1
             else
-                skipped = skipped + 1
+                -- For Project Epoch, prefer Epoch data over Classic data
+                QuestieDB.objectData[id] = data
+                overwritten = overwritten + 1
             end
         end
-        print("Questie Epoch: merged "..added.." objects ("..skipped.." collisions)")
+        print("Questie Epoch: merged "..added.." objects ("..overwritten.." overwritten)")
         QuestieDB._epochObjectData = nil
     end
-    if QuestieDB._epochItemData and type(QuestieDB.itemData) == "table" then
-        local added, skipped = 0, 0
+    if QuestieDB._epochItemData then
+        local added, overwritten = 0, 0
         for id, data in pairs(QuestieDB._epochItemData) do
             if QuestieDB.itemData[id] == nil then
                 QuestieDB.itemData[id] = data
                 added = added + 1
             else
-                skipped = skipped + 1
+                -- For Project Epoch, prefer Epoch data over Classic data
+                QuestieDB.itemData[id] = data
+                overwritten = overwritten + 1
             end
         end
-        print("Questie Epoch: merged "..added.." items ("..skipped.." collisions)")
+        print("Questie Epoch: merged "..added.." items ("..overwritten.." overwritten)")
         QuestieDB._epochItemData = nil
     end
 end
@@ -447,6 +615,8 @@ function _QuestieInit.StartStageCoroutine()
         QuestieInit.Stages[i]()
         Questie:Debug(Questie.DEBUG_INFO, "[QuestieInit:StartStageCoroutine] Stage " .. i .. " done.")
     end
+    -- Show ready message after all initialization stages complete
+    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie]|r Ready! Quest tracking and map icons are now active.", 0, 1, 0)
 end
 
 -- called by the PLAYER_LOGIN event handler
@@ -465,8 +635,14 @@ function QuestieInit:Init()
     -- EpogQuestie: Clean startup message
     local currentVersion = GetAddOnMetadata("Questie", "Version") or
                           GetAddOnMetadata("EpogQuestie", "Version") or "Unknown"
-    print("|cFF00FF00[EpogQuestie]|r Version " .. currentVersion ..
-          " | Check for updates at Github: https://github.com/esurm/Questie")
+    print("|cFF00FF00[Questie-Epoch]|r Version " .. currentVersion ..
+          " | Check for updates at Github: https://github.com/trav346/Questie-Epoch")
+    
+    -- Initialize version checker
+    local QuestieVersionCheck = QuestieLoader:ImportModule("QuestieVersionCheck")
+    if QuestieVersionCheck then
+        QuestieVersionCheck:Initialize()
+    end
     
     ThreadLib.ThreadError(_QuestieInit.StartStageCoroutine,
                           Questie.db.profile.initDelay or 0,

@@ -1,0 +1,19 @@
+CLEANUP SUMMARY
+=================
+
+Successfully removed 25 duplicate placeholder entries for quest IDs:
+26126, 26277, 26282, 26288, 26292, 26504, 26516, 26518, 26537, 26540,
+26541, 26542, 26543, 26570, 26770, 26778, 26780, 26802, 26817, 26942,
+27081, 27082, 27273, 28077, 28535
+
+Each of these quest IDs now has only one entry (the non-placeholder version)
+with actual quest data intact.
+
+Note: Some quest IDs still have multiple entries, but these represent
+different stages or variations of the same quest and should be kept:
+- Quest 26282: 2 entries (different quest stages)
+- Quest 26541: 2 entries (different quest stages)
+- Quest 26570: 2 entries (different quest stages)
+- Quest 26778: 2 entries (different quest stages)
+
+Backup created: epochQuestDB.lua.backup.20250830_203516

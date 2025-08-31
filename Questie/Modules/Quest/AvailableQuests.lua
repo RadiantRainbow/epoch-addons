@@ -26,6 +26,7 @@ local GetQuestGreenRange = GetQuestGreenRange
 local yield = coroutine.yield
 local tinsert = table.insert
 local NewThread = ThreadLib.ThreadSimple
+local bitband = bit.band
 
 local QUESTS_PER_YIELD = 24
 
@@ -55,21 +56,34 @@ end
 ---@param quest Quest
 function AvailableQuests.DrawAvailableQuest(quest) -- prevent recursion
     --? Some quests can be started by both an NPC and a GameObject
+    Questie:Debug(Questie.DEBUG_INFO, "[DrawAvailableQuest] Drawing quest " .. quest.Id)
 
     if quest.Starts["GameObject"] then
         local gameObjects = quest.Starts["GameObject"]
+        if type(gameObjects) ~= "table" then
+            gameObjects = {gameObjects}  -- Convert single ID to table
+        end
         for i = 1, #gameObjects do
             local obj = QuestieDB:GetObject(gameObjects[i])
-
-            _AddStarter(obj, quest, "o_" .. obj.id)
+            if obj then
+                _AddStarter(obj, quest, "o_" .. obj.id)
+            else
+                Questie:Debug(Questie.DEBUG_DEVELOP, "[AvailableQuests] Missing GameObject data for ID:", gameObjects[i], "in quest", quest.Id)
+            end
         end
     end
     if (quest.Starts["NPC"]) then
         local npcs = quest.Starts["NPC"]
+        if type(npcs) ~= "table" then
+            npcs = {npcs}  -- Convert single ID to table
+        end
         for i = 1, #npcs do
             local npc = QuestieDB:GetNPC(npcs[i])
-
-            _AddStarter(npc, quest, "m_" .. npc.id)
+            if npc then
+                _AddStarter(npc, quest, "m_" .. npc.id)
+            else
+                Questie:Debug(Questie.DEBUG_DEVELOP, "[AvailableQuests] Missing NPC data for ID:", npcs[i], "in quest", quest.Id)
+            end
         end
     end
 end
@@ -87,10 +101,29 @@ _CalculateAvailableQuests = function()
     local debugEnabled = Questie.db.profile.debugEnabled
 
     local questData = QuestieDB.QuestPointers or QuestieDB.questData
+    
+    -- Debug: Check if we have quest data
+    if not questData then
+        Questie:Print("|cFFFF0000[ERROR] No quest data available! QuestPointers and questData are both nil!|r")
+        return
+    end
+    
+    -- Debug: Count available quests
+    local questCount = 0
+    for _ in pairs(questData) do
+        questCount = questCount + 1
+    end
+    Questie:Debug(Questie.DEBUG_INFO, "[AvailableQuests] Found " .. questCount .. " quests in database")
 
     local playerLevel = QuestiePlayer.GetPlayerLevel()
     local minLevel = playerLevel - GetQuestGreenRange("player")
     local maxLevel = playerLevel
+    
+    -- With "Show only quests granting experience" setting, allow higher level quests
+    -- Originally was +4, but increasing to +6 to show more quests (especially for Epoch content)
+    if Questie.db.profile.lowLevelStyle == Questie.LOWLEVEL_NONE then
+        maxLevel = playerLevel + 6
+    end
 
     if Questie.db.profile.lowLevelStyle == Questie.LOWLEVEL_RANGE then
         minLevel = Questie.db.profile.minLevelFilter
@@ -128,6 +161,44 @@ _CalculateAvailableQuests = function()
         ) then
             return
         end
+        
+        -- DISABLED: This was preventing ALL quests from showing after finding one placeholder
+        -- -- Don't show placeholder Epoch quests with "[Epoch] Quest XXXXX" names on the map
+        -- -- Also hide Epoch quests with missing or incorrect level data
+        -- local questName = QuestieDB.QueryQuestSingle(questId, "name")
+        -- if questName and string.find(questName, "^%[Epoch%] Quest %d+$") then
+        --     return
+        -- end
+        
+        -- TEMPORARILY DISABLED: Special Epoch quest filtering was preventing ALL quests from showing
+        -- This needs to be reworked to not interfere with normal quest display
+        -- -- Fix Epoch quests (26000+) with missing/incorrect requiredLevel data
+        -- if questId >= 26000 then
+        --     local requiredLevel = QuestieDB.QueryQuestSingle(questId, "requiredLevel")
+        --     local questLevel = QuestieDB.QueryQuestSingle(questId, "questLevel")
+        --     
+        --     -- If requiredLevel is missing/0, use questLevel for filtering
+        --     if not requiredLevel or requiredLevel == 0 then
+        --         requiredLevel = questLevel or 1
+        --     end
+        --     
+        --     -- Apply level filtering based on current settings
+        --     -- Be more lenient with Epoch quests since many have placeholder/incorrect level data
+        --     if Questie.db.profile.lowLevelStyle == Questie.LOWLEVEL_NONE then
+        --         -- For Epoch quests, allow a wider range since level data may be incorrect
+        --         -- Allow up to +10 levels for Epoch quests instead of +4
+        --         if requiredLevel > (playerLevel + 10) then
+        --             return
+        --         end
+        --     elseif Questie.db.profile.lowLevelStyle ~= Questie.LOWLEVEL_ALL then
+        --         -- For other filtering modes, be more lenient with Epoch quests
+        --         -- Add 6 levels to the max threshold for Epoch quests
+        --         local epochMaxLevel = maxLevel + 6
+        --         if requiredLevel > epochMaxLevel or (questLevel and questLevel > epochMaxLevel) then
+        --             return
+        --         end
+        --     end
+        -- end
 
         if currentQuestlog[questId] then
             _DrawChildQuests(questId, currentQuestlog, completedQuests)
@@ -183,8 +254,13 @@ _CalculateAvailableQuests = function()
     end
 
     local questCount = 0
+    local drawnCount = 0
     for questId in pairs(questData) do
+        local wasDrawn = availableQuests[questId] or false
         _DrawQuestIfAvailable(questId)
+        if not wasDrawn and availableQuests[questId] then
+            drawnCount = drawnCount + 1
+        end
 
         -- Reset the questCount
         questCount = questCount + 1
@@ -253,7 +329,15 @@ _GetQuestIcon = function(quest)
         return Questie.ICON_TYPE_AVAILABLE_GRAY
     end
     if quest.IsRepeatable then
-        return Questie.ICON_TYPE_REPEATABLE
+        -- Extra validation for Epoch quests (GitHub #90)
+        -- Only show repeatable icon if we're certain it's actually repeatable
+        if quest.Id >= 26000 and quest.specialFlags and bitband(quest.specialFlags, 1) == 0 then
+            -- Epoch quest incorrectly marked as repeatable, skip the repeatable icon
+            Questie:Debug(Questie.DEBUG_INFO, "[REPEATABLE FIX] Available quest " .. quest.Id .. " was marked repeatable but specialFlags=" .. (quest.specialFlags or "nil"))
+            -- Don't return repeatable icon, let it fall through to check trivial/normal
+        else
+            return Questie.ICON_TYPE_REPEATABLE
+        end
     end
     if (QuestieDB.IsTrivial(quest.level)) then
         return Questie.ICON_TYPE_AVAILABLE_GRAY

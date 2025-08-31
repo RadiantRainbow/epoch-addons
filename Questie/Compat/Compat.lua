@@ -506,10 +506,16 @@ function QuestieCompat.CalculateNextResetTime()
 
     Questie:Debug(Questie.DEBUG_DEVELOP, "[CalculateNextResetTime] GetQuestResetTime: ", timeUntilReset)
     if timeUntilReset <= 0 then
-        Questie:Error("GetQuestResetTime() returns an invalid value: "..timeUntilReset..". Please report on Github!")
-        return
+        -- GetQuestResetTime() returns -1 when no daily quests are available or API is not supported
+        -- On Project Epoch, this may occur if daily quests aren't implemented yet
+        -- Default to 24 hours from now if we don't have a valid reset time
+        if not Questie.db.profile.dailyResetTime or Questie.db.profile.dailyResetTime <= currentTime then
+            Questie.db.profile.dailyResetTime = currentTime + 86400 -- 24 hours in seconds
+        end
+        Questie:Debug(Questie.DEBUG_DEVELOP, "[CalculateNextResetTime] GetQuestResetTime returned ", timeUntilReset, ", using fallback daily reset time")
+    else
+        Questie.db.profile.dailyResetTime = Questie.db.profile.dailyResetTime or (currentTime + timeUntilReset)
     end
-    Questie.db.profile.dailyResetTime = Questie.db.profile.dailyResetTime or (currentTime + timeUntilReset)
     Questie:Debug(Questie.DEBUG_DEVELOP, "[CalculateNextResetTime] Next daily rest time: ", date("%m/%d/%y %H:%M:%S", Questie.db.profile.dailyResetTime))
 
     Questie.db.profile.weeklyResetHour = Questie.db.profile.weeklyResetHour or tonumber(date("%H", Questie.db.profile.dailyResetTime+300))
@@ -888,9 +894,27 @@ end
 
 -- handle tooltip based on the parent frame
 function QuestieCompat.SetupTooltip(frame, OnHide)
-    if (frame:GetParent() == WorldMapFrame) then
+    -- Check full ancestry, not just direct parent
+    local onWorldMap = false
+    local p = frame
+    while p do
+        if p == WorldMapFrame then
+            onWorldMap = true
+            break
+        end
+        if p.GetParent then
+            p = p:GetParent()
+        else
+            p = nil
+        end
+    end
+
+    if onWorldMap then
         WorldMapPOIFrame.allowBlobTooltip = OnHide and true or false
         QuestieCompat.Tooltip = WorldMapTooltip
+        if QuestieCompat.Tooltip.SetClampedToScreen then
+            QuestieCompat.Tooltip:SetClampedToScreen(true)
+        end
     else
         QuestieCompat.Tooltip = GameTooltip
     end
@@ -1063,7 +1087,6 @@ QuestieCompat.KButtons = {
     Add = function(self, templateName, templateType)
         local button = CreateFrame("Button", "Questie_WorldMapButton", WorldMapFrame)
         button:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
-        -- Support WorldMapScrollFrame for Magnify if present
         button:SetPoint("TOPRIGHT", WorldMapScrollFrame or WorldMapButton, "TOPRIGHT", -4, -2);
         button:SetFrameLevel(99)
         button:SetSize(32, 32)
