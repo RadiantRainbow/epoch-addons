@@ -84,6 +84,14 @@ local function Method_SetSwipeColor(Self, R, G, B, A)
 	end
 end
 
+local function Method_SetDrawSwipe(Self, drawSwipe)
+	Self:SetAlpha(drawSwipe and 1 or 0)
+end
+
+local function Method_GetDrawSwipe(Self)
+	return Self:GetAlpha() > 0
+end
+
 local function Method_SetShown(Self, Show)
 	if ( Show ) then
 		Self:Show()
@@ -262,7 +270,8 @@ hooksecurefunc(Cooldown, "SetCooldown", Hook_SetCooldown) -- This will cause a t
 Cooldown.Clear = Cooldown.Hide
 Cooldown.SetHideCountdownNumbers = Method_SetHideCountdownNumbers
 Cooldown.SetDrawBling = Private.Void
-Cooldown.SetDrawSwipe = Private.Void
+Cooldown.SetDrawSwipe = Method_SetDrawSwipe
+Cooldown.GetDrawSwipe = Method_GetDrawSwipe
 Cooldown.IsPaused = Private.Void
 Cooldown.Pause = Private.Void
 Cooldown.Resume = Private.Void
