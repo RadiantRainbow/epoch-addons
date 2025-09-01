@@ -482,6 +482,7 @@ local function setOption(info, value)
     -- This guarantees that all frames are updated consistently when any option
     -- is changed from the settings panel.
     addon:RefreshUnitFrames()
+    
 
     unitframe.UpdateSafeConfig()
 end
@@ -871,7 +872,6 @@ function unitframe:SaveLocalSettings()
 
     -- DevTools_Dump({localSettings})
 end
-
 function unitframe:ApplySettings()
     -- Use centralized settings from database.lua
     -- No need for local copies of defaults
@@ -880,43 +880,32 @@ function unitframe:ApplySettings()
     do
         local playerConfig = addon:GetConfigValue("unitframe", "player") or {}
 
-        -- FIXED: Define objLocal for the player frame, this was the source of the error.
         if not localSettings.player then
             localSettings.player = {}
         end
         local objLocal = localSettings.player
 
-        -- ... (código de configuración del player sin cambios) ...
-        if not objLocal.y then
-            objLocal.y = addon.defaults.profile.unitframe.player.y
-        end
+        -- Use database values if override is active, otherwise use local (default) settings
+        local anchor = playerConfig.override and playerConfig.anchor or objLocal.anchor
+        local anchorParent = playerConfig.override and playerConfig.anchorParent or objLocal.anchorParent
+        local anchorPoint = playerConfig.override and playerConfig.anchorPoint or objLocal.anchorParent -- ✅ Get the correct anchor point
+        local x = playerConfig.override and playerConfig.x or objLocal.x
+        local y = playerConfig.override and playerConfig.y or objLocal.y
 
         if playerConfig.override then
-            unitframe.MovePlayerFrame(playerConfig.anchor, playerConfig.anchorParent, playerConfig.x, playerConfig.y)
             PlayerFrame:SetUserPlaced(true)
-        else
-            -- Fall back to stored local settings if available, otherwise use defaults
-            local anchor = objLocal.anchor or addon.defaults.profile.unitframe.player.anchor
-            local anchorParent = objLocal.anchorParent or addon.defaults.profile.unitframe.player.anchorParent
-            local x = objLocal.x or addon.defaults.profile.unitframe.player.x
-            local y = objLocal.y or addon.defaults.profile.unitframe.player.y
-            unitframe.MovePlayerFrame(anchor, anchorParent, x, y)
         end
+        
+        -- ✅ Call MovePlayerFrame with the correct arguments
+        unitframe.MovePlayerFrame(anchor, anchorParent, anchorPoint, x, y)
         PlayerFrame:SetScale(playerConfig.scale or 1)
-        -- unitframe.ChangePlayerframe() -- REMOVED: Redundant call, RefreshUnitFrames handles this.
     end
 
-    -- target
+   -- target
     do
-        local obj = {
-            override = addon:GetConfigValue("unitframe", "target", "override"),
-            anchor = addon:GetConfigValue("unitframe", "target", "anchor"),
-            anchorParent = addon:GetConfigValue("unitframe", "target", "anchorParent"),
-            x = addon:GetConfigValue("unitframe", "target", "x"),
-            y = addon:GetConfigValue("unitframe", "target", "y"),
-            scale = addon:GetConfigValue("unitframe", "target", "scale")
-        }
-        -- Ensure target settings are initialized
+        -- ✅ CORRECCIÓN: Cargar la configuración del target desde la base de datos.
+        local targetConfig = addon:GetConfigValue("unitframe", "target") or {}
+
         if not localSettings.target then
             localSettings.target = {}
         end
@@ -935,66 +924,60 @@ function unitframe:ApplySettings()
             objLocal.y = addon.defaults.profile.unitframe.target.y
         end
 
-        if obj.override then
+        if targetConfig.override then
             TargetFrame:SetMovable(1)
             TargetFrame:StartMoving()
-            unitframe.MoveTargetFrame(obj.anchor, obj.anchorParent, obj.x, obj.y)
+            unitframe.MoveTargetFrame(targetConfig.anchor, targetConfig.anchorParent, targetConfig.x, targetConfig.y)
             -- TargetFrame:SetUserPlaced(true)
             TargetFrame:StopMovingOrSizing()
             TargetFrame:SetMovable()
         else
             unitframe.MoveTargetFrame(objLocal.anchor, objLocal.anchorParent, objLocal.x, objLocal.y)
         end
-        TargetFrame:SetScale(obj.scale)
-        -- unitframe.ReApplyTargetFrame() -- REMOVED: Redundant call.
-        -- unitframe.ChangeToT() -- REMOVED: Redundant call.
-        -- if UnitExists('targettarget') then -- REMOVED: Redundant call.
-        --     unitframe.ReApplyToTFrame()
-        -- end
+        -- Support for Combo Points scaling
+        TargetFrame:SetScale(targetConfig.scale)
+            if ComboFrame and TargetFrame then
+                ComboFrame:SetScale(TargetFrame:GetScale() or 1)
+            end
+      
     end
 
-    if true then
+     if true then
         -- focus
         do
-            local obj = {
-                override = addon:GetConfigValue("unitframe", "focus", "override"),
-                anchor = addon:GetConfigValue("unitframe", "focus", "anchor"),
-                anchorParent = addon:GetConfigValue("unitframe", "focus", "anchorParent"),
-                x = addon:GetConfigValue("unitframe", "focus", "x"),
-                y = addon:GetConfigValue("unitframe", "focus", "y"),
-                scale = addon:GetConfigValue("unitframe", "focus", "scale")
-            }
-            -- Ensure focus settings are initialized
+            -- ✅ CORRECCIÓN: Usar la misma lógica de carga que Player/Target.
+            local focusConfig = addon:GetConfigValue("unitframe", "focus") or {}
+
             if not localSettings.focus then
                 localSettings.focus = {}
             end
             local objLocal = localSettings.focus
-            -- Set defaults if missing
-            if not objLocal.anchor then
-                objLocal.anchor = addon.defaults.profile.unitframe.focus.anchor
-            end
-            if not objLocal.anchorParent then
-                objLocal.anchorParent = addon.defaults.profile.unitframe.focus.anchorParent
-            end
-            if not objLocal.x then
-                objLocal.x = addon.defaults.profile.unitframe.focus.x
-            end
-            if not objLocal.y then
-                objLocal.y = addon.defaults.profile.unitframe.focus.y
+
+            -- Usar valores de la base de datos si override está activo, si no, los locales.
+            local anchor = focusConfig.override and focusConfig.anchor or objLocal.anchor
+            local anchorParent = focusConfig.override and focusConfig.anchorParent or objLocal.anchorParent
+            local anchorPoint = focusConfig.override and focusConfig.anchorPoint or objLocal.anchorParent
+            local x = focusConfig.override and focusConfig.x or objLocal.x
+            local y = focusConfig.override and focusConfig.y or objLocal.y
+            local scale = focusConfig.scale or 1.0
+
+            if focusConfig.override then
+                FocusFrame:SetMovable(true) -- Hacerlo movible primero
+                FocusFrame:SetUserPlaced(true)
             end
 
-            if obj.override then
-                unitframe.MoveFocusFrame(obj.anchor, obj.anchorParent, obj.x, obj.y)
-                FocusFrame:SetUserPlaced(true)
-            else
-                unitframe.MoveFocusFrame(objLocal.anchor, objLocal.anchorParent, objLocal.x, objLocal.y)
-            end
-            FocusFrame:SetScale(obj.scale)
-            -- unitframe.ReApplyFocusFrame() -- REMOVED: Redundant call.
-            -- unitframe.ChangeFocusToT() -- REMOVED: Redundant call.
-            -- if UnitExists('focustarget') then -- REMOVED: Redundant call.
-            --     unitframe.ReApplyFocusToTFrame()
-            -- end
+            -- ✅ Llamar a MoveFocusFrame con los 5 argumentos correctos.
+            unitframe.MoveFocusFrame(anchor, anchorParent, anchorPoint, x, y)
+            FocusFrame:SetScale(scale)
+        end
+    end
+    -- ✅ AÑADIDO: Lógica para aplicar la configuración del grupo.
+    do
+        local partyConfig = addon:GetConfigValue("unitframe", "party") or {}
+        if unitframe.PartyMoveFrame then
+            -- La función UpdatePartyState ya contiene toda la lógica de posicionamiento.
+            -- Simplemente la llamamos para que aplique la configuración guardada.
+            unitframe:UpdatePartyState(partyConfig)
         end
     end
 
@@ -1432,7 +1415,7 @@ local function HandleUnitDeath(unit)
     elseif string.match(unit or "", "^party[1-4]$") then
         local partyIndex = tonumber(string.match(unit, 'party([1-4])'))
         if partyIndex then
-            unitframe.UpdatePartyFrameText(partyIndex)
+            unitframe.ClearPartyFrameTexts(partyIndex)
         end
     elseif unit == "player" then
         unitframe.ClearPlayerFrameTexts()
@@ -1723,18 +1706,15 @@ function unitframe.SafeUpdatePlayerFrameText()
     -- FIXED: Check hover state for individual bars ONLY (no general frame hover)
     local healthBarHover = PlayerFrameHealthBar and IsMouseOverFrame(PlayerFrameHealthBar) or false
     local manaBarHover = PlayerFrameManaBar and IsMouseOverFrame(PlayerFrameManaBar) or false
+    
+    -- ✅ CORRECCIÓN LÓGICA: Determinar si se debe mostrar el texto.
+    -- La opción "Always" tiene prioridad. El hover solo funciona si "Always" está desactivado.
+    local shouldShowHealth = showHealthAlways or (healthBarHover and not showHealthAlways)
+    local shouldShowMana = showManaAlways or (manaBarHover and not showManaAlways)
 
-    -- FIXED: Only show texts for specific bar hover or if always enabled
-    local shouldShowHealth = showHealthAlways or healthBarHover
-    local shouldShowMana = showManaAlways or manaBarHover
-
-    -- FIXED: Update texts individually based on hover state
-    if shouldShowHealth or shouldShowMana then
-        unitframe.UpdatePlayerFrameTextSelective(shouldShowHealth, shouldShowMana)
-    else
-        -- Clear texts if nothing should be shown
-        unitframe.ClearPlayerFrameTexts()
-    end
+    -- Llamar a la función de actualización con los valores correctos.
+    -- No es necesario un 'else' para limpiar, la propia función ya lo hace.
+    unitframe.UpdatePlayerFrameTextSelective(shouldShowHealth, shouldShowMana)
 end
 
 -- FIXED: New function to update player frame texts selectively (health and/or mana)
@@ -1857,6 +1837,54 @@ function unitframe.UpdatePlayerFrameTextSelective(showHealth, showMana)
             dragonFrame.PlayerFrameManaBarTextRight:SetText("")
             dragonFrame.PlayerFrameManaBarTextRight:Hide()
         end
+	end
+		
+	-- Handle Druid Alternate Mana Bar
+    if PlayerFrameAlternateManaBar and PlayerFrameAlternateManaBar:IsVisible() then
+        if not _G["DragonUIDruidManaText"] then
+            local text = PlayerFrameAlternateManaBar:CreateFontString("DragonUIDruidManaText", "OVERLAY", "TextStatusBarText")
+            text:SetPoint("CENTER", PlayerFrameAlternateManaBar, "CENTER", 0, 0)
+        end
+        if not _G["DragonUIDruidManaTextLeft"] then
+            local textLeft = PlayerFrameAlternateManaBar:CreateFontString("DragonUIDruidManaTextLeft", "OVERLAY", "TextStatusBarText")
+            textLeft:SetPoint("LEFT", PlayerFrameAlternateManaBar, "LEFT", 6, 0)
+            textLeft:SetJustifyH("LEFT")
+        end
+        if not _G["DragonUIDruidManaTextRight"] then
+            local textRight = PlayerFrameAlternateManaBar:CreateFontString("DragonUIDruidManaTextRight", "OVERLAY", "TextStatusBarText")
+            textRight:SetPoint("RIGHT", PlayerFrameAlternateManaBar, "RIGHT", -6, 0)
+            textRight:SetJustifyH("RIGHT")
+        end
+        
+        local textFrame = _G["DragonUIDruidManaText"]
+        local textFrameLeft = _G["DragonUIDruidManaTextLeft"]
+        local textFrameRight = _G["DragonUIDruidManaTextRight"]
+
+        if showMana then
+            local mana, maxMana = UnitPower("player", 0), UnitPowerMax("player", 0)
+            local formattedText = FormatStatusText(mana, maxMana, config.textFormat, config.breakUpLargeNumbers, "player")
+
+            if type(formattedText) == "table" then
+                textFrameLeft:SetText(formattedText.percentage or "")
+                textFrameRight:SetText(formattedText.current or "")
+                textFrameLeft:Show()
+                textFrameRight:Show()
+                textFrame:Hide()
+            else
+                textFrame:SetText(formattedText)
+                textFrame:Show()
+                textFrameLeft:Hide()
+                textFrameRight:Hide()
+            end
+        else
+            textFrame:Hide()
+            textFrameLeft:Hide()
+            textFrameRight:Hide()
+        end
+    elseif _G["DragonUIDruidManaText"] then
+        _G["DragonUIDruidManaText"]:Hide()
+        if _G["DragonUIDruidManaTextLeft"] then _G["DragonUIDruidManaTextLeft"]:Hide() end
+        if _G["DragonUIDruidManaTextRight"] then _G["DragonUIDruidManaTextRight"]:Hide() end
     end
 end
 
@@ -2564,12 +2592,32 @@ function unitframe.HookVertexColor()
         end
 
         -- Hook focus events for consistent color updates  
-        FocusFrame:HookScript('OnEvent', function(self, event, arg1)
-            if event == 'PLAYER_FOCUS_CHANGED' then
-                updateFocusFrameHealthBar()
+       FocusFrame:HookScript('OnEvent', function(self, event, arg1)
+    if event == 'PARTY_MEMBERS_CHANGED' or event == 'GROUP_ROSTER_UPDATE' then
+        -- SIMPLE: Solo aplicar colores sin logging ni delays complejos
+        if UnitExists('focus') then
+            -- Obtener configuración actual
+            local shouldUseClassColor = addon:GetConfigValue("unitframe", "focus", "classcolor") and UnitIsPlayer('focus')
+            
+            if shouldUseClassColor then
+                local localizedClass, englishClass, classIndex = UnitClass('focus')
+                if englishClass and RAID_CLASS_COLORS[englishClass] then
+                    local color = RAID_CLASS_COLORS[englishClass]
+                    FocusFrameHealthBar:SetStatusBarColor(color.r, color.g, color.b, 1)
+                else
+                    FocusFrameHealthBar:SetStatusBarColor(1, 1, 1, 1)
+                end
+            else
+                FocusFrameHealthBar:SetStatusBarColor(1, 1, 1, 1)
             end
-        end)
-
+            
+            -- Asegurar color blanco en mana (sin verificaciones complejas)
+            if FocusFrameManaBar then
+                FocusFrameManaBar:SetStatusBarColor(1, 1, 1, 1)
+            end
+        end
+    end
+end)
         FocusFrameHealthBar:HookScript('OnValueChanged', function(self)
             if addon:GetConfigValue("unitframe", "focus", "classcolor") and UnitIsPlayer('focus') then
                 FocusFrameHealthBar:GetStatusBarTexture():SetTexture(
@@ -3133,9 +3181,10 @@ end
 -- No llamar UpdateStatus inmediatamente - dejar que los eventos lo manejen
 -- UpdateStatus()
 
-function unitframe.MovePlayerFrame(anchor, anchorOther, dx, dy)
+function unitframe.MovePlayerFrame(point, relativeTo, relativePoint, xOfs, yOfs)
     PlayerFrame:ClearAllPoints()
-    PlayerFrame:SetPoint(anchor, UIParent, anchorOther, dx, dy)
+    -- Usamos _G[relativeTo] para asegurarnos de que funciona con "UIParent" u otros marcos
+    PlayerFrame:SetPoint(point or "TOPLEFT", _G[relativeTo or "UIParent"] or UIParent, relativePoint or "TOPLEFT", xOfs or -24, yOfs or -4)
 end
 
 function unitframe.ChangeTargetFrame()
@@ -4315,9 +4364,10 @@ function unitframe.FormatToTNumber(value)
     end
 end
 
-function unitframe.MoveTargetFrame(anchor, anchorOther, dx, dy)
+function unitframe.MoveTargetFrame(point, relativeTo, relativePoint, xOfs, yOfs)
     TargetFrame:ClearAllPoints()
-    TargetFrame:SetPoint(anchor, UIParent, anchorOther, dx, dy)
+    -- Usamos _G[relativeTo] para asegurarnos de que funciona con "UIParent" u otros marcos
+    TargetFrame:SetPoint(point or "TOPLEFT", _G[relativeTo or "UIParent"] or UIParent, relativePoint or "TOPLEFT", xOfs or 216, yOfs or -4)
 end
 
 function unitframe.ChangeFocusFrame()
@@ -4848,76 +4898,61 @@ function unitframe.ChangeFocusFrame()
     end
 end
 
-function unitframe.MoveFocusFrame(anchor, anchorOther, dx, dy)
+function unitframe.MoveFocusFrame(point, relativeTo, relativePoint, xOfs, yOfs)
     FocusFrame:ClearAllPoints()
-    FocusFrame:SetPoint(anchor, UIParent, anchorOther, dx, dy)
+    FocusFrame:SetPoint(point or "TOPLEFT", _G[relativeTo or "UIParent"] or UIParent, relativePoint or "TOPLEFT", xOfs or 288, yOfs or -258)
 end
-
 function unitframe.ReApplyFocusFrame()
-    if addon:GetConfigValue("unitframe", "focus", "classcolor") and UnitIsPlayer('focus') then
-        FocusFrameHealthBar:GetStatusBarTexture():SetTexture(
-            'Interface\\Addons\\DragonUI\\Textures\\Unitframe\\UI-HUD-UnitFrame-Target-PortraitOn-Bar-Health-Status')
+    -- FIXED: Función más robusta que SIEMPRE aplica colores correctamente
+    
+    if not UnitExists('focus') then
+      
+        return
+    end
+    
+  
+    
+    -- 1. SIEMPRE aplicar la configuración de colores de clase
+    local shouldUseClassColor = addon:GetConfigValue("unitframe", "focus", "classcolor") and UnitIsPlayer('focus')
+    
+    
+    
+    if shouldUseClassColor then
         local localizedClass, englishClass, classIndex = UnitClass('focus')
-        FocusFrameHealthBar:SetStatusBarColor(RAID_CLASS_COLORS[englishClass].r, RAID_CLASS_COLORS[englishClass].g,
-            RAID_CLASS_COLORS[englishClass].b, 1)
+        if englishClass and RAID_CLASS_COLORS[englishClass] then
+            FocusFrameHealthBar:GetStatusBarTexture():SetTexture(
+                'Interface\\Addons\\DragonUI\\Textures\\Unitframe\\UI-HUD-UnitFrame-Target-PortraitOn-Bar-Health-Status')
+            local color = RAID_CLASS_COLORS[englishClass]
+            FocusFrameHealthBar:SetStatusBarColor(color.r, color.g, color.b, 1)
+            
+           
+        else
+            -- Fallback si no se puede obtener la clase
+            FocusFrameHealthBar:GetStatusBarTexture():SetTexture(
+                'Interface\\Addons\\DragonUI\\Textures\\Unitframe\\UI-HUD-UnitFrame-Target-PortraitOn-Bar-Health')
+            FocusFrameHealthBar:SetStatusBarColor(1, 1, 1, 1)
+          
+        end
     else
+        -- CRÍTICO: Colores de clase deshabilitados o no es jugador - FORZAR BLANCO
         FocusFrameHealthBar:GetStatusBarTexture():SetTexture(
             'Interface\\Addons\\DragonUI\\Textures\\Unitframe\\UI-HUD-UnitFrame-Target-PortraitOn-Bar-Health')
         FocusFrameHealthBar:SetStatusBarColor(1, 1, 1, 1)
     end
 
-    -- BORDER con sublevel bajo: por encima del fondo, por debajo de todo lo demás
+    -- 2. CRÍTICO: FORZAR el DrawLayer correcto
     FocusFrameHealthBar:GetStatusBarTexture():SetDrawLayer("BORDER", 1)
 
-    -- [[ INICIO DE LA LÓGICA DE RECORTE DINÁMICO PARA LA BARRA DE VIDA DEL FOCUS ]]
-    if not FocusFrameHealthBar.DragonUI_HealthBarHooked then
-        FocusFrameHealthBar:HookScript("OnValueChanged", function(self, value)
-            if not UnitExists("focus") then
-                return
-            end
-
-            local statusBarTexture = self:GetStatusBarTexture()
-
-            -- Aplicar la textura correcta según la configuración de color de clase
-            if addon:GetConfigValue("unitframe", "focus", "classcolor") and UnitIsPlayer('focus') then
-                statusBarTexture:SetTexture(
-                    'Interface\\Addons\\DragonUI\\Textures\\Unitframe\\UI-HUD-UnitFrame-Target-PortraitOn-Bar-Health-Status')
-            else
-                statusBarTexture:SetTexture(
-                    'Interface\\Addons\\DragonUI\\Textures\\Unitframe\\UI-HUD-UnitFrame-Target-PortraitOn-Bar-Health')
-            end
-
-            -- BORDER con sublevel bajo: por encima del fondo, por debajo de todo lo demás
-            statusBarTexture:SetDrawLayer("BORDER", 1)
-
-            -- La magia del recorte dinámico: ajustamos las coordenadas de la textura.
-            local min, max = self:GetMinMaxValues()
-            if max > 0 and value then
-                local percentage = value / max
-                -- SetTexCoord(izquierda, derecha, arriba, abajo)
-                -- Recortamos la coordenada derecha para que coincida con el porcentaje.
-                statusBarTexture:SetTexCoord(0, percentage, 0, 1)
-            else
-                -- Si no hay valor o el máximo es 0, mostramos la textura completa.
-                statusBarTexture:SetTexCoord(0, 1, 0, 1)
-            end
-
-            -- Nos aseguramos de que no se aplique ningún tinte de color que arruine la textura.
-            statusBarTexture:SetVertexColor(1, 1, 1, 1)
-        end)
-        -- Marcamos que el hook ya ha sido aplicado.
-        FocusFrameHealthBar.DragonUI_HealthBarHooked = true
-    end
-
-    -- Forzamos una actualización inicial de la barra de vida para que nuestro nuevo hook se ejecute.
+    -- 3. CRÍTICO: FORZAR actualización del valor para triggear el hook de OnValueChanged
     if UnitExists("focus") then
         local currentHealth = UnitHealth("focus")
         local maxHealth = UnitHealthMax("focus")
         FocusFrameHealthBar:SetMinMaxValues(0, maxHealth)
         FocusFrameHealthBar:SetValue(currentHealth)
+      
     end
-    -- [[ FIN DE LA LÓGICA DE RECORTE DINÁMICO PARA LA BARRA DE VIDA DEL FOCUS ]]
 
+    -- 4. CRÍTICO: Aplicar configuración de power bar con COLOR BLANCO FORZADO
     local powerType, powerTypeString = UnitPowerType('focus')
 
     if powerTypeString == 'MANA' then
@@ -4937,15 +4972,21 @@ function unitframe.ReApplyFocusFrame()
             'Interface\\Addons\\DragonUI\\Textures\\Unitframe\\UI-HUD-UnitFrame-Target-PortraitOn-Bar-RunicPower')
     end
 
-    -- Do not force mana bar color here - let the natural color system handle it
+    -- CRÍTICO: SIEMPRE forzar color blanco en la barra de poder
+    FocusFrameManaBar:SetStatusBarColor(1, 1, 1, 1)
 
+
+    -- 5. Ocultar flash de combate si existe
     if FocusFrameFlash then
         FocusFrameFlash:SetTexture('')
     end
 
+    -- 6. Actualizar extra portrait si existe
     if frame.FocusExtra then
         frame.FocusExtra:UpdateStyle()
     end
+    
+
 end
 
 -- FIXED: Focus ToT Frame Functions - Completely Rewritten like Target ToT
@@ -6054,50 +6095,63 @@ function unitframe:UpdatePartyState(state)
         return
     end
 
-    -- Ensure all required values have defaults
-    local safeState = {
-        anchor = state.anchor or 'TOPLEFT',
-        anchorParent = state.anchorParent or 'TOPLEFT',
-        x = state.x or 10,
-        y = state.y or -100,
-        scale = state.scale or 1.0,
-        padding = state.padding or 10,
-        orientation = state.orientation or 'vertical',
-        override = state.override or false,
-        anchorFrame = state.anchorFrame
-    }
-
-    local parent = UIParent
-    if safeState.override and safeState.anchorFrame then
-        parent = _G[safeState.anchorFrame] or UIParent
+    -- ✅ CORRECCIÓN: Lógica de carga robusta que respeta el 'override'.
+    local partyConfig = addon:GetConfigValue("unitframe", "party") or {}
+    
+    -- Determinar los valores a usar basados en el override.
+    local anchor, parent, anchorPoint, x, y
+    if partyConfig.override then
+        anchor = partyConfig.anchor or "BOTTOMLEFT"
+        -- Usamos _G para obtener el frame por su nombre, con fallback a UIParent
+        parent = _G[partyConfig.anchorParent or "UIParent"] or UIParent
+        anchorPoint = partyConfig.anchorPoint or "BOTTOMLEFT"
+        x = partyConfig.x or 0
+        y = partyConfig.y or 0
+    else
+        -- Valores por defecto si no hay override (posición inicial)
+        anchor = "TOPLEFT"
+        parent = UIParent
+        anchorPoint = "TOPLEFT"
+        x = 20
+        y = -120
     end
 
-    unitframe.PartyMoveFrame:ClearAllPoints()
-    unitframe.PartyMoveFrame:SetPoint(safeState.anchor, parent, safeState.anchorParent, safeState.x, safeState.y)
-    unitframe.PartyMoveFrame:SetScale(safeState.scale)
+    -- Valores que no dependen del override (escala, padding, etc.)
+    local scale = partyConfig.scale or 1.0
+    local padding = partyConfig.padding or 10
+    local orientation = partyConfig.orientation or 'vertical'
 
+    -- Aplicar la posición y escala.
+    unitframe.PartyMoveFrame:ClearAllPoints()
+    unitframe.PartyMoveFrame:SetPoint(anchor, parent, anchorPoint, x, y)
+    unitframe.PartyMoveFrame:SetScale(scale)
+
+    -- El resto de la lógica para la orientación y el tamaño se mantiene.
     local sizeX, sizeY = _G['PartyMemberFrame' .. 1]:GetSize()
 
-    if safeState.orientation == 'vertical' then
-        unitframe.PartyMoveFrame:SetSize(sizeX, sizeY * 4 + 3 * safeState.padding)
+    if orientation == 'vertical' then
+        unitframe.PartyMoveFrame:SetSize(sizeX, sizeY * 4 + 3 * padding)
     else
-        unitframe.PartyMoveFrame:SetSize(sizeX * 4 + 3 * safeState.padding, sizeY)
+        unitframe.PartyMoveFrame:SetSize(sizeX * 4 + 3 * padding, sizeY)
     end
 
     for i = 2, 4 do
         local pf = _G['PartyMemberFrame' .. i]
-        if safeState.orientation == 'vertical' then
+        if orientation == 'vertical' then
             pf:ClearAllPoints()
-            pf:SetPoint('TOPLEFT', _G['PartyMemberFrame' .. (i - 1)], 'BOTTOMLEFT', 0, -safeState.padding)
+            pf:SetPoint('TOPLEFT', _G['PartyMemberFrame' .. (i - 1)], 'BOTTOMLEFT', 0, -padding)
         else
             pf:ClearAllPoints()
-            pf:SetPoint('TOPLEFT', _G['PartyMemberFrame' .. (i - 1)], 'TOPRIGHT', safeState.padding, 0)
+            pf:SetPoint('TOPLEFT', _G['PartyMemberFrame' .. (i - 1)], 'TOPRIGHT', padding, 0)
         end
     end
 
+    -- Actualizar las barras de los miembros del grupo.
     for i = 1, 4 do
-        unitframe.UpdatePartyHPBar(i)
-        unitframe.UpdatePartyManaBar(i)
+        if UnitExists("party"..i) then
+            unitframe.UpdatePartyHPBar(i)
+            unitframe.UpdatePartyManaBar(i)
+        end
     end
 end
 
@@ -6136,10 +6190,51 @@ function unitframe.UpdateAllPartyFrameText()
     end
 end
 
--- Function to update party frame text (improved system with proper 'both' logic)
+-- Clear party frame texts
+function unitframe.ClearPartyFrameTexts(i)
+    local healthbar = _G['PartyMemberFrame' .. i .. 'HealthBar']
+    local manabar = _G['PartyMemberFrame' .. i .. 'ManaBar']
+    
+    if healthbar then
+        if healthbar.DFTextString then
+            healthbar.DFTextString:Hide()
+        end
+        if healthbar.DFLeftText then
+            healthbar.DFLeftText:Hide()
+        end
+        if healthbar.DFRightText then
+            healthbar.DFRightText:Hide()
+        end
+    end
+    
+    if manabar then
+        if manabar.DFTextString then
+            manabar.DFTextString:Hide()
+        end
+        if manabar.DFLeftText then
+            manabar.DFLeftText:Hide()
+        end
+        if manabar.DFRightText then
+            manabar.DFRightText:Hide()
+        end
+    end
+end
+
 function unitframe.UpdatePartyFrameText(i)
-    -- FIXED: Validate that i is a valid number
+    -- Verificaciones como en target/pet
     if not i or type(i) ~= "number" or i < 1 or i > 4 then
+        return
+    end
+    
+    -- Verificar estado de la unidad
+    if not UnitExists('party' .. i) or UnitIsDeadOrGhost('party' .. i) then
+        unitframe.ClearPartyFrameTexts(i)
+        return
+    end
+    
+    -- Verificar conexión
+    if UnitIsPlayer('party' .. i) and UnitIsConnected and not UnitIsConnected('party' .. i) then
+        unitframe.ClearPartyFrameTexts(i)
         return
     end
 
@@ -6150,12 +6245,12 @@ function unitframe.UpdatePartyFrameText(i)
         return
     end
 
-    -- TAINT-FIX: Usar la caché segura.
+    -- TAINT-FIX: Usar la caché segura
     local config = safeConfig.party or {}
     local showHealthAlways = config.showHealthTextAlways or false
     local showManaAlways = config.showManaTextAlways or false
     local textFormat = config.textFormat or "both"
-    local useBreakup = config.breakUpLargeNumbers or false -- Get the breakup setting
+    local useBreakup = config.breakUpLargeNumbers or false
 
     -- Helper function to check mouseover (compatible with 3.3.5a)
     local function IsMouseOverBar(bar)
@@ -6190,28 +6285,35 @@ function unitframe.UpdatePartyFrameText(i)
         manabar.DFRightText:SetJustifyH("RIGHT")
     end
 
-    -- Health text logic (same as target/player/focus system)
+    -- Health text logic - CORREGIDO
     if healthbar.DFTextString then
         local health = UnitHealth('party' .. i)
-        local maxHealth = UnitHealthMax and UnitHealthMax('party' .. i) or UnitHealthMax('party' .. i)
+        local maxHealth = UnitHealthMax('party' .. i)
 
         local showHealthText = showHealthAlways or IsMouseOverBar(healthbar)
 
         if showHealthText and health and maxHealth and maxHealth > 0 then
-            local healthText = FormatStatusText(health, maxHealth, textFormat, useBreakup) -- Pass useBreakup
+            local healthText = FormatStatusText(health, maxHealth, textFormat, useBreakup)
+            
             if textFormat == 'both' and type(healthText) == 'table' then
+                -- ✅ Para formato "both": usar elementos izquierda/derecha, OCULTAR el principal
                 healthbar.DFTextString:SetText("")
+                healthbar.DFTextString:Hide() -- ← AÑADIDO: Ocultar elemento principal
                 healthbar.DFLeftText:SetText(healthText.percentage)
                 healthbar.DFRightText:SetText(healthText.current)
                 healthbar.DFLeftText:Show()
                 healthbar.DFRightText:Show()
             else
+                -- ✅ Para otros formatos: usar elemento principal, OCULTAR izquierda/derecha
                 healthbar.DFTextString:SetText(healthText)
+                healthbar.DFTextString:Show() -- ← MOVIDO: Solo mostrar cuando se usa
                 healthbar.DFLeftText:SetText("")
+                healthbar.DFLeftText:Hide() -- ← AÑADIDO: Ocultar elementos duales
                 healthbar.DFRightText:SetText("")
+                healthbar.DFRightText:Hide() -- ← AÑADIDO: Ocultar elementos duales
             end
-            healthbar.DFTextString:Show()
         else
+            -- ✅ Ocultar TODOS los elementos cuando no hay texto
             healthbar.DFTextString:SetText("")
             healthbar.DFTextString:Hide()
             healthbar.DFLeftText:SetText("")
@@ -6221,28 +6323,35 @@ function unitframe.UpdatePartyFrameText(i)
         end
     end
 
-    -- Mana text logic (same as target/player/focus system)
+    -- Mana text logic - CORREGIDO
     if manabar.DFTextString then
-        local power = UnitPower and UnitPower('party' .. i) or UnitMana('party' .. i)
-        local maxPower = UnitPowerMax and UnitPowerMax('party' .. i) or UnitManaMax('party' .. i)
+        local power = UnitPower('party' .. i)
+        local maxPower = UnitPowerMax('party' .. i)
 
         local showManaText = showManaAlways or IsMouseOverBar(manabar)
 
         if showManaText and power and maxPower and maxPower > 0 then
-            local powerText = FormatStatusText(power, maxPower, textFormat, useBreakup) -- Pass useBreakup
+            local powerText = FormatStatusText(power, maxPower, textFormat, useBreakup)
+            
             if textFormat == 'both' and type(powerText) == 'table' then
+                -- ✅ Para formato "both": usar elementos izquierda/derecha, OCULTAR el principal
                 manabar.DFTextString:SetText("")
+                manabar.DFTextString:Hide() -- ← AÑADIDO: Ocultar elemento principal
                 manabar.DFLeftText:SetText(powerText.percentage)
                 manabar.DFRightText:SetText(powerText.current)
                 manabar.DFLeftText:Show()
                 manabar.DFRightText:Show()
             else
+                -- ✅ Para otros formatos: usar elemento principal, OCULTAR izquierda/derecha
                 manabar.DFTextString:SetText(powerText)
+                manabar.DFTextString:Show() -- ← MOVIDO: Solo mostrar cuando se usa
                 manabar.DFLeftText:SetText("")
+                manabar.DFLeftText:Hide() -- ← AÑADIDO: Ocultar elementos duales
                 manabar.DFRightText:SetText("")
+                manabar.DFRightText:Hide() -- ← AÑADIDO: Ocultar elementos duales
             end
-            manabar.DFTextString:Show()
         else
+            -- ✅ Ocultar TODOS los elementos cuando no hay texto
             manabar.DFTextString:SetText("")
             manabar.DFTextString:Hide()
             manabar.DFLeftText:SetText("")
@@ -7065,7 +7174,47 @@ function eventFrame:OnEvent(event, arg1)
             unitframe.UpdatePartyFrameText(partyIndex)
             unitframe.UpdatePartyManaBar(partyIndex)
         end
+
     elseif event == 'UNIT_POWER_UPDATE' then
+
+        elseif event == "PARTY_MEMBERS_CHANGED" or event == "GROUP_ROSTER_UPDATE" then
+        -- SOLUCIÓN SIMPLE: Llamar a la función que ya existe pero no se usa
+        for i = 1, 4 do
+            local pf = _G['PartyMemberFrame' .. i]
+            if pf then
+                if not UnitExists('party' .. i) then
+                    -- ESTO YA EXISTE en UpdatePartyState pero no se llama aquí
+                    pf:Hide()
+                    pf:SetAlpha(0)
+                    unitframe.ClearPartyFrameTexts(i)
+                else
+                    pf:Show()
+                    pf:SetAlpha(1)
+                    unitframe.UpdatePartyHPBar(i)
+                    unitframe.UpdatePartyManaBar(i)
+                    unitframe.UpdatePartyFrameText(i)
+                end
+            end
+        end
+        
+        -- El código del focus ya funciona bien
+        if UnitExists('focus') then
+            local shouldUseClassColor = addon:GetConfigValue("unitframe", "focus", "classcolor") and UnitIsPlayer('focus')
+            if shouldUseClassColor then
+                local localizedClass, englishClass, classIndex = UnitClass('focus')
+                if englishClass and RAID_CLASS_COLORS[englishClass] then
+                    local color = RAID_CLASS_COLORS[englishClass]
+                    FocusFrameHealthBar:SetStatusBarColor(color.r, color.g, color.b, 1)
+                else
+                    FocusFrameHealthBar:SetStatusBarColor(1, 1, 1, 1)
+                end
+            else
+                FocusFrameHealthBar:SetStatusBarColor(1, 1, 1, 1)
+            end
+            if FocusFrameManaBar then
+                FocusFrameManaBar:SetStatusBarColor(1, 1, 1, 1)
+            end
+        end
         -- WoW 3.3.5a specific mana events
     elseif event == 'UNIT_MANA' and string.match(arg1, '^party[1-4]$') then
         -- Update party frame mana when mana changes (3.3.5a specific)
@@ -7204,6 +7353,8 @@ eventFrame:RegisterEvent('PLAYER_DEAD')
 eventFrame:RegisterEvent('PLAYER_ALIVE')
 eventFrame:RegisterEvent('PLAYER_UNGHOST')
 eventFrame:RegisterEvent('UNIT_CONNECTION')
+eventFrame:RegisterEvent('PARTY_MEMBERS_CHANGED')
+eventFrame:RegisterEvent('GROUP_ROSTER_UPDATE')
 
 -- Module initialization compatible with DragonUI
 local frameInit = CreateFrame("Frame")
@@ -7704,60 +7855,6 @@ if PlayerFrame and TargetFrame then
         unitframe.ReApplyFocusToTFrame()
     end
 
-    -- party frames
-    do
-        local obj = {
-            override = addon:GetConfigValue("unitframe", "party", "override") or false,
-            anchor = addon:GetConfigValue("unitframe", "party", "anchor") or 'TOPLEFT',
-            anchorParent = addon:GetConfigValue("unitframe", "party", "anchorParent") or 'TOPLEFT',
-            x = addon:GetConfigValue("unitframe", "party", "x") or 10,
-            y = addon:GetConfigValue("unitframe", "party", "y") or -100,
-            scale = addon:GetConfigValue("unitframe", "party", "scale") or 1.0,
-            padding = addon:GetConfigValue("unitframe", "party", "padding") or 10,
-            orientation = addon:GetConfigValue("unitframe", "party", "orientation") or 'vertical'
-        }
-        -- Ensure party settings are initialized
-        if not localSettings.party then
-            localSettings.party = {}
-        end
-        local objLocal = localSettings.party
-        -- Set defaults if missing
-        if not objLocal.anchor then
-            objLocal.anchor = addon.defaults.profile.unitframe.party.anchor
-        end
-        if not objLocal.anchorParent then
-            objLocal.anchorParent = addon.defaults.profile.unitframe.party.anchorParent
-        end
-        if not objLocal.x then
-            objLocal.x = addon.defaults.profile.unitframe.party.x
-        end
-        if not objLocal.y then
-            objLocal.y = addon.defaults.profile.unitframe.party.y
-        end
-
-        -- Initialize party frames if they don't exist
-        if not unitframe.PartyMoveFrame then
-            -- Add safety check for party frames existence
-            if _G['PartyMemberFrame1'] then
-                unitframe.ChangePartyFrame()
-            else
-            end
-        end
-
-        if unitframe.PartyMoveFrame then
-            unitframe:UpdatePartyState(obj)
-            -- Party frames positioned
-
-            -- FIXED: Initialize mana coordinates for ALL party frames (not just visible ones)
-            for i = 1, 4 do
-                local manabar = _G['PartyMemberFrame' .. i .. 'ManaBar']
-                if manabar then
-                    local powerType = UnitPowerType('party' .. i) or 0
-                    unitframe.SetPartyManaBarCoords(manabar, powerType)
-                end
-            end
-        end
-    end
 end
 
 function unitframe.HookManaBarColors()
@@ -7849,4 +7946,3 @@ profileCallbackFrame:SetScript("OnEvent", function(self, event, addonName)
         self:UnregisterEvent("ADDON_LOADED")
     end
 end)
-
