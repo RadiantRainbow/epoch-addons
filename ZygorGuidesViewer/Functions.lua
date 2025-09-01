@@ -93,6 +93,16 @@ function CreateTextureWithCoords(parent, texture, l, r, u, d, blend)
   return tex
 end
 
+function ZGV.GetUnitId(unit)
+  if unit == 'pet' then
+    return tonumber((UnitGUID(unit) or ''):match('[Creature|Pet]%-%d+%-%d+%-%d+%-%d+%-(%d+)') or 0)
+  else
+    return tonumber(
+      (UnitGUID(unit) or ''):match('[Creature|Vehicle]%-%d+%-%d+%-%d+%-%d+%-(%d+)') or 0
+    )
+  end
+end
+
 -- Blizzard UIDropDownMenu has a nasty bug: it sets all buttons' initial FrameLevel to 2,
 -- which causes problems when more buttons are created.
 

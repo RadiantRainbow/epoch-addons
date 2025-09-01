@@ -139,7 +139,7 @@ function me:Options_RegisterDefaults()
       maint_queryquests = true,
 
       guides_history = {},
-
+      guideflags = {},
       RecipesKnown = {},
     },
     global = {

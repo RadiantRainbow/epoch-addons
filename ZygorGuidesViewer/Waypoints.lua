@@ -313,12 +313,15 @@ me.WaypointFunctions['internal'] = {
             onminimap = 'always',
             overworld = true,
           })
+          --print(goal.map)
           if way then
             if not firstpoint then
               firstpoint = way
             end
           else
-            self:Print('Unable to create waypoint: ' .. goal.map .. ' ' .. goal.x .. ' ' .. goal.y)
+            self:Print(
+              'Unable to create waypoint: ' .. goal.map .. ' ' .. goal.x .. ' ' .. goal.y .. ' '
+            )
           end
         end
       end
@@ -339,11 +342,13 @@ me.WaypointFunctions['internal'] = {
     if BZL[zone] then
       zone = BZL[zone]
     end
-    local way = self.Pointer:SetWaypoint(nil, zone, x, y, {
-      title = data.title or ('%s %d,%d'):format(zone, x, y),
-      persistent = true,
-      overworld = true,
-    })
+    local way = self.Pointer:SetWaypoint(
+      nil,
+      zone,
+      x,
+      y,
+      { title = data.title or ('%s %d,%d'):format(zone, x, y), persistent = true, overworld = true }
+    )
   end,
   disconnect = function(self)
     self.Pointer:ClearWaypoints()

@@ -52,26 +52,14 @@ end
 local isstring = { ['string'] = true, _ = 'string' }
 local isstringfunc = { ['string'] = true, ['function'] = true, _ = 'string or funcref' }
 local istable = { ['table'] = true, _ = 'table' }
-local ismethodtable = {
-  ['table'] = true,
-  ['string'] = true,
-  ['function'] = true,
-  _ = 'methodname, funcref or table',
-}
+local ismethodtable =
+  { ['table'] = true, ['string'] = true, ['function'] = true, _ = 'methodname, funcref or table' }
 local optstring = { ['nil'] = true, ['string'] = true, _ = 'string' }
-local optstringfunc = {
-  ['nil'] = true,
-  ['string'] = true,
-  ['function'] = true,
-  _ = 'string or funcref',
-}
+local optstringfunc =
+  { ['nil'] = true, ['string'] = true, ['function'] = true, _ = 'string or funcref' }
 local optnumber = { ['nil'] = true, ['number'] = true, _ = 'number' }
-local optmethod = {
-  ['nil'] = true,
-  ['string'] = true,
-  ['function'] = true,
-  _ = 'methodname or funcref',
-}
+local optmethod =
+  { ['nil'] = true, ['string'] = true, ['function'] = true, _ = 'methodname or funcref' }
 local optmethodfalse = {
   ['nil'] = true,
   ['string'] = true,
@@ -102,12 +90,8 @@ local optmethodbool = {
 }
 local opttable = { ['nil'] = true, ['table'] = true, _ = 'table' }
 local optbool = { ['nil'] = true, ['boolean'] = true, _ = 'boolean' }
-local optboolnumber = {
-  ['nil'] = true,
-  ['boolean'] = true,
-  ['number'] = true,
-  _ = 'boolean or number',
-}
+local optboolnumber =
+  { ['nil'] = true, ['boolean'] = true, ['number'] = true, _ = 'boolean or number' }
 
 local basekeys = {
   type = isstring,

@@ -47,11 +47,51 @@ function Goal:IsVisible()
   if not self:IsFitting() then
     return false
   end
+  if self.hidden then
+    return false
+  end
+  if self.onlyinsticky and not self.parentStep:IsCurrentlySticky() then
+    return false
+  end
+  if self.notinsticky and self.parentStep:IsCurrentlySticky() then
+    return false
+  end
   if self.condition_visible then
     return self.condition_visible()
   end
+
   return true
 end
+
+function Goal:OnClick(button)
+  --if button == "LeftButton" then
+
+  if self.action == 'loadguide' and self.next then
+    ZGV:SetGuide(self.next)
+    return true
+  elseif self.action ~= 'loadguide' and self.next then
+    --Ehhhhhhhhhh, it works
+    ZGV:SetGuide(ZGV.CurrentGuide.title, ZGV.CurrentGuide.steplabels[self.next][1])
+    return true
+  elseif self.action == 'confirm' then
+    if self.flagname and params ~= 'always' and params ~= 'begin' and params ~= 'skip' then
+      ZGV.db.char.guideflags[self.flagname] = not ZGV.db.char.guideflags[self.flagname]
+      ZGV:UpdateFrame(true)
+    end
+    self.was_clicked = true
+    return true
+  elseif self.action == 'popuptext' then
+    ShowCopyPopup(self.popuptext)
+    return true
+  end
+
+  --end
+  return false
+end
+
+--local _c = { "goal","get","accept","turnin","collect","buy","fpath","home","level","havebuff","nobuff","invehicle","outvehicle","equipped","rep","condition","achieve","create","skill","skillmax","learn","learnspell","learnpet","learnmount","confirm","earn","fly","complete" }
+--local completable = {}
+--for i=1,#_c do completable[_c[i]]=true end
 
 function Goal:IsCompleteable()
   --if type(goal)=="number" then goal=self.CurrentStep.goals[goal] end
@@ -71,7 +111,6 @@ function Goal:IsCompleteable()
 
   if
     self.action == 'goal'
-    or self.action == 'kill'
     or self.action == 'get'
     or self.action == 'accept'
     or self.action == 'turnin'
@@ -79,7 +118,8 @@ function Goal:IsCompleteable()
     or self.action == 'buy'
     or self.action == 'fpath'
     or self.action == 'home'
-    or self.action == 'ding'
+    or self.action == 'kill'
+    or self.action == 'level' -- futureproofing
     or self.action == 'havebuff'
     or self.action == 'nobuff'
     or self.action == 'invehicle'
@@ -88,9 +128,17 @@ function Goal:IsCompleteable()
     or self.action == 'rep'
     or self.action == 'condition'
     or self.action == 'achieve'
+    or self.action == 'create' -- futureproofing
     or self.action == 'skill'
     or self.action == 'skillmax'
     or self.action == 'learn'
+    or self.action == 'learnspell'
+    or self.action == 'learnpet'
+    or self.action == 'learnpet'
+    or self.action == 'confirm'
+    or self.action == 'complete'
+    or self.action == 'trash'
+    or self.action == 'ding'
   then
     return true
   end
@@ -253,9 +301,9 @@ function Goal:IsComplete()
     else
       -- if quest is not in log, then it usually means screw its links as well.
       -- Unless we're a future-proof goal, which drops through.
-      if not self.future then
-        return false, false
-      end
+      --if not self.future then
+      --	return false,false
+      --end
     end
   end
 
@@ -285,6 +333,7 @@ function Goal:IsComplete()
       local px, py = GetPlayerMapPosition('player')
       local gx, gy, dist = self.x / 100, self.y / 100, self.dist / 100
       local realdist2 = (px - gx) * (px - gx) + (py - gy) * (py - gy)
+
       if realdist2 <= dist * dist then
         ZGV.recentlyVisitedCoords[self] = true
         return true, true
@@ -301,6 +350,11 @@ function Goal:IsComplete()
     else
       return true, true
     end
+  elseif self.action == 'path' then
+    --for i, v in ipairs(self.parentStep.waypath.coords) do
+    --ZGV:SetWaypoint(v.x, v.y, "hello"..tostring(i))
+    --print(tostring(v.x).." "..tostring(v.y))
+    --end
   elseif self.action == 'hearth' then
     return GetZoneText() == self.param
       or GetMinimapZoneText() == self.param
@@ -320,6 +374,9 @@ function Goal:IsComplete()
     else
       return got >= self.count, true, progress > 1 and 1 or progress
     end
+  elseif self.action == 'trash' then
+    local got = GetItemCount(self.trashitemid)
+    return got == 0, true, 1
   elseif self.action == 'havebuff' then
     for i = 1, 30 do
       local name, _, tex = UnitBuff('player', i)
@@ -349,12 +406,55 @@ function Goal:IsComplete()
   elseif self.action == 'outvehicle' then
     return not UnitInVehicle('player'), true
   elseif self.action == 'equipped' then
-    local link = GetInventoryItemLink('player', self.slot)
-    local name
-    if link then
-      name = link:match('|Hitem:.-%[(.-)%]')
+    --Ugly
+    local invslots = {
+      'AmmoSlot',
+      'BackSlot',
+      'Bag0Slot',
+      'Bag1Slot',
+      'Bag2Slot',
+      'Bag3Slot',
+      'ChestSlot',
+      'FeetSlot',
+      'Finger0Slot',
+      'Finger1Slot',
+      'HandsSlot',
+      'HeadSlot',
+      'LegsSlot',
+      'MainHandSlot',
+      'NeckSlot',
+      'SecondaryHandSlot',
+      'ShirtSlot',
+      'ShoulderSlot',
+      'TabardSlot',
+      'Trinket0Slot',
+      'Trinket1Slot',
+      'WaistSlot',
+      'WristSlot',
+    }
+
+    if self.slot then
+      local link = GetInventoryItemLink('player', self.slot)
+      local name
+      if link then
+        name = link:match('|Hitem:.-%[(.-)%]')
+      end
+      return name and name == self.item, GetItemCount(self.item) > 0
+    else
+      if GetItemCount(self.targetid or self.itemid) == 0 then
+        return false, false, 0
+      end -- not even in the bags
+      for i, slot in pairs(invslots) do
+        local slotid, _ = GetInventorySlotInfo(slot)
+        if slotid then
+          local id = GetInventoryItemID('player', slotid)
+          if id and id == (self.targetid or self.itemid) then
+            return true, true, 1 -- equipped!
+          end
+        end
+      end
+      return false, true, 1 -- in bags, not equipped
     end
-    return name and name == self.item, GetItemCount(self.item) > 0
   elseif self.action == 'rep' then
     local rep = ZGV:GetReputation(self.faction)
     if rep then
@@ -362,7 +462,9 @@ function Goal:IsComplete()
     else
       return nil, nil, nil
     end
-  elseif self.action == 'condition' then
+  elseif self.action == 'confirm' then
+    return self.was_clicked
+  elseif self.action == 'condition' or self.action == 'complete' then
     return self:condition_complete()
   elseif self.action == 'achieve' then
     if self.achieveid then
@@ -416,6 +518,10 @@ function Goal:IsComplete()
   elseif self.action == 'kill' and self.usekillcount then --killcount version
     local count = ZGV.recentKills[self.target]
     return count and count >= self.count, true
+  elseif self.action == 'learnspell' then
+    return IsSpellKnown(self.spellid), true
+  elseif self.action == 'learnpetspell' then
+    return IsSpellKnown(self.spellid, true), true
   end
 
   return false, false
@@ -657,6 +763,12 @@ function Goal:GetText(showcompleteness)
     )
   elseif self.action == 'talk' then
     text = L['stepgoal_talk to']:format(COLOR_NPC(self.npc))
+  elseif self.action == 'trash' then
+    text = L['Trash item %s']:format(COLOR_ITEM(self.trashitem))
+  elseif self.action == 'click' then
+    text = L['Click %s']:format(COLOR_ITEM(self.target))
+  elseif self.action == 'clicknpc' then
+    text = L['Click %s']:format(COLOR_NPC(self.npc))
   elseif self.action == 'get' and self.count and self.count > 1 then
     text = L['stepgoal_get #']:format(
       self.count > 0 and self.count or '?',
@@ -672,7 +784,10 @@ function Goal:GetText(showcompleteness)
   elseif self.action == 'kill' then
     text = L['stepgoal_kill']:format(COLOR_MONSTER(plural(self.target, self.plural and 2 or 1)))
   elseif self.action == 'collect' and self.count and self.count > 1 then
-    text = L['stepgoal_collect #']:format(self.count, COLOR_ITEM(plural(self.target, self.count)))
+    text = L['stepgoal_collect #']:format(
+      self.count,
+      COLOR_ITEM(plural(self.target, self.ocount or self.count))
+    )
   elseif self.action == 'collect' then
     text = L['stepgoal_collect']:format(COLOR_ITEM(plural(self.target, self.plural and 2 or 1)))
   elseif self.action == 'buy' then
@@ -684,6 +799,8 @@ function Goal:GetText(showcompleteness)
     )
   elseif self.action == 'goal' then
     text = L['stepgoal_goal']:format(COLOR_GOAL(self.target))
+  elseif self.action == 'path' and self.firstPath then
+    text = 'Check Quest Addon for the Mobs Spawnpath'
   elseif self.action == 'from' then
     text = nil
     for i, mob in ipairs(self.mobs) do
@@ -750,6 +867,8 @@ function Goal:GetText(showcompleteness)
     text = L['stepgoal_hearth to']:format(COLOR_LOC(self.param))
   elseif self.action == 'rep' then
     text = L['stepgoal_rep']:format(ZGV.StandingNames[self.rep], self.faction)
+  elseif self.action == 'loadguide' then
+    text = 'Click here to load: ' .. self.next
   elseif self.action == 'goto' then
     --if self.CurrentGuide.steps[self.CurrentStepNum-1] and self.CurrentGuide.steps[self.CurrentStepNum-1].map~=goal.map then
     if self.map and GetRealZoneText() ~= self.map then
@@ -781,6 +900,8 @@ function Goal:GetText(showcompleteness)
     text = L['stepgoal_skillmax']:format(COLOR_ITEM(self.skill), self.skilllevel)
   elseif self.action == 'learn' then
     text = L['stepgoal_learn']:format(COLOR_ITEM(self.recipe))
+  elseif self.action == 'learnspell' then
+    text = L['Learn Spell %s']:format(COLOR_GOAL(self.spell))
   end
 
   -- trickiness.
@@ -813,7 +934,7 @@ function Goal:GetText(showcompleteness)
           local questgoal = questdata.goals[self.objnum]
           if questgoal then
             local count = self.count or questgoal.needed
-            desc = L['completion_goal']:format(questgoal.num, count)
+            desc = L['completion_goal']:format(questgoal.num, self.ocount or count)
           end
         else
           -- quest-bound, bugger
@@ -852,6 +973,8 @@ function Goal:GetText(showcompleteness)
 			--]]
     elseif self.action == 'collect' or self.action == 'buy' then
       desc = L['completion_collect']:format(GetItemCount(self.target), self.count)
+    elseif self.action == 'trash' then
+      desc = L['completion_collect']:format(GetItemCount(self.trashitemid), 0)
     elseif self.action == 'rep' then
       desc = L['completion_rep']:format(ZGV:GetReputation(self.faction):Going())
     elseif self.action == 'achieve' then
@@ -910,6 +1033,8 @@ function Goal:GetString()
 end
 
 function Goal:Prepare()
+  self.was_clicked = false
+
   if self.castspell or self.castspellid and (not self.castspell or not self.castspellid) then
     local link = GetSpellLink(self.castspellid or self.castspell)
     if link then
@@ -1005,14 +1130,16 @@ end
 function Goal:IsAuxiliary()
   if
     (
-      self.questid
-      or self.action == 'accept'
-      or self.action == 'turnin'
-      or self.action == 'kill'
-      or self.action == 'get'
-      or self.action == 'goal'
-      or self.action == 'ding'
-    ) and not self.force_nocomplete
+        self.questid
+        or self.action == 'accept'
+        or self.action == 'turnin'
+        or self.action == 'kill'
+        or self.action == 'get'
+        or self.action == 'goal'
+        or self.action == 'ding'
+      )
+      and not self.force_nocomplete
+    or self.action == 'confirm' and self.always
   then
     return false
   elseif self.action == 'fpath' then

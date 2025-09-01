@@ -23,6 +23,8 @@ local ZGV = me
 me.L = ZygorGuidesViewer_L('Main')
 me.LS = ZygorGuidesViewer_L('G_string')
 
+local linecount = 50
+
 local L = me.L
 local LI = me.LI
 local LC = me.LC
@@ -62,6 +64,8 @@ local BFR = BF:GetReverseLookupTable()
 me.BFL = BFL
 me.BFR = BFR
 
+me.guidesets = {}
+
 local _G, assert, table, string, tinsert, tonumber, tostring, type, ipairs, pairs, setmetatable, math =
   _G, assert, table, string, tinsert, tonumber, tostring, type, ipairs, pairs, setmetatable, math
 
@@ -90,7 +94,7 @@ me.CartographerDatabase = {}
 
 me.startups = {}
 
-me.StepLimit = 20
+me.StepLimit = linecount
 me.stepframes = {}
 me.spotframes = {}
 
@@ -586,6 +590,24 @@ function me:FindDefaultGuide()
   return nil
 end
 
+--Some nonsense
+
+function ZGV.BETASTART()
+  ZGV.BETAguides = true
+end
+function ZGV.BETAEND()
+  ZGV.BETAguides = false
+end
+
+function me:DoMutex(m)
+  ZygorGuidesViewer.GuideMenuTier = nil
+  if self.guidesets[m] then
+    return true
+  else
+    self.guidesets[m] = true
+  end
+end
+
 -- function me:SearchForCompleteableGoal() --removed
 
 function me:ClearRecentActivities()
@@ -681,11 +703,10 @@ function me:FocusStep(num, quiet)
     end
   end
   if not found then
-    tinsert(history, {
-      full = self.CurrentGuideName,
-      short = self.CurrentGuide.title_short,
-      step = step,
-    })
+    tinsert(
+      history,
+      { full = self.CurrentGuideName, short = self.CurrentGuide.title_short, step = step }
+    )
     if #history > self.db.profile.guidesinhistory then
       tremove(history, 1)
     end
@@ -958,8 +979,8 @@ function me:StopFlashAnimation()
   if not self.stepframes[1] then
     return
   end
-  for s = 1, 20 do
-    for i = 1, 20, 1 do
+  for s = 1, linecount do
+    for i = 1, linecount, 1 do
       local anim_w2g = self.stepframes[s].lines[i].anim_w2g
       if not anim_w2g then
         break
@@ -985,7 +1006,7 @@ function me:UpdateCooldowns()
   if not stepframe then
     return
   end
-  for i = 1, 20, 1 do
+  for i = 1, linecount, 1 do
     local cooldown = _G['ZygorGuidesViewerFrame_Act' .. i .. 'ActionCooldown']
     if not cooldown then
       return
@@ -1307,19 +1328,70 @@ function me:UpdateFrame(full, onupdate)
                       frame.lines[line].goal = nil
                       line = line + 1
                     end
-                  end -- no text, no line!
+                  end
+                end
+              end
 
-                  -- 'or' between or-positive goals
-                  -- not anymore
-                  --[[
-								if goal.orlogic and i<#stepdata.goals and stepdata.goals[i+1].orlogic then
-									frame.lines[line].label:SetFont(FONT,round(self.db.profile.fontsecsize))
-									frame.lines[line].label:SetText(indent.."|cffeeeecc"..L['stepgoal_or'].."|r")
-									--frame.lines[line].label:SetMultilineIndent(1)
-									frame.lines[line].goal = nil
-									line=line+1
-								end
-								--]]
+              local stickySep = nil
+
+              if stepdata.stickies then
+                for i, sticky in ipairs(stepdata.stickies) do
+                  if sticky:AreRequirementsMet() then
+                    for i, goal in ipairs(sticky.goals) do
+                      if goal:GetStatus() ~= 'hidden' then
+                        if stickySep == nil then
+                          stickySep = true
+                          frame.lines[line].label:SetFont(FONT, self.db.profile.fontsize)
+                          frame.lines[line].label:SetText('|cffeeeecc' .. '- Stickies - ' .. '|r')
+                          frame.lines[line].goal = nil
+                          line = line + 1
+                        end
+                        --steptext = steptext .. ("  "):rep(goal.indent or 0) .. goal:GetText() .. "|n"
+                        local indent = ('  '):rep(goal.indent or 0)
+                        --local goaltxt = goal:GetText(stepnum>=self.CurrentStepNum)
+                        local goaltxt = goal:GetText(true)
+                        if goaltxt ~= '?' or (goal.action == 'info') then
+                          if goal.action == 'info' then
+                            frame.lines[line].label:SetFont(
+                              FONT,
+                              round(self.db.profile.fontsecsize)
+                            )
+                            frame.lines[line].label:SetText(
+                              indent .. '|cffeeeecc' .. goal.info .. '|r'
+                            )
+                            frame.lines[line].goal = nil
+                          else
+                            local link = (
+                              (goal.tooltip and not self.db.profile.tooltipsbelow)
+                              or (goal.x and not self.db.profile.windowlocked)
+                              or goal.image
+                            )
+                                and ' |cffdd44ff*|r'
+                              or ''
+
+                            frame.lines[line].label:SetFont(FONT, self.db.profile.fontsize)
+                            frame.lines[line].label:SetText(indent .. goaltxt .. link)
+                            frame.lines[line].goal = goal
+                          end
+                          line = line + 1
+                          --frame.lines[line].label:SetMultilineIndent(1)
+
+                          if self.db.profile.tooltipsbelow and goal.tooltip then
+                            frame.lines[line].label:SetFont(
+                              FONT,
+                              round(self.db.profile.fontsecsize)
+                            )
+                            frame.lines[line].label:SetText(
+                              indent .. '|cffeeeecc' .. goal.tooltip .. '|r'
+                            )
+                            --frame.lines[line].label:SetMultilineIndent(1)
+                            frame.lines[line].goal = nil
+                            line = line + 1
+                          end
+                        end
+                      end
+                    end
+                  end
                 end
               end
 
@@ -1379,7 +1451,7 @@ function me:UpdateFrame(full, onupdate)
             local textheight
             frame.truncated = nil
             local abort
-            for l = 1, 20 do
+            for l = 1, linecount do
               local lineframe = frame.lines[l]
               local text = lineframe.label
               if l < line and not frame.truncated then
@@ -1467,7 +1539,7 @@ function me:UpdateFrame(full, onupdate)
             frame:Show()
 
             if stepdata ~= self.CurrentStep then
-              for l = 1, 20 do
+              for l = 1, linecount do
                 frame.lines[l].back:Hide()
                 frame.lines[l].icon:Hide()
               end
@@ -1863,7 +1935,7 @@ function me:UpdateFrame(full, onupdate)
           frame.truncated = nil
           local abort
 
-          for l = 1, 20 do
+          for l = 1, linecount do
             local lineframe = frame.lines[l]
             local text = lineframe.label
             if l < line and not frame.truncated then
@@ -2021,7 +2093,7 @@ function me:ClearFrameCurrent()
   if InCombatLockdown() then
     return
   end
-  for i = 1, 20 do
+  for i = 1, linecount do
     local actname = 'ZygorGuidesViewerFrame_Act' .. i
     local action = _G[actname .. 'Action']
     local petaction = _G[actname .. 'PetAction']
@@ -2039,6 +2111,7 @@ local actionicon = {
   ['kill'] = 7,
   ['get'] = 8,
   ['collect'] = 8,
+  ['trash'] = 8,
   ['buy'] = 8,
   ['goal'] = 9,
   ['home'] = 10,
@@ -2126,7 +2199,7 @@ function me:UpdateFrameCurrent()
       end
     end
 
-    for i = 1, 20, 1 do -- update all lines
+    for i = 1, linecount, 1 do -- update all lines
       --local linenum = (self.CurrentStep.requirement and i+1 or i)
 
       line = stepframe.lines[i]
@@ -3585,7 +3658,7 @@ function me:Frame_OnHide()
   PlaySound('igQuestLogClose')
   self.db.profile.visible = not not self.Frame:IsVisible()
   if not InCombatLockdown() then
-    for i = 1, 20, 1 do
+    for i = 1, linecount, 1 do
       local action = _G['ZygorGuidesViewerFrame_Act' .. i .. 'Action']
       if action then
         action:Hide()
@@ -3620,6 +3693,12 @@ function me:GoalOnClick(goalframe, button)
   if not goal then
     return
   end
+
+  --No Clue why they didnt code this in the first place
+  if goal:OnClick(button) then
+    return
+  end
+
   --local num=goalframe.goalnum
   self:Debug('goal clicked ' .. tostring(goal.num))
   --local goal = self.CurrentStep.goals[num]
@@ -4015,8 +4094,16 @@ local function split(str, sep)
   return fields
 end
 
-local function FindGroup(self, title)
-  local path = split(title, '\\')
+local function FindGroup(self, rawpath, title)
+  --AutoGuideSorting
+  local _, _, s, e = string.find(title, '.+%((%d+)-(%d+)%)')
+
+  if s then
+    truestart = math.floor(s / 10) * 10
+    rawpath = rawpath .. '\\Level ' .. tostring(truestart) .. '-' .. tostring(truestart + 10)
+  end
+
+  local path = split(rawpath, '\\')
 
   -- create one
   local group = self
@@ -4039,41 +4126,47 @@ end
 me.registered_groups = { groups = {}, guides = {} }
 
 function me:RegisterGuide(title, data, extra)
+  if type(data) == 'table' then
+    return me:RegisterGuide(title, extra, data)
+  end
+
   local group, tit = title:match('^(.*)\\+(.-)$')
   if group then
-    group = FindGroup(self.registered_groups, group)
+    group = FindGroup(self.registered_groups, group, tit)
   else
     group = self.registered_groups
   end
 
-  local guide = {
-    ['title'] = title,
-    ['title_short'] = tit or title,
-    ['rawdata'] = data,
-    ['extra'] = extra,
-  }
+  local guide =
+    { ['title'] = title, ['title_short'] = tit or title, ['rawdata'] = data, ['extra'] = extra }
 
   tinsert(group.guides, { full = title, short = tit or title, num = #self.registeredguides + 1 })
   tinsert(self.registeredguides, guide)
 end
+
+--function me:RegisterGuideCompat(...)
+--  local n = select("#", ...)            -- number of arguments
+--	local title, data = select(1,...),select(n, ...)
+--print("Compat Guide: "..title)
+--	me:RegisterGuide(title, data)
+--end
 
 me.registered_mapspotset_groups = { groups = {}, guides = {} }
 
 function me:RegisterMapSpots(title, data)
   local group, tit = title:match('^(.*)\\+(.-)$')
   if group then
-    group = FindGroup(self.registered_mapspotset_groups, group)
+    group = FindGroup(self.registered_mapspotset_groups, group, tit)
   else
     group = self.registered_mapspotset_groups
   end
 
   local set = self.MapSpotSetProto:NewRaw(title, tit or title, data)
 
-  tinsert(group.guides, {
-    full = title,
-    short = tit or title,
-    num = #self.registeredmapspotsets + 1,
-  })
+  tinsert(
+    group.guides,
+    { full = title, short = tit or title, num = #self.registeredmapspotsets + 1 }
+  )
   tinsert(self.registeredmapspotsets, set)
 end
 
@@ -4152,7 +4245,7 @@ function me:ParseGuides()
   if #self.registeredguides > 0 then
     for i, guide in ipairs(self.registeredguides) do
       if guide.rawdata then
-        local status, parsed, err, line, linedata = pcall(self.ParseEntry, self, guide.rawdata)
+        local status, parsed, err, line, linedata = pcall(self.ParseEntry, self, guide)
         if status and parsed then
           for k, v in pairs(parsed) do
             guide[k] = v

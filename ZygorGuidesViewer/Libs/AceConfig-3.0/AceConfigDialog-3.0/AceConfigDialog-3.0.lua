@@ -228,8 +228,7 @@ local function GetOptionsMemberValue(membername, option, options, path, appName,
   if
     not allIsLiteral[membername]
     and (
-      type(member) == 'function'
-      or ((not stringIsLiteral[membername]) and type(member) == 'string')
+      type(member) == 'function' or ((not stringIsLiteral[membername]) and type(member) == 'string')
     )
   then
     --We have a function to call
