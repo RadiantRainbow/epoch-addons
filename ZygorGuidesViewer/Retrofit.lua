@@ -4,16 +4,16 @@ ZGV.Retrofit.IsClassicSoD = false
 ZGV.IMAGESDIR = 'nothing'
 
 ZGV.ClassToNumber = {
-    ['WARRIOR'] = 1,
-    ['PALADIN'] = 2,
-    ['HUNTER'] = 3,
-    ['ROGUE'] = 4,
-    ['PRIEST'] = 5,
-    ['DEATHKNIGHT'] = 6,
-    ['SHAMAN'] = 7,
-    ['MAGE'] = 8,
-    ['WARLOCK'] = 9,
-    ['DRUID'] = 11,
+  ['WARRIOR'] = 1,
+  ['PALADIN'] = 2,
+  ['HUNTER'] = 3,
+  ['ROGUE'] = 4,
+  ['PRIEST'] = 5,
+  ['DEATHKNIGHT'] = 6,
+  ['SHAMAN'] = 7,
+  ['MAGE'] = 8,
+  ['WARLOCK'] = 9,
+  ['DRUID'] = 11,
 }
 
 -- C_Item helper
