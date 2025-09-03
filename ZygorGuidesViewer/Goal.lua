@@ -138,6 +138,7 @@ function Goal:IsCompleteable()
     or self.action == 'confirm'
     or self.action == 'complete'
     or self.action == 'trash'
+    or self.action == 'bank'
     or self.action == 'ding'
   then
     return true
@@ -376,6 +377,9 @@ function Goal:IsComplete()
     end
   elseif self.action == 'trash' then
     local got = GetItemCount(self.trashitemid)
+    return got == 0, true, 1
+  elseif self.action == 'bank' then
+    local got = GetItemCount(self.bankitemid)
     return got == 0, true, 1
   elseif self.action == 'havebuff' then
     for i = 1, 30 do
@@ -765,6 +769,8 @@ function Goal:GetText(showcompleteness)
     text = L['stepgoal_talk to']:format(COLOR_NPC(self.npc))
   elseif self.action == 'trash' then
     text = L['Trash item %s']:format(COLOR_ITEM(self.trashitem))
+  elseif self.action == 'bank' then
+    text = L['Bank item %s']:format(COLOR_ITEM(self.bankitem))
   elseif self.action == 'click' then
     text = L['Click %s']:format(COLOR_ITEM(self.target))
   elseif self.action == 'clicknpc' then

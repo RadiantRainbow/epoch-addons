@@ -967,9 +967,12 @@ function me:ParseEntry(guidedata)
         return nil, 'run not implemented', linecount, chunk
       elseif cmd == 'zombiewalk' then
         goal.zombiewalk = true
-      elseif cmd == 'trash' or cmd == 'bank' or cmd == 'destroy' then
+      elseif cmd == 'trash' or cmd == 'destroy' then
         goal.action = goal.action or 'trash'
         goal.trashitem, goal.trashitemid = self:ParseID(params)
+      elseif cmd == 'bank' then
+        goal.action = goal.action or 'bank'
+        goal.bankitem, goal.bankitemid = self:ParseID(params)
       elseif cmd == 'ding' then
         goal.action = goal.action or cmd
 
