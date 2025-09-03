@@ -633,7 +633,7 @@ Enter the mine |goto Elwynn Forest 38.97,82.33 < 10 |walk
 |tip Watch for patrols and respawns while in the area. |only if hardcore
 Scout Through the Fargodeep Mine |q 62/1 |goto Elwynn Forest 39.61,80.21
 |tip Inside the mine.
-|tip Explore carefully through this area. |only if harcore
+|tip Explore carefully through this area. |only if hardcore
 |tip As you loot Rough Stones, craft them into Sharpening Stones and apply them to your weapon |only if Warrior or Rogue
 |tip As you loot Rough Stones, craft them into Weightstones and apply them to your weapon |only if Paladin
 step
@@ -2052,7 +2052,7 @@ click Furlbrow's Wardrobe##290
 |tip Scroll your camera all the way out and stand here, outside the building.
 |tip Adjust your camera so that you can see, and click, Furlbrow's Wardrobe through the doorway.
 |tip You can click it from outside the building by doing this.
-|tip If you can't get it to work, try to kill the enemies inside the building. |only if not hardore
+|tip If you can't get it to work, try to kill the enemies inside the building. |only if not hardcore
 |tip If you have trouble, try to find someone to help you. |only if hardcore
 collect Furlbrow's Pocket Watch##841 |q 64/1 |goto Westfall 49.24,19.42
 step
@@ -7421,6 +7421,7 @@ accept Underground Assault##2040 |goto Stormwind City 55.52,12.54
 |only if guideflag("DMflag")
 step
 talk Argos Nightwhisper##4984
+ding 20,50
 accept The Corruption Abroad##3765 |goto Stormwind City 21.41,55.79
 |tip This quest won't be available if you've accepted or completed Researching the Corruption.
 |tip Abandon this quest if you have it.
@@ -15495,7 +15496,7 @@ You can find more around:
 [63.51,32.92]
 Turn the Water Pouches in at [52.49,28.45]
 You can sell items in Gadgetzan at [51.46,28.81]
-You can buy arrows at [67.01,21.99] |only if hunter
+You can buy arrows at [67.01,21.99] |only if Hunter
 ]]
 )
 ZygorGuidesViewer:RegisterGuide(
@@ -19030,7 +19031,7 @@ Kill enemies around this area
 |tip Watch for patrols and respawns while in the area.			|only if hardcore
 ding 54 |goto Azshara 56.94,29.30
 It's a long run, but you can get more arrows at [12.00,78.38]		|only if Hunter
-|only if not ZGV.IsClassicSoD and not Hardcore
+|only if not ZGV.IsClassicSoD and not hardcore
 step
 Follow the path down to the beach |goto Azshara 45.27,37.16 < 50 |only if walking and not subzone("The Shattered Strand")
 use the Standard Issue Flare Gun##10444

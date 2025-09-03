@@ -203,4 +203,25 @@ _MeetingStones.levelRanges = {
         name = "The Frozen Halls",
         range = "(80)"
     },
+    -- Missing meeting stones that were causing toggle issues
+    [179584] = {
+        name = "Unknown Dungeon 179584",
+        range = "(??)"
+    },
+    [179586] = {
+        name = "Unknown Dungeon 179586",
+        range = "(??)"
+    },
+    [179587] = {
+        name = "Unknown Dungeon 179587",
+        range = "(??)"
+    },
+    [179597] = {
+        name = "Unknown Dungeon 179597",
+        range = "(??)"
+    },
+    [194097] = {
+        name = "Unknown Dungeon 194097",
+        range = "(??)"
+    },
 }

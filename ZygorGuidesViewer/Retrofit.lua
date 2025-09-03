@@ -140,39 +140,38 @@ if not C_UnitAuras then
   C_UnitAuras = ZGV.Retrofit.C_UnitAuras
 end
 
-if not C_QuestLog then
-  C_QuestLog = {}
+ZGV.Retrofit.C_QuestLog = {
 
   -- Check if a quest is flagged as completed
-  function C_QuestLog.IsQuestFlaggedCompleted(questID)
-    return C_QuestLog.IsQuestComplete(questID) or false
-  end
+  IsQuestFlaggedCompleted = function(questID)
+    return ZGV.Retrofit.C_QuestLog.IsQuestComplete(questID) or false
+  end,
 
   -- Get the quest log index by quest ID
-  function C_QuestLog.GetQuestLogIndexByID(questID)
+  GetQuestLogIndexByID = function(questID)
     for i = 1, GetNumQuestLogEntries() do
-      local _, _, _, _, _, _, _, questId = GetQuestLogTitle(i)
+      local _, _, _, _, _, _, _, _, questId = GetQuestLogTitle(i)
       if questId == questID then
         return i
       end
     end
     return nil
-  end
+  end,
 
   -- Get quest info (title)
-  function C_QuestLog.GetQuestInfo(questID)
-    local index = C_QuestLog.GetQuestLogIndexByID(questID)
+  GetQuestInfo = function(questID)
+    local index = ZGV.Retrofit.C_QuestLog.GetQuestLogIndexByID(questID)
     if index then
       local title = GetQuestLogTitle(index)
       return title
     end
     return nil
-  end
+  end,
 
   -- Get quest objectives info
-  function C_QuestLog.GetQuestObjectives(questID)
+  GetQuestObjectives = function(questID)
     local objectives = {}
-    local index = C_QuestLog.GetQuestLogIndexByID(questID)
+    local index = ZGV.Retrofit.C_QuestLog.GetQuestLogIndexByID(questID)
     if index then
       local numObjectives = GetNumQuestLeaderBoards(index)
       for i = 1, numObjectives do
@@ -185,48 +184,52 @@ if not C_QuestLog then
       end
     end
     return objectives
-  end
+  end,
 
   -- Is quest in the player's log
-  function C_QuestLog.IsQuestInLog(questID)
-    return C_QuestLog.GetQuestLogIndexByID(questID) ~= nil
-  end
+  IsQuestInLog = function(questID)
+    return ZGV.Retrofit.C_QuestLog.GetQuestLogIndexByID(questID) ~= nil
+  end,
 
   -- Get quest objective text for a specific objective
-  function C_QuestLog.GetQuestObjectiveInfo(questID, objectiveIndex)
-    local index = C_QuestLog.GetQuestLogIndexByID(questID)
+  GetQuestObjectiveInfo = function(questID, objectiveIndex)
+    local index = ZGV.Retrofit.C_QuestLog.GetQuestLogIndexByID(questID)
     if index then
       local desc, type, done = GetQuestLogLeaderBoard(objectiveIndex, index)
       return desc, type, done
     end
     return nil
-  end
+  end,
 
   -- Get all quests in the quest log
-  function C_QuestLog.GetAllQuestIDs()
+  GetAllQuestIDs = function()
     local questIDs = {}
     for i = 1, GetNumQuestLogEntries() do
-      local _, _, _, _, _, _, _, questId = GetQuestLogTitle(i)
+      local _, _, _, _, _, _, _, _, questId = GetQuestLogTitle(i)
       if questId then
         table.insert(questIDs, questId)
       end
     end
     return questIDs
-  end
+  end,
 
   -- Check if quest is complete (ready to turn in) by looking at quest log
-  function C_QuestLog.IsQuestComplete(questID)
-    local index = C_QuestLog.GetQuestLogIndexByID(questID)
+  IsQuestComplete = function(questID)
+    local index = ZGV.Retrofit.C_QuestLog.GetQuestLogIndexByID(questID)
     if index then
       -- GetQuestLogTitle returns: title, level, suggestedGroup, isHeader,
       -- isCollapsed, isComplete, frequency, questID
-      local _, _, _, _, _, isComplete = GetQuestLogTitle(index)
+      local _, _, _, _, _, _, isComplete = GetQuestLogTitle(index)
       if isComplete == 1 then
         return true
       end
     end
     return false
-  end
+  end,
+}
+
+if not C_QuestLog then
+  C_QuestLog = ZGV.Retrofit.C_QuestLog
 end
 
 local ItemScore = {}

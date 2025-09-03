@@ -37,6 +37,8 @@ local QuestieCombatQueue = QuestieLoader:ImportModule("QuestieCombatQueue")
 local QuestieTracker = QuestieLoader:ImportModule("QuestieTracker")
 ---@type QuestiePlayer
 local QuestiePlayer = QuestieLoader:ImportModule("QuestiePlayer")
+---@type QuestieMap
+local QuestieMap = QuestieLoader:ImportModule("QuestieMap")
 ---@type l10n
 local l10n = QuestieLoader:ImportModule("l10n")
 
@@ -586,6 +588,15 @@ function _QuestEventHandler:QuestTurnedIn(questId, xpReward, moneyReward)
     QuestieQuest:CompleteQuest(questId)
     QuestieJourney:CompleteQuest(questId)
     QuestieAnnounce:CompletedQuest(questId)
+    
+    -- Force refresh for Epoch quests that may not be properly flagged by server
+    if questId >= 26000 and questId <= 30000 then
+        Questie:Debug(Questie.DEBUG_INFO, "Epoch quest completed, forcing map refresh for quest:", questId)
+        -- Force the quest to be marked complete in our tracking
+        Questie.db.char.complete[questId] = true
+        -- Remove any lingering map icons
+        QuestieMap:UnloadQuestFrames(questId)
+    end
 end
 
 --- Fires when a quest is removed from the quest log. This includes turning it in and abandoning it.

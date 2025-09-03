@@ -66,6 +66,22 @@ local migrationFunctions = {
     end,
     [5] = function()
         Questie.db.profile.enableTooltipsNextInChain = true
+    end,
+    [6] = function()
+        -- v1.0.69 - Refresh completed quests from server to fix stuck quest markers
+        -- This ensures the local database is synced with the server after updates
+        -- This migration added to fix issues where completed quests still show on map
+        
+        Questie:Print("[Migration] Syncing completed quests with server to fix any stuck markers...")
+        
+        -- Query the server for completed quests
+        QueryQuestsCompleted()
+        
+        -- Note: The actual update happens in QuestieCompat:QUEST_QUERY_COMPLETE event handler
+        -- This just triggers the server query to ensure we have fresh data after updates
+        
+        -- Mark that we've requested a refresh (so we can show a message when complete)
+        Questie.db.char.completedQuestRefreshRequested = true
     end
 }
 

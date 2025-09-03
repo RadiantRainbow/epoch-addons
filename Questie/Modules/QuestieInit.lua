@@ -162,6 +162,12 @@ QuestieInit.Stages[1] = function() -- run as a coroutine
 
     HBDHooks:Init()
 
+    -- Migration: Fix users who have 'custom' theme selected (causes invisible pins)
+    if Questie.db.profile.iconTheme == 'custom' then
+        Questie:Debug(Questie.DEBUG_INFO, "[Init] Migrating from 'custom' icon theme to 'questie' to fix invisible pins")
+        Questie.db.profile.iconTheme = 'questie'
+    end
+
     Questie:SetIcons()
 
     if QUESTIE_LOCALES_OVERRIDE ~= nil then
@@ -339,11 +345,9 @@ QuestieInit.Stages[3] = function() -- run as a coroutine
         Questie:Debug(Questie.DEBUG_CRITICAL, "[QuestieInit] enableDataCollection = " .. tostring(Questie.db.profile.enableDataCollection))
         
         -- Check if this is first run for community contribution
-        if Questie.db.profile.dataCollectionPrompted == nil then
-            C_Timer.After(5, function()
-                QuestieDataCollector:ShowContributionPopup()
-            end)
-        elseif Questie.db.profile.enableDataCollection then
+        -- TODO: Add contribution popup later if needed
+        -- For now, just check if data collection is enabled
+        if Questie.db.profile.enableDataCollection then
             Questie:Debug(Questie.DEBUG_CRITICAL, "[QuestieInit] Calling QuestieDataCollector:Initialize()")
             QuestieDataCollector:Initialize()
         else

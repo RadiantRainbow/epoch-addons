@@ -1302,13 +1302,13 @@ collect Balnir Snapdragons##7227 |q 1882/1 |goto Tirisfal Glades 77.39,61.76
 step
 label "Kill_Bleeding_Horrors"
 kill 8 Bleeding Horror##1529 |q 356/1 |goto Tirisfal Glades 75.54,60.85
-|tip These mobs can be tougher than normal, go slow and let yourself heal after each fight. |only if Hardcore
-|tip Beware of the rare spawn ghost that can spawn on the field, it does a lot of damage. |only if Hardcore
+|tip These mobs can be tougher than normal, go slow and let yourself heal after each fight. |only if hardcore
+|tip Beware of the rare spawn ghost that can spawn on the field, it does a lot of damage. |only if hardcore
 step
 label "Kill_Wandering_Spirits"
 kill 8 Wandering Spirit##1532 |q 356/2 |goto Tirisfal Glades 75.54,60.85
-|tip These mobs can be tougher than normal, go slow and let yourself heal after each fight. |only if Hardcore
-|tip Beware of the rare spawn ghost that can spawn on the field, it does a lot of damage. |only if Hardcore
+|tip These mobs can be tougher than normal, go slow and let yourself heal after each fight. |only if hardcore
+|tip Beware of the rare spawn ghost that can spawn on the field, it does a lot of damage. |only if hardcore
 stickystart "Kill_Scarlet_Friars"
 step
 Follow the path up |goto Tirisfal Glades 79.31,57.29 < 10 |only if walking
@@ -9037,7 +9037,7 @@ click Wanted Poster - Arnak Grimtotem##176115
 accept Wanted - Arnak Grimtotem##5147 |goto Thousand Needles 46.00,50.84
 step
 talk Starn##9551
-|tip Restock on arrows |only if hunter
+|tip Restock on arrows |only if Hunter
 Vendor your Trash |vendor Starn##9551 |goto Thousand Needles/0 44.91,50.67 |q 1197
 stickystart "Kill_Galak_Scouts"
 stickystart "Kill_Galak_Wranglers"
@@ -9331,8 +9331,8 @@ accept Hypercapacitor Gizmo##5151 |goto Thousand Needles/0 21.45,32.54
 step
 kill Enraged Panther##10992
 |tip This is an elite quest, but you should be able to easily solo her if you let your pet tank.
-|tip Drop an immolation trap infront of the cage before opening it. |only if hunter
-|tip If your pet is about to die, use Aspect of the Cheetah and prepare to head back to the road and kite her along it until she dies. |only if hunter
+|tip Drop an immolation trap infront of the cage before opening it. |only if Hunter
+|tip If your pet is about to die, use Aspect of the Cheetah and prepare to head back to the road and kite her along it until she dies. |only if Hunter
 |tip Clear the area before starting the fight so you can safely use fear to crowd control the panther. |only if warlock
 |tip Open the cage to start the fight when you are ready.
 collect Hypercapacitor Gizmo##12946 |q 5151 |goto Thousand Needles/0 22.74,24.40
@@ -10140,7 +10140,7 @@ turnin Call of Air##1531 |goto Thousand Needles 53.54,42.65
 |only if Shaman
 step
 talk Starn##9551
-|tip Restock on ammo |only if hunter
+|tip Restock on ammo |only if Hunter
 Vendor your Trash |vendor Starn##9551 |goto Thousand Needles/0 44.90,50.68 |q 1146
 step
 talk Moktar Krin##4483
@@ -10632,7 +10632,7 @@ talk Roon Wildmane##11877
 accept Hunting in Stranglethorn##5763 |goto Desolace 25.05,72.28
 step
 talk Tukk##12027
-|tip Restock on arrows. |only if hunter
+|tip Restock on arrows. |only if Hunter
 Vendor your Trash |vendor Tukk##12027 |goto Desolace/0 24.94,71.85 |q 5763
 step
 talk Taiga Wisemane##11624
@@ -11069,7 +11069,7 @@ turnin The Defense of Grom'gol##568 |goto Stranglethorn Vale 32.17,28.91
 accept The Defense of Grom'gol##569 |goto Stranglethorn Vale 32.17,28.91
 step
 talk Uthok##1149
-|tip Restock on arrows. |only if hunter
+|tip Restock on arrows. |only if Hunter
 Vendor your Trash |vendor Uthok##1149 |goto Stranglethorn Vale/0 31.55,27.97 |q 629
 step
 click Gri'lek the Wanderer##58
@@ -16393,7 +16393,7 @@ accept The Key to Freedom##4451
 step
 Leave the cave |goto Searing Gorge 49.58,45.49 < 10 |c |only if (subzone("The Slag Pit") and _G.IsIndoors())
 talk Master Smith Burninate##14624
-|tip Restock on arrows |only if hunter
+|tip Restock on arrows |only if Hunter
 Vendor your Trash |vendor Master Smith Burninate##14624 |goto Searing Gorge/0 38.69,28.35 |q 7723
 step
 Leave the cave |goto Searing Gorge 49.58,45.49 < 10 |c |only if (subzone("The Slag Pit") and _G.IsIndoors())

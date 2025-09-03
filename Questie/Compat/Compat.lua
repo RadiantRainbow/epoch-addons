@@ -381,11 +381,19 @@ QuestieCompat.C_QuestLog = {
 		    local numObjectives = GetNumQuestLeaderBoards(questLogIndex);
 		    for i = 1, numObjectives do
 		    	-- https://wowpedia.fandom.com/wiki/API_GetQuestLogLeaderBoard
-		    	local description, objectiveType, isCompleted = GetQuestLogLeaderBoard(i, questLogIndex);
+		    	-- In WoW 3.3.5, GetQuestLogLeaderBoard returns 5 values: description, type, finished, numFulfilled, numRequired
+		    	local description, objectiveType, isCompleted, numFulfilled, numRequired = GetQuestLogLeaderBoard(i, questLogIndex);
                 if objectiveType ~= "log" then
-		    	    local objectiveName, numFulfilled, numRequired = parseQuestObjective(description)
+                    -- Try to parse from text as fallback if the API didn't return numbers
+                    if (not numFulfilled or not numRequired) then
+		    	        local objectiveName, parsedFulfilled, parsedRequired = parseQuestObjective(description)
+                        numFulfilled = numFulfilled or parsedFulfilled
+                        numRequired = numRequired or parsedRequired
+                    end
+                    
                     -- GetQuestLogLeaderBoard randomly returns incorrect objective information.
                     -- Parsing the UI_INFO_MESSAGE event for the correct numFulfilled value seems like the solution.
+                    local objectiveName = string.match(description, "(.*):%s*[%d]") or description
                     local fulfilled = questObjectivesCache[objectiveName]
                     if fulfilled and (not isCompleted) then
                         numFulfilled = fulfilled
@@ -611,6 +619,12 @@ function QuestieCompat:QUEST_QUERY_COMPLETE(event)
         if QuestieDB.IsRepeatable(questId) then
             Questie.db.char.complete[questId] = nil
         end
+    end
+    
+    -- If this was triggered by a migration, show completion message
+    if Questie.db.char.completedQuestRefreshRequested then
+        Questie.db.char.completedQuestRefreshRequested = nil
+        Questie:Print("[Migration] Completed quest database synced successfully!")
     end
 
     if Questie.db.profile.resetDailyQuests then

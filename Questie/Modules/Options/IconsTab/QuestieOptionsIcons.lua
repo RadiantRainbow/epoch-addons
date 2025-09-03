@@ -1214,13 +1214,13 @@ _GetIconThemes = function()
             ['questie'] = "|T" .. Questie.icons["slay"] .. ":14|t Questie",
             ['blizzard'] = "|TInterface/buttons/adventureguidemicrobuttonalert.blp:20:20:0:0:32:32:2:28:2:28|t Blizzard",
             ['pfquest'] = "|T" .. Questie.icons["node"] .. ":14|t pfQuest",
-            ['custom'] = "|T" .. Questie.icons["object"] .. ":16|t " .. l10n("Custom"),
+            -- ['custom'] = "|T" .. Questie.icons["object"] .. ":16|t " .. l10n("Custom"),  -- Disabled: causes invisible pins
         }
     else
         return {
             ['questie'] = "|T" .. Questie.icons["complete"] .. ":14|t Questie",
             ['pfquest'] = "|T" .. Questie.icons["node"] .. ":14|t pfQuest",
-            ['custom'] = "|T" .. Questie.icons["object"] .. ":16|t " .. l10n("Custom"),
+            -- ['custom'] = "|T" .. Questie.icons["object"] .. ":16|t " .. l10n("Custom"),  -- Disabled: causes invisible pins
         }
     end
 end
@@ -1231,13 +1231,13 @@ _GetIconThemesSort = function()
             "questie",
             "blizzard",
             "pfquest",
-            "custom",
+            -- "custom",  -- Disabled: causes invisible pins
         }
     else
         return {
             "questie",
             "pfquest",
-            "custom",
+            -- "custom",  -- Disabled: causes invisible pins
         }
     end
 end
@@ -1273,7 +1273,9 @@ function QuestieOptionsUtils.DetermineTheme()
             then
             Questie.db.profile.iconTheme = 'questie'
         else
-            Questie.db.profile.iconTheme = 'custom'
+            -- Default to 'questie' instead of 'custom' (custom causes invisible pins)
+            Questie.db.profile.iconTheme = 'questie'
+            -- Original: Questie.db.profile.iconTheme = 'custom'
         end
     end
 end

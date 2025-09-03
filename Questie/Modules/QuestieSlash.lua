@@ -103,7 +103,208 @@ function QuestieSlash.HandleCommands(input)
         QuestieOptions:HideFrame();
         return;
     end
+    
+    -- /questie refreshcomplete - Force refresh completed quests and clean up stuck map icons
+    if mainCommand == "refreshcomplete" then
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie]|r Querying server for completed quests...", 0, 1, 0)
+        
+        -- Query the server for completed quests (this triggers QUEST_QUERY_COMPLETE event)
+        QueryQuestsCompleted()
+        
+        -- Set up a one-time listener for when the query completes
+        local frame = CreateFrame("Frame")
+        frame:RegisterEvent("QUEST_QUERY_COMPLETE")
+        frame:SetScript("OnEvent", function(self, event)
+            -- Update our completed quest database
+            GetQuestsCompleted(Questie.db.char.complete)
+            
+            -- Remove all quest map icons first
+            QuestieQuest:ClearAllNotes()
+            
+            -- Force a full quest refresh
+            QuestieQuest:Initialize()
+            QuestieQuest:UpdateQuests()
+            
+            -- Redraw the map
+            QuestieMap.InitializeQueue()
+            
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie]|r Completed quests refreshed! Map has been redrawn.", 0, 1, 0)
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie]|r If issues persist, try /reload", 0, 1, 0)
+            
+            -- Clean up the frame
+            self:UnregisterEvent("QUEST_QUERY_COMPLETE")
+        end)
+        
+        return;
+    end
 
+    -- /questie checkcomplete <questId> - Check if a specific quest is marked as complete
+    if mainCommand == "checkcomplete" then
+        local questIdOrName = subCommand
+        if not questIdOrName then
+            DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[Questie]|r Usage: /questie checkcomplete <questId or partial name>", 1, 0, 0)
+            return
+        end
+        
+        local questId = tonumber(questIdOrName)
+        
+        if questId then
+            -- Single quest ID check
+            local isComplete = Questie.db.char.complete[questId]
+            local isServerComplete = IsQuestFlaggedCompleted(questId)
+            local questData = QuestieDB:GetQuest(questId)
+            local questName = questData and questData.name or "Unknown Quest"
+            
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie]|r Quest " .. questId .. " (" .. questName .. "):", 0, 1, 0)
+            DEFAULT_CHAT_FRAME:AddMessage("  Local DB: " .. (isComplete and "|cFF00FF00Complete|r" or "|cFFFF0000Not Complete|r"), 1, 1, 1)
+            DEFAULT_CHAT_FRAME:AddMessage("  Server Check: " .. (isServerComplete and "|cFF00FF00Complete|r" or "|cFFFF0000Not Complete|r"), 1, 1, 1)
+            
+            if isComplete and not isServerComplete then
+                DEFAULT_CHAT_FRAME:AddMessage("  |cFFFFFF00Warning: Local DB says complete but server says not complete!|r", 1, 1, 0)
+            elseif not isComplete and isServerComplete then
+                DEFAULT_CHAT_FRAME:AddMessage("  |cFFFFFF00Warning: Server says complete but local DB says not complete!|r", 1, 1, 0)
+            end
+        else
+            -- Search by partial name
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie]|r Searching for quests matching: " .. questIdOrName, 0, 1, 0)
+            local found = false
+            
+            -- Search all quest IDs we know about
+            for id = 1, 30000 do
+                local questData = QuestieDB:GetQuest(id)
+                if questData and questData.name and string.find(string.lower(questData.name), string.lower(questIdOrName)) then
+                    found = true
+                    local isComplete = Questie.db.char.complete[id]
+                    local isServerComplete = IsQuestFlaggedCompleted(id)
+                    
+                    DEFAULT_CHAT_FRAME:AddMessage(string.format("  [%d] %s - Local: %s, Server: %s", 
+                        id, 
+                        questData.name,
+                        isComplete and "|cFF00FF00Complete|r" or "|cFFFF0000Not Complete|r",
+                        isServerComplete and "|cFF00FF00Complete|r" or "|cFFFF0000Not Complete|r"
+                    ), 1, 1, 1)
+                end
+            end
+            
+            if not found then
+                DEFAULT_CHAT_FRAME:AddMessage("  No quests found matching: " .. questIdOrName, 1, 0, 0)
+            end
+        end
+        
+        return
+    end
+    
+    -- /questie fixduplicates - Fix duplicate quest issues like "The Killing Fields"
+    if mainCommand == "fixduplicates" then
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie]|r Checking for duplicate quest issues...", 0, 1, 0)
+        
+        -- Known duplicate quest sets (quests with same name but different IDs)
+        local duplicateSets = {
+            {name = "The Killing Fields", ids = {9, 26993, 26994, 26995}},
+            {name = "Hand of Azora", ids = {26696, 26697, 26700}},
+            {name = "My Sister Isabetta", ids = {27207, 27208, 27209}},
+            {name = "The Barony Mordis", ids = {26538, 26539}},
+        }
+        
+        local fixedCount = 0
+        
+        for _, set in pairs(duplicateSets) do
+            local anyComplete = false
+            local completeIds = {}
+            local incompleteIds = {}
+            
+            -- Check if any version is complete
+            for _, id in pairs(set.ids) do
+                if Questie.db.char.complete[id] or IsQuestFlaggedCompleted(id) then
+                    anyComplete = true
+                    table.insert(completeIds, id)
+                else
+                    table.insert(incompleteIds, id)
+                end
+            end
+            
+            -- If any version is complete, mark all as complete and remove from map
+            if anyComplete and #incompleteIds > 0 then
+                DEFAULT_CHAT_FRAME:AddMessage("  Found completed '" .. set.name .. "', fixing duplicates...", 1, 1, 0)
+                
+                for _, id in pairs(incompleteIds) do
+                    Questie.db.char.complete[id] = true
+                    QuestieMap:UnloadQuestFrames(id)
+                    fixedCount = fixedCount + 1
+                    DEFAULT_CHAT_FRAME:AddMessage("    Marked quest " .. id .. " as complete", 0, 1, 0)
+                end
+            end
+        end
+        
+        if fixedCount > 0 then
+            -- Refresh the map
+            QuestieQuest:UpdateQuests()
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie]|r Fixed " .. fixedCount .. " duplicate quest issues!", 0, 1, 0)
+        else
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie]|r No duplicate quest issues found.", 0, 1, 0)
+        end
+        
+        return
+    end
+    
+    -- /questie findduplicates - Find all quests with duplicate names
+    if mainCommand == "findduplicates" then
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie]|r Scanning for quests with duplicate names...", 0, 1, 0)
+        
+        local questsByName = {}
+        local duplicatesFound = {}
+        
+        -- Scan all quests and group by name
+        for id = 1, 30000 do
+            local questData = QuestieDB:GetQuest(id)
+            if questData and questData.name then
+                local name = questData.name
+                if not questsByName[name] then
+                    questsByName[name] = {}
+                end
+                table.insert(questsByName[name], id)
+            end
+        end
+        
+        -- Find duplicates
+        for name, ids in pairs(questsByName) do
+            if #ids > 1 then
+                table.insert(duplicatesFound, {name = name, ids = ids})
+            end
+        end
+        
+        -- Sort by name for easier reading
+        table.sort(duplicatesFound, function(a, b) return a.name < b.name end)
+        
+        -- Display results
+        if #duplicatesFound > 0 then
+            DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00Found " .. #duplicatesFound .. " quests with duplicate names:|r", 1, 1, 0)
+            
+            for _, dup in pairs(duplicatesFound) do
+                local idList = table.concat(dup.ids, ", ")
+                DEFAULT_CHAT_FRAME:AddMessage("  " .. dup.name .. " - IDs: " .. idList, 1, 1, 1)
+                
+                -- Check completion status
+                local completeCount = 0
+                for _, id in pairs(dup.ids) do
+                    if Questie.db.char.complete[id] then
+                        completeCount = completeCount + 1
+                    end
+                end
+                
+                if completeCount > 0 and completeCount < #dup.ids then
+                    DEFAULT_CHAT_FRAME:AddMessage("    |cFFFF0000⚠ Partially complete (" .. completeCount .. "/" .. #dup.ids .. ")|r", 1, 0, 0)
+                end
+            end
+            
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00Use /questie fixduplicates to mark all versions complete|r", 0, 1, 0)
+        else
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00No duplicate quest names found.|r", 0, 1, 0)
+        end
+        
+        return
+    end
+    
     if mainCommand == "dumplog" then
         -- Capture complete quest log for troubleshooting
         local dumpData = {}
@@ -181,6 +382,7 @@ function QuestieSlash.HandleCommands(input)
                 end
                 
                 -- Get objectives
+                local originalSelection = GetQuestLogSelection()
                 SelectQuestLogEntry(i)
                 local numObjectives = GetNumQuestLeaderBoards(i)
                 if numObjectives > 0 then
@@ -193,6 +395,10 @@ function QuestieSlash.HandleCommands(input)
                         end
                     end
                     table.insert(questData, "  },")
+                end
+                -- Restore original selection
+                if originalSelection and originalSelection > 0 then
+                    SelectQuestLogEntry(originalSelection)
                 end
                 
                 table.insert(questData, "},")

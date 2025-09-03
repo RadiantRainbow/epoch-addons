@@ -3,7 +3,6 @@ local _, Private = ...
 local _G = _G
 local Type = type
 local GetSpellInfo = GetSpellInfo
-local GetSpellName  = GetSpellName
 local GetSpellTexture = GetSpellTexture
 
 local Tooltip = Private.Tooltip
@@ -93,9 +92,13 @@ function C_Spell.SpellHasRange(ID)
 	end
 end
 
+function C_Spell.GetSpellName(ID)
+	local Name = GetSpellInfo(ID)
+	return Name
+end
+
 C_Spell.PickupSpell = PickupSpell
 C_Spell.GetSpellLink = GetSpellLink
-C_Spell.GetSpellName = GetSpellName
 C_Spell.IsSpellInRange = IsSpellInRange
 
 C_Spell.GetSpellCharges = Private.Void

@@ -24,6 +24,7 @@ me.L = ZygorGuidesViewer_L('Main')
 me.LS = ZygorGuidesViewer_L('G_string')
 
 local linecount = 50
+local guidebuttoncount = 10
 
 local L = me.L
 local LI = me.LI
@@ -35,6 +36,7 @@ local Gratuity = LibStub('LibGratuity-3.0')
 
 me.registeredguides = {}
 me.registeredmapspotsets = {}
+me.guidebuttons = {}
 
 local DIR = 'Interface\\AddOns\\ZygorGuidesViewer'
 ZGV.DIR = DIR
@@ -48,6 +50,12 @@ BINDING_HEADER_ZYGORGUIDES = L['name_plain']
 BINDING_NAME_ZYGORGUIDES_OPENGUIDE = L['binding_togglewindow']
 BINDING_NAME_ZYGORGUIDES_PREV = L['binding_prev']
 BINDING_NAME_ZYGORGUIDES_NEXT = L['binding_next']
+
+_G['BINDING_NAME_CLICK ZygorGuideButton1:LeftButton'] = 'Magic Button #1 (Target, UseItem)'
+_G['BINDING_NAME_CLICK ZygorGuideButton2:LeftButton'] = 'Magic Button #2 (Target, UseItem)'
+_G['BINDING_NAME_CLICK ZygorGuideButton3:LeftButton'] = 'Magic Button #3 (Target, UseItem)'
+_G['BINDING_NAME_CLICK ZygorGuideButton4:LeftButton'] = 'Magic Button #4 (Target, UseItem)'
+_G['BINDING_NAME_CLICK ZygorGuideButton5:LeftButton'] = 'Magic Button #5 (Target, UseItem)'
 
 local ver = select(4, GetBuildInfo())
 ZGV.WotLK = (ver >= 30000)
@@ -619,6 +627,19 @@ function me:OnInitialize()
     self.date = ZygorTalentAdvisor.date
   end
 
+  for i = 1, guidebuttoncount do
+    local name = 'ZygorGuideButton' .. i
+    local btn = CreateFrame('Button', name, UIParent, 'SecureActionButtonTemplate')
+    btn:SetPoint('TOPLEFT', UIParent, 'BOTTOMLEFT', -100, -100) -- put offscreen
+    btn:SetSize(36, 36)
+    btn:Hide()
+
+    btn:SetAttribute('type', 'macro')
+    btn:SetAttribute('macrotext', '/say yo' .. i)
+
+    self.guidebuttons[i] = btn
+  end
+
   if self.LocaleFont then
     FONT = self.LocaleFont
   end
@@ -627,6 +648,41 @@ function me:OnInitialize()
   hooksecurefunc('ConfirmBinder', function()
     ZygorGuidesViewer.recentlyHomeChanged = true
   end)
+end
+
+local macroIndex = 1
+
+function me:SetMacroButton(slot, text)
+  if InCombatLockdown() then
+    return
+  end
+
+  local btn = self.guidebuttons[slot]
+  if btn then
+    btn:SetAttribute('macrotext', text or '')
+  end
+
+  if true and slot <= ZGV.db.profile.macrocount then
+    local macroname = 'ZGV:' .. slot
+    local macro = GetMacroIndexByName(macroname)
+    if macro == 0 then
+      macro = CreateMacro(macroname, 1, text, 1)
+    end
+
+    macro = EditMacro(macroname, 'ZGV:' .. slot, 1, text, 1)
+  end
+end
+
+function me:SetNextMacroButton(text)
+  me:SetMacroButton(macroIndex, text)
+  macroIndex = macroIndex + 1
+end
+
+function me:ResetMacroButtons()
+  for i = 1, guidebuttoncount do
+    ZGV:SetMacroButton(i, '')
+  end
+  macroIndex = 1
 end
 
 function me:OnEnable()
@@ -1569,11 +1625,41 @@ function me:UpdateFrame(full, onupdate)
                 end
               end
 
+              if self.CurrentGuide then
+                local stepnum, stepdata
+
+                local firststep = (showallsteps or self.CurrentStepNum) or 1
+                firststep = max(1, firststep)
+                local laststep = showallsteps and #self.CurrentGuide.steps
+                  or self.CurrentStepNum + self.db.profile.showcountsteps - 1
+                laststep = min(laststep, #self.CurrentGuide.steps)
+                local diff = #self.CurrentGuide.steps - laststep
+                if ZGV.db.profile.showcountsteps > 1 then
+                  if laststep == #self.CurrentGuide.steps then
+                    laststep = min(laststep, #self.CurrentGuide.steps) - diff - 1
+                  end
+                end
+
+                local stickies
+                if not self.db.profile.showallsteps then
+                  stickies, changed = self:GetStickiesAt(firststep, laststep)
+
+                  if changed then
+                    self:SendMessage('ZGV_STEP_CHANGED', num)
+                  end
+                end
+                self.CurrentStickies = stickies
+              end
+
               local stickySep = nil
 
               if stepdata.stickies then
                 for i, sticky in ipairs(stepdata.stickies) do
-                  if sticky:AreRequirementsMet() then
+                  if
+                    sticky:AreRequirementsMet()
+                    and sticky:CanBeSticky()
+                    and not sticky:IsComplete()
+                  then
                     for i, goal in ipairs(sticky.goals) do
                       if goal:GetStatus() ~= 'hidden' then
                         if stickySep == nil then
@@ -5236,6 +5322,37 @@ function me.gradient3(perc, ar, ag, ab, br, bg, bb, cr, cg, cb, middle)
       return br + (cr - br) * perc, bg + (cg - bg) * perc, bb + (cb - bb) * perc
     end
   end
+end
+
+local getstickies_temp = {}
+function ZGV:GetStickiesAt(stepnum, laststepnum) -- was stepnum,show_complete but second param was no longer used
+  --ZGV:Debug(tostring(stepnum).." "..tostring(laststepnum))
+  local laststepnum = laststepnum or stepnum
+  local changed = false
+
+  for _, stickystep in ipairs(getstickies_temp) do
+    if stickystep:IsComplete() or not stickystep:CanBeSticky() then
+      changed = true
+    end
+  end
+
+  stepnum = stepnum or self.CurrentStepNum
+  local step = self.CurrentGuide.steps[stepnum]
+  wipe(getstickies_temp)
+
+  if step.stickies then
+    for _, stickystep in ipairs(step.stickies) do
+      --print(stickystep.num,laststepnum,stickystep:IsComplete(),stickystep:CanBeSticky() )
+      if
+        (stickystep.num > laststepnum)
+        and not stickystep:IsComplete()
+        and stickystep:CanBeSticky()
+      then
+        tinsert(getstickies_temp, stickystep)
+      end
+    end
+  end
+  return getstickies_temp, changed
 end
 
 --hooksecurefunc("WorldMapFrame_UpdateQuests",function() if not InCombatLockdown() then text=nil end end)

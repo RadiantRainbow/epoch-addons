@@ -96,6 +96,11 @@ local function toggle(key, forceRemove) -- /run QuestieLoader:ImportModule("Ques
     local icon = _townsfolk_texturemap[key] or ("Interface\\Minimap\\tracking\\" .. strlower(key))
     if key == "Mailbox" or key == "Meeting Stones" then -- object type townsfolk
         if Questie.db.profile.townsfolkConfig[key] and (not forceRemove) then
+            -- First, clean up any existing frames to prevent duplicates
+            for _, id in pairs(ids) do
+                QuestieMap:UnloadManualFrames(id, key)
+            end
+            
             for _, id in pairs(ids) do
                 if key == "Meeting Stones" then
                     local dungeonName, levelRange = MeetingStones:GetLocalizedDungeonNameAndLevelRangeByObjectId(id)
@@ -108,11 +113,19 @@ local function toggle(key, forceRemove) -- /run QuestieLoader:ImportModule("Ques
             end
         else
             for _, id in pairs(ids) do
+                -- Always unload to ensure cleanup
                 QuestieMap:UnloadManualFrames(id, key)
+                -- Note: objects don't use the _spawned table
             end
         end
     else
         if Questie.db.profile.townsfolkConfig[key] and (not forceRemove) then
+            -- First, clean up any existing frames to prevent duplicates
+            for _, id in pairs(ids) do
+                QuestieMap:UnloadManualFrames(id, key)
+                _spawned[id] = nil
+            end
+            
             local faction = UnitFactionGroup("Player")
             local timer
             local e = 1
@@ -121,6 +134,7 @@ local function toggle(key, forceRemove) -- /run QuestieLoader:ImportModule("Ques
                 local start = e
                 while e < max and e-start < 32 do
                     local id = ids[e]
+                    -- Only add if not already spawned to prevent duplicates
                     if (not _spawned[id]) then
                         local friendly = QuestieDB.QueryNPCSingle(id, "friendlyToFaction")
                         if ((not friendly) or friendly == "AH" or (faction == "Alliance" and friendly == "A") or (faction == "Horde" and friendly == "H")) and (not QuestieCorrections.questNPCBlacklist[id]) then
@@ -138,7 +152,10 @@ local function toggle(key, forceRemove) -- /run QuestieLoader:ImportModule("Ques
                 end
             end)
         else
+            -- Clear all NPCs of this type before unloading to prevent duplicates
             for _, id in pairs(ids) do
+                -- Always try to unload, regardless of _spawned state
+                -- This ensures we clean up any orphaned frames
                 QuestieMap:UnloadManualFrames(id, key)
                 _spawned[id] = nil
             end
@@ -151,7 +168,10 @@ local function build(key)
 
     return {
         text = l10n(tostring(key)),
-        func = function() Questie.db.profile.townsfolkConfig[key] = not Questie.db.profile.townsfolkConfig[key] toggle(key) end,
+        func = function() 
+            Questie.db.profile.townsfolkConfig[key] = not Questie.db.profile.townsfolkConfig[key]
+            toggle(key)
+        end,
         icon=icon,
         notCheckable=false,
         checked=Questie.db.profile.townsfolkConfig[key],
@@ -165,7 +185,10 @@ local function buildLocalized(key, localizedText)
 
     return {
         text = localizedText,
-        func = function() Questie.db.profile.townsfolkConfig[key] = not Questie.db.profile.townsfolkConfig[key] toggle(key) end,
+        func = function() 
+            Questie.db.profile.townsfolkConfig[key] = not Questie.db.profile.townsfolkConfig[key]
+            toggle(key)
+        end,
         icon=icon,
         notCheckable=false,
         checked=Questie.db.profile.townsfolkConfig[key],
@@ -269,11 +292,16 @@ end
 
 function QuestieMenu.buildTownsfolkMenu()
     local townsfolkMenu = {}
+    local addedKeys = {} -- Track which keys we've already added to prevent duplicates
+    
     for key in pairs(Questie.db.global.townsfolk) do
         tinsert(townsfolkMenu, build(key))
+        addedKeys[key] = true
     end
     for key in pairs(Questie.db.char.townsfolk) do
-        tinsert(townsfolkMenu, build(key))
+        if not addedKeys[key] then -- Only add if not already in menu
+            tinsert(townsfolkMenu, build(key))
+        end
     end
     return townsfolkMenu
 end
@@ -331,7 +359,15 @@ function QuestieMenu:Show(hideDelay)
     if Questie.db.profile.enableDataCollection then
         tinsert(menuTable, { text= l10n('Export Quest Data'), func=function()
             if QuestieDataCollector and QuestieDataCollector.ShowExportWindow then
-                QuestieDataCollector:ShowExportWindow()
+                -- Wrap in pcall to prevent third-party addon conflicts (LibGroupTalents from Skada)
+                local success, err = pcall(function()
+                    QuestieDataCollector:ShowExportWindow()
+                end)
+                
+                if not success then
+                    DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[Questie]|r Export failed due to addon conflict. Try disabling Skada addon temporarily.", 1, 0, 0)
+                    DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFFFF[Questie]|r The error was: " .. tostring(err), 1, 1, 1)
+                end
             else
                 DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[Questie] Data collector not initialized. Use /qdc export|r", 1, 0, 0)
             end

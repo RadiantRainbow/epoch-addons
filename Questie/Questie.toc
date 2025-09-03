@@ -2,11 +2,11 @@
 ## Title: Questie|cFF00FF00 Project Epoch|r
 ## Author: trav346 (fork of esurm/Questie)
 ## Notes: Quest helper for Project Epoch (WotLK client)
-## Version: 1.0.68
+## Version: 1.1.3
 ## RequiredDeps:
 ## OptionalDeps: Ace3, CallbackHandler-1.0, HereBeDragons, LibDataBroker-1.1, LibDBIcon-1.0, LibSharedMedia-3.0, LibStub, LibUIDropDownMenu
-## SavedVariables: QuestieConfig, QuestieDataCollection
-## SavedVariablesPerCharacter: QuestieConfigCharacter
+## SavedVariables: QuestieConfig
+## SavedVariablesPerCharacter: QuestieConfigCharacter, QuestieDataCollection
 ## X-WOW_PROJECT_ID: 2
 
 # Loader module
@@ -40,10 +40,10 @@ Database\Classic\classicItemDB.lua
 Database\Classic\classicNpcDB.lua
 Database\Classic\classicObjectDB.lua
 Database\Classic\classicQuestDB.lua
-Database\Wotlk\wotlkItemDB.lua
-Database\Wotlk\wotlkNpcDB.lua
-Database\Wotlk\wotlkObjectDB.lua
-Database\Wotlk\wotlkQuestDB.lua
+#Database\Wotlk\wotlkItemDB.lua -- Disabled: Project Epoch is Vanilla only
+#Database\Wotlk\wotlkNpcDB.lua -- Disabled: Project Epoch is Vanilla only
+#Database\Wotlk\wotlkObjectDB.lua -- Disabled: Project Epoch is Vanilla only
+#Database\Wotlk\wotlkQuestDB.lua -- Disabled: Project Epoch is Vanilla only
 Database\QuestieDB.lua
 Database\Epoch\epochQuestDB.lua
 Database\Epoch\epochNpcDB.lua
@@ -166,6 +166,7 @@ Modules\QuestieNameplate.lua
 Modules\QuestieCoordinates.lua
 
 # Data Collection (Developer Feature)
+Modules\QuestieDataValidator.lua
 Modules\QuestieDataCollector.lua
 
 # Network

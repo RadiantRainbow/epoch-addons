@@ -377,6 +377,29 @@ function QuestieTracker.Initialize()
     end)
 end
 
+-- Track all quests in the quest log (used when autoTrackOnLogin is enabled)
+function QuestieTracker:SyncAllQuests()
+    if not Questie.db.profile.autoTrackQuests then
+        return -- Only works in auto-track mode
+    end
+    
+    -- Clear the untracked list to track everything
+    Questie.db.char.AutoUntrackedQuests = {}
+    
+    -- Track all quests
+    for questId, quest in pairs(QuestiePlayer.currentQuestlog or {}) do
+        local questIndex = GetQuestLogIndexByID(questId)
+        if questIndex and questIndex > 0 then
+            if not IsQuestWatched(questIndex) then
+                AddQuestWatch(questIndex)
+            end
+        end
+    end
+    
+    -- Update tracker
+    QuestieTracker:Update()
+end
+
 -- New function to sync watched quests - can be called multiple times
 function QuestieTracker:SyncWatchedQuests()
     if not Questie.db.profile.autoTrackQuests then
@@ -472,11 +495,11 @@ function QuestieTracker:SyncWatchedQuests()
     end
     -- Check AutoUntrackedQuests
     
-    -- In auto-track mode on initial login, we should track ALL quests by default
-    -- unless the user explicitly untracked them before
-    local shouldTrackAll = not QuestieTracker._hasEverSynced
+    -- Check if we should auto-track all quests on login
+    -- Only track all if: autoTrackOnLogin is enabled AND this is the first sync
+    local shouldTrackAll = Questie.db.profile.autoTrackOnLogin and not QuestieTracker._hasEverSynced
     if shouldTrackAll then
-        -- First sync - track all
+        -- First sync with auto-track on login enabled - track all
     end
     
     -- Try to track all quests that should be tracked

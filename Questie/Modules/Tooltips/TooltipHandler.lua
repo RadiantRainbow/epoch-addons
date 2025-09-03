@@ -34,8 +34,19 @@ function _QuestieTooltips:AddUnitDataToTooltip()
         QuestieTooltips.lastGametooltipUnit = name
         local tooltipData = QuestieTooltips:GetTooltip("m_" .. npcId);
         if tooltipData then
+            -- Check if NPC ID has already been added to prevent duplicates
             if Questie.db.profile.enableTooltipsNPCID == true then
-                GameTooltip:AddDoubleLine("NPC ID", "|cFFFFFFFF" .. npcId .. "|r")
+                local alreadyAdded = false
+                for i = 1, GameTooltip:NumLines() do
+                    local left = _G["GameTooltipTextLeft"..i]
+                    if left and left:GetText() == "NPC ID" then
+                        alreadyAdded = true
+                        break
+                    end
+                end
+                if not alreadyAdded then
+                    GameTooltip:AddDoubleLine("NPC ID", "|cFFFFFFFF" .. npcId .. "|r")
+                end
             end
             for _, v in pairs (tooltipData) do
                 GameTooltip:AddLine(v)
@@ -69,8 +80,19 @@ function _QuestieTooltips:AddItemDataToTooltip()
         QuestieTooltips.lastGametooltipItem = name
         local tooltipData = QuestieTooltips:GetTooltip("i_" .. (itemId or 0));
         if tooltipData then
+            -- Check if Item ID has already been added to prevent duplicates
             if Questie.db.profile.enableTooltipsItemID == true then
-                GameTooltip:AddDoubleLine("Item ID", "|cFFFFFFFF" .. itemId .. "|r")
+                local alreadyAdded = false
+                for i = 1, self:NumLines() do
+                    local left = _G[self:GetName().."TextLeft"..i]
+                    if left and left:GetText() == "Item ID" then
+                        alreadyAdded = true
+                        break
+                    end
+                end
+                if not alreadyAdded then
+                    GameTooltip:AddDoubleLine("Item ID", "|cFFFFFFFF" .. itemId .. "|r")
+                end
             end
             for _, v in pairs (tooltipData) do
                 self:AddLine(v)
@@ -92,11 +114,22 @@ function _QuestieTooltips:AddObjectDataToTooltip(name)
         local lookup = l10n.objectNameLookup[name] or {}
         local count = table.getn(lookup)
 
+        -- Check if Object ID has already been added to prevent duplicates
         if Questie.db.profile.enableTooltipsObjectID == true and count ~= 0 then
-            if count == 1 then
-                GameTooltip:AddDoubleLine("Object ID", "|cFFFFFFFF" .. lookup[1] .. "|r")
-            else
-                GameTooltip:AddDoubleLine("Object ID", "|cFFFFFFFF" .. lookup[1] .. " (" .. count .. ")|r")
+            local alreadyAdded = false
+            for i = 1, GameTooltip:NumLines() do
+                local left = _G["GameTooltipTextLeft"..i]
+                if left and left:GetText() == "Object ID" then
+                    alreadyAdded = true
+                    break
+                end
+            end
+            if not alreadyAdded then
+                if count == 1 then
+                    GameTooltip:AddDoubleLine("Object ID", "|cFFFFFFFF" .. lookup[1] .. "|r")
+                else
+                    GameTooltip:AddDoubleLine("Object ID", "|cFFFFFFFF" .. lookup[1] .. " (" .. count .. ")|r")
+                end
             end
         end
 

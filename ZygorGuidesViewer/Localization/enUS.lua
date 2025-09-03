@@ -217,6 +217,8 @@ ZygorGuidesViewer_L('Main', 'enUS', function()
     ['opt_fixblizzardautoaccept_desc'] = "Since patch 3.2, quests for levels 1-3 get automatically accepted, but the quest window stays open, which confuses some players. This option changes the 'Accept' button into 'Accepted' to make it feel more natural.|r",
     ['opt_analyzereps'] = 'Detailed reputation gains',
     ['opt_analyzereps_desc'] = 'Display verbose reputation gain messages in chat, showing percentage gained and next standing.',
+    ['opt_macrocount'] = 'Create Magic Macros',
+    ['opt_macrocount_desc'] = 'How many Zygor Magic Macros to select, reducing this wont delete existing macros',
 
     -- Gold Guide options
 
@@ -323,7 +325,7 @@ ZygorGuidesViewer_L('Main', 'enUS', function()
     ['stepgoal_goal #'] = '%s %s',
     ['stepgoal_get'] = 'Get %s',
     ['stepgoal_get #'] = 'Get %s %s',
-    ['stepgoal_ding'] = 'You should now be level %s.|n    If not, grind a little until you are.',
+    ['stepgoal_ding'] = 'You should now be level %s with %s exp.|n    If not, grind a little until you are.',
     ['stepgoal_go to'] = 'Go to %s',
     ['stepgoal_also at'] = 'Also at %s',
     ['stepgoal_hearth to'] = 'Hearth to %s',

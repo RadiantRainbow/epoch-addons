@@ -185,6 +185,14 @@ local epochObjectData = {
 
 -- Issue #160: Duskwood quest object
 [187564] = {"Grave Moss",nil,nil,{[10]={{22.5,40.7}}},10}, -- Life In Death quest
+
+-- Shell Collection quest object
+[188801] = {"Conch Shell",nil,{28758},{[14]={{69.5,48.2},{70.8,49.1},{71.2,47.5},{69.8,47.9},{70.5,48.7}}},14}, -- Durotar shore spawns
+
+-- Gnome starting area quest objects
+[190010] = {"Supply Crate",nil,{28727},{[1]={{33.8,71.8},{34.2,72.5},{32.9,72.1},{34.5,71.4}}},1}, -- Medical Supplies crates for quest 28727
+[190011] = {"Supply Cache",nil,{28733},{[1]={{56.5,71.2},{57.1,72.4},{55.8,72.8},{57.8,71.6}}},1}, -- Emergency Rations caches for quest 28733  
+[190012] = {"Supply Bundle",nil,{28733},{[1]={{56.2,72.0},{57.3,71.8},{55.9,71.5},{57.6,72.2}}},1}, -- Warm Blanket bundles for quest 28733
 }
 
 -- Stage the Epoch objectData for later merge during compilation

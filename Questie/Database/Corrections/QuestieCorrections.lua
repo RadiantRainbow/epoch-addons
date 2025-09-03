@@ -327,10 +327,10 @@ function QuestieCorrections:Initialize(validationTables)
     _LoadCorrections("questData", QuestieQuestFixes:Load(), QuestieDB.questKeysReversed, validationTables)
     _LoadCorrections("npcData", QuestieNPCFixes:Load(), QuestieDB.npcKeysReversed, validationTables)
     -- Epoch-specific Stormwind fixes for WotLK coordinates
-    -- Disabled: epochStormwindFixes causing issues with seasonal NPCs and incorrect positions
-    -- if QuestieEpochStormwindFixes and QuestieEpochStormwindFixes.Load then
-    --     _LoadCorrections("npcData", QuestieEpochStormwindFixes:Load(), QuestieDB.npcKeysReversed, validationTables)
-    -- end
+    -- Re-enabled: Fixed innkeeper issues - coordinates are correct in epochStormwindFixes.lua
+    if QuestieEpochStormwindFixes and QuestieEpochStormwindFixes.Load then
+        _LoadCorrections("npcData", QuestieEpochStormwindFixes:Load(), QuestieDB.npcKeysReversed, validationTables)
+    end
     -- Epoch-specific Elwynn Forest fixes for WotLK coordinates  
     if QuestieEpochElwynnFixes and QuestieEpochElwynnFixes.Load then
         _LoadCorrections("npcData", QuestieEpochElwynnFixes:Load(), QuestieDB.npcKeysReversed, validationTables)

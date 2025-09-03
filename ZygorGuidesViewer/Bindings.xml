@@ -8,4 +8,9 @@
 	<Binding name="ZYGORGUIDES_NEXT" description="Next Step" header="ZYGORGUIDES">
 		ZygorGuidesViewerFrame_Skipper_NextButton:GetScript("OnClick")(ZygorGuidesViewerFrame_Skipper_NextButton,"LeftButton")
   </Binding>
+	<Binding name="CLICK ZygorGuideButton1:LeftButton" header="ZYGORGUIDES"/>
+  <Binding name="CLICK ZygorGuideButton2:LeftButton" header="ZYGORGUIDES"/>
+  <Binding name="CLICK ZygorGuideButton3:LeftButton" header="ZYGORGUIDES"/>
+  <Binding name="CLICK ZygorGuideButton4:LeftButton" header="ZYGORGUIDES"/>
+  <Binding name="CLICK ZygorGuideButton5:LeftButton" header="ZYGORGUIDES"/>
 </Bindings>

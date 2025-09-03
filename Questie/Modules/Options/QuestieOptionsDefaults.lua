@@ -65,6 +65,7 @@ function QuestieOptionsDefaults:Load()
 
             -- Tracker Settings Tab
             autoTrackQuests = true,
+            autoTrackOnLogin = true,  -- New: Controls whether to auto-track all quests on login/reload
             trackerShowCompleteQuests = true,
             trackerShowQuestLevel = true,
             collapseCompletedQuests = false,
@@ -186,6 +187,7 @@ function QuestieOptionsDefaults:Load()
             enableDataCollection = false, -- Developer feature for capturing missing quest data
             showDataCollectionMessages = false, -- Show [DATA] messages in chat when collecting
             dataCollectionPrompted = nil, -- nil = not prompted, true = prompted
+            dataCollectionDevMode = false, -- Dev mode: Collect ALL quests, not just missing ones
         },
         char = {
             complete = {},

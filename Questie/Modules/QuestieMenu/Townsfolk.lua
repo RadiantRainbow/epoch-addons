@@ -173,14 +173,8 @@ function Townsfolk.Initialize()
         tinsert(professionTrainers[professionKeys.FIRST_AID], 13476)
     end
 
-    if Questie.IsWotlk or Questie.IsTBC then
-        local meetingStones = Townsfolk.GetMeetingStones()
-
-        townfolk["Meeting Stones"] = {}
-        for _, id in pairs(meetingStones) do
-            tinsert(townfolk["Meeting Stones"], id)
-        end
-    end
+    -- Meeting Stones will be added to faction-specific lists instead of global
+    -- to prevent duplicate display issues
 
     -- todo: specialized trainer types (leatherworkers, engineers, etc)
 
@@ -234,8 +228,13 @@ function Townsfolk.Initialize()
     
     -- Add Meeting Stones for WotLK/TBC
     if Questie.IsWotlk or Questie.IsTBC then
-        factionSpecificTownsfolk["Horde"]["Meeting Stones"] = townfolk["Meeting Stones"]
-        factionSpecificTownsfolk["Alliance"]["Meeting Stones"] = townfolk["Meeting Stones"]
+        local meetingStones = Townsfolk.GetMeetingStones()
+        local meetingStonesData = {}
+        for _, id in pairs(meetingStones) do
+            tinsert(meetingStonesData, id)
+        end
+        factionSpecificTownsfolk["Horde"]["Meeting Stones"] = meetingStonesData
+        factionSpecificTownsfolk["Alliance"]["Meeting Stones"] = meetingStonesData
     end
 
     factionSpecificTownsfolk["Horde"]["Mailbox"] = {}

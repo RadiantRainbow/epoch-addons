@@ -1,5 +1,346 @@
 # Changelog
 
+## [Unreleased]
+
+## [1.1.3] - 2025-09-03
+
+### Fixed
+- **Repository Cleanup** - Removed accidentally included temporary analysis files from release
+  - Cleaned up development files that were not intended for distribution
+  - Added additional patterns to .gitignore to prevent future inclusion
+  - Maintains clean addon package for users
+
+## [1.1.2] - 2025-09-03
+
+### Added
+- **Legacy Quest Data Integration** - Massive community quest database expansion
+  - Processed 875 GitHub quest submissions from dedicated Project Epoch players  
+  - Successfully integrated 173 brand new quest entries into database
+  - Updated 4 existing quests with improved data from community submissions
+  - Database now contains **757 total Epoch quests** (30% increase from 584)
+  - 97% validation success rate on legacy data processing pipeline
+  - All quest data syntax-validated and compilation-tested before integration
+  - Automated merge system ensures only quality improvements to existing data
+  - **Special thanks to every player who submitted quest data over the past week!**
+
+### Fixed
+- **Data Collection Export Crashes** - Fixed LibGroupTalents conflict preventing `/qdc export` from working
+  - Added pcall protection around export functions to prevent third-party addon conflicts
+  - Skada addon's LibGroupTalents-1.0 was causing arithmetic errors when export window opened
+  - Export now gracefully handles conflicts and provides helpful error messages
+  - Both slash command `/qdc export` and minimap "Export Quest Data" button now protected
+- **Coordinate Formatting Crashes in Export** - Fixed "bad argument #2 to 'format' (number expected, got nil)" errors
+  - Replaced unsafe string.format coordinate calls with SafeFormatCoords function
+  - Fixed multiple locations in FormatQuestExport that could crash with nil coordinates
+  - Export now gracefully handles missing coordinate data instead of crashing
+
+## [1.1.1] - 2025-01-03
+
+### Fixed
+- **QuestieSlash command error with ClearAllNotes**
+  - Fixed incorrect module reference: QuestieMap:ClearAllNotes() → QuestieQuest:ClearAllNotes()
+  - Resolves "attempt to call method 'ClearAllNotes' (a nil value)" error during quest refresh
+- **Data Collection coordinate formatting crashes**
+  - Fixed nil coordinate values causing string.format errors in export window
+  - Added SafeFormatCoords() helper function for defensive coordinate handling
+  - Prevents "bad argument #2 to 'format' (number expected, got nil)" crashes
+  - Graceful fallback messages for missing or invalid coordinate data
+- **Enhanced objective tracking improvements from v1.0.68 analysis**
+  - Improved progress location tracking with mob kill information
+  - Added "Progress locations:" section matching v1.0.68 format
+  - Progress entries now show "[55.4, 12.9] in Durotar - Killed Bloodtalon Scythemaw"
+  - Enhanced objective type detection: (monster), (item), (area)
+  - Better correlation between combat events and quest progress updates
+  - Added kill tracking with 5-second correlation window for progress updates
+  - Enhanced export format to display detailed objective progress like v1.0.68
+
+### Added
+- **Automatic completed quest sync on version updates**
+  - Questie now automatically refreshes completed quests from server when updated
+  - Fixes stuck quest markers that may appear after updates
+  - Runs once per version update via migration system
+- **Enhanced completed quest refresh command**
+  - `/questie refreshcomplete` now properly queries server for completed quests
+  - Clears all map icons and redraws after refresh to fix stuck quest markers
+  - Shows progress messages during refresh process
+- **New quest completion check command**
+  - `/questie checkcomplete <questId>` checks if a quest is marked complete
+  - Shows both local database and server status
+  - Warns if there's a mismatch between local and server data
+
+### Fixed
+- **QuestieMap error with invalid zone IDs**
+  - Fixed "No UiMapID for SelfieCamera_SoloModeWorlds" error on addon load
+  - Added validation to reject non-numeric zone IDs (frame names from modern WoW)
+  - Prevents crashes when other addons pass invalid data to map functions
+  - Gracefully handles invalid area IDs without throwing errors
+- **Map pin tooltips not showing without ElvUI**
+  - Fixed missing QuestieCompat.SetupTooltip call for 3.3.5 clients
+  - Restored proper tooltip selection logic from reference version
+  - SetupTooltip correctly chooses between GameTooltip and WorldMapTooltip based on context
+  - Tooltips now work correctly without requiring ElvUI or other addons
+- **Data Collection: [DATA] messages now respect toggle setting**
+  - Fixed [DATA] messages showing in chat despite toggle being disabled
+  - Converted 11 direct chat messages to use DebugMessage function
+  - Important "Epoch quest not in database accepted" messages always show
+  - Users can now disable data collection spam while keeping critical notifications
+- **Data Collection: Objects incorrectly captured as NPCs**
+  - Fixed GUID type detection to properly distinguish NPCs from objects
+  - Objects like "Pirate's Treasure" no longer show as "Captured NPC"
+  - Corrected GUID byte extraction (positions 5-6 instead of 3-4)
+  - Proper identification of GameObject (0x50), Item (0x60), DynamicObject (0x70)
+- **CRITICAL: Gnome starting quest bug** - Quest 28725 "Shift into G.E.A.R." now shows mob markers on map
+  - Fixed questFlags from 8 to 2 (questFlags=8 prevents map markers from displaying)
+  - Added missing quest 28725 (actual gnome quest ID, not 28901 as previously listed)
+  - Fixed NPC 46836 (Tinker Captain Whistlescrew) to start/end quest 28725
+  - Fixed questFlags for all gnome starting quests (28725, 28901-28903, 28726-28731)
+- **Database cleanup and performance** - Removed 43 duplicate quest entries
+  - Automated duplicate detection and removal system
+  - Cleaner database structure improves loading performance
+- **Container name capture for data collection** (Issue #32)
+  - Fixed "Unidentified Container" errors when looting ground objects
+  - Proper capture of container names like "Sun-Ripened Banana"
+  - Removed 5-second timestamp restriction causing data loss
+  - Don't overwrite good container data with placeholder names
+- **Tracker crashes fixed** - Nil SavedVariables initialization
+  - Fixed AutoUntrackedQuests and TrackedQuests nil errors on first run
+  - Added runtime initialization for missing SavedVariables fields
+  - Defensive nil checks prevent tracker crashes
+- **Project Epoch server compatibility**
+  - Disabled WotLK database contamination (Project Epoch is Vanilla server using 3.3.5 client)
+  - Commented out wotlk*.lua database files in TOC
+  - Proper quest count now shows ~4,824 instead of incorrect 7,899
+- **Data collection improvements**
+  - Fixed turn-in NPC capture by immediately capturing during QUEST_COMPLETE event (matching v1.0.68 working logic)
+  - Improved quest ID detection in QUEST_TURNED_IN event for better XP reward capture
+  - Fixed missing objectives and XP rewards in quest data export
+  - Enhanced quest turn-in tracking for rapid quest completions
+  - Fixed quest ID retrieval using position 9 in GetQuestLogTitle (WoW 3.3.5)
+  - Fixed objectives showing initial state (0/10) instead of current progress
+  - Fixed GetQuestLogQuestText to capture both description and objectives text
+  - Implemented ground object/container tracking matching v1.0.68 functionality
+- **Flight masters incorrectly categorized as service NPCs**
+  - Fixed flight masters being stored in serviceNPCs table instead of flightMasters
+  - Flight master count now correctly displays in export summary
+  - Proper separation of flight masters from other service NPCs in export
+  - Fixed export format to correctly display flight master locations
+- **Close and Purge Data button not working in export window**
+  - Fixed button to properly clear all collected data using ClearData function
+  - Now mirrors `/qdc clear` functionality exactly
+  - Clears all data types: quests, service NPCs, mailboxes, flight masters, etc.
+  - Added reminder to use /reload to free memory after purging
+- **Export data unicode characters causing copy/paste issues**
+  - Replaced all unicode symbols with ASCII equivalents for better compatibility
+  - Changed ✓/✗ to [x]/[ ] for objectives
+  - Changed ▶ to > for section headers
+  - Changed ═══ to === for separators
+  - Changed • to * for bullet points
+  - Changed ⚠️ to WARNING: for alerts
+  - Export data now uses only standard ASCII characters
+- **Removed zone change coordinate cache debug message**
+  - Eliminated spammy "[DATA] Zone changed, invalidating coordinate cache" message
+  - Cache invalidation still works, just silently
+- **Fixed incomplete objective text for some quests**
+  - Added smart extraction of mob names from objectives text when API returns incomplete data
+  - Fixes quests like "Panther Mastery" showing just "slain: 0/10" instead of "Panther slain: 0/10"
+  - Parses common quest patterns like "Kill 10 Panthers" to extract mob names
+  - Works around WoW 3.3.5 API inconsistencies in objective text
+- **Innkeeper service priority over vendor**
+  - Fixed innkeepers being listed as vendors instead of innkeepers
+  - Added detection for innkeeper service through GOSSIP_SHOW event
+  - Implemented service priority system (innkeeper > banker > flight_master > trainer > repair > vendor)
+  - Vendor service no longer overrides innkeeper identification
+  - Services now sorted by importance in exports
+
+### Changed
+- **Data collection export format restructured**
+  - Service NPCs now appear at the bottom of export for better organization
+  - Added clear ══════ separators between each quest for improved readability
+  - Flight masters now have their own dedicated section in exports
+
+### Added
+- **QuestieDataValidator module** - New validation system for database integrity
+  - Validates quest and NPC database structure and field types
+  - `/qdc validate` command for on-demand validation
+  - Automatic validation during addon initialization
+  - Catches database corruption before runtime errors occur
+- **Enhanced data collection system** - 28 collection points for comprehensive quest data
+  - Flight master tracking for all major cities and zones
+  - Ground object/container tracking with improved name capture
+  - Duplicate quest detection and cleanup tools
+  - Smart merge system for integrating external quest databases
+- **Ground object/container tracking** - Captures all interacted objects/containers while questing (herbs, ores, quest objects, etc.)
+  - Tracks multiple locations for same object
+  - Groups objects by name with all discovered coordinates
+  - Exports in GROUND OBJECTS/CONTAINERS section matching v1.0.68 format
+- `/qdc rescan` command to recapture missing quest objectives and current progress
+- Quest status display in exports (COMPLETED/IN PROGRESS/PARTIAL DATA)
+- Progress history tracking for objectives with timestamps and coordinates
+- Tooltip hook to capture object names on mouseover before interaction
+- Better fallback methods for determining quest ID during turn-in events
+
+## [1.1.0] - 2025-09-01
+
+### Major Features
+- **Complete Data Collection System Overhaul**
+  - Version control: We will only accept data from v1.1.0 or later
+  - Smart detection: Only tracks quests missing from database (skips known quests)
+  - Mismatch detection: Identifies database inconsistencies for NPCs, objects, items, coordinates
+  - Zone validation: Enhanced accuracy with comprehensive zone tracking
+  - Service NPC tracking: Captures vendors, trainers, bankers, mailboxes while questing
+  - Developer mode: Toggle to collect ALL quests for testing purposes
+  - Coordinate validation: Only flags significant mismatches (>10 units) to reduce false positives
+  - Export improvements: Includes database mismatches and coordinate discrepancies in reports
+  - XP reward tracking: Captures experience points awarded for quest completion
+  - Robust nil handling: All quest events now handle nil questIds properly (WoW 3.3.5 compatibility)
+
+### Critical Fixes
+- **Major database structure overhaul**
+  - Corrected quest objective structure (nil objectives must be in spellObjective position)
+  - Fixed quests 27040, 27041, 27462 compilation errors from incorrect objective structure
+  - Removed incorrect database prefixes causing syntax errors
+  - Complete syntax validation ensuring database loads without errors
+
+- **Invisible map pins crisis resolved**
+  - Fixed "custom" icon theme causing all quest pins to be invisible
+  - Disabled custom theme option to prevent user confusion
+  - Pins now show correctly with questie/classic themes
+
+- **Tooltip scaling inconsistency fixed**
+  - Fixed tooltip size changing with map zoom level
+  - Now always uses GameTooltip instead of WorldMapTooltip for consistent sizing
+  - Resolves map addon integration issues with scaled tooltips
+
+- **Quest progress not updating in tracker (Issue #467)**
+  - Fixed tracker showing 0/10 when quest log shows actual progress (e.g., 3/10)
+  - The compatibility layer was only reading 3 parameters from GetQuestLogLeaderBoard instead of 5
+  - In WoW 3.3.5, the API returns: description, type, finished, numFulfilled, numRequired
+  - Now properly reads numFulfilled and numRequired directly from the API instead of parsing text
+- **Quest 1014 "Arugal Must Die" showing in wrong location**
+  - Fixed NPC 1938 (Dalar Dawnweaver) incorrectly placed in Tirisfal Glades
+  - Corrected to proper location in Silverpine Forest (The Sepulcher)
+  - Quest now properly shows at coordinates 44.2, 39.8 in zone 130
+
+- **NPC ID printing twice in tooltips (Issue #469)**
+  - Added duplicate detection for NPC ID, Item ID, and Object ID in tooltips
+  - Prevents IDs from being added multiple times when tooltip is refreshed
+  - Checks existing tooltip lines before adding ID information
+
+- **Service NPC tracking/untracking issues in map dropdown**
+  - Fixed untracking not working when unchecking service types (Innkeeper, Banker, etc.)
+  - Fixed duplicate NPCs appearing when toggling service tracking on/off
+  - Now properly clears all existing frames before spawning new ones to prevent duplicates
+  - Ensures complete cleanup of manual frames when untracking service NPCs
+- **Objective Color "Red to Green" crashes with Epoch quests (Issue #332)**
+  - Fixed nil concatenation error when using colored objectives with Epoch runtime stub quests
+  - Added safety checks for nil or zero objective.Needed values (common with Epoch quests)
+  - Completed objectives without progress data now properly show green
+  - Unknown progress objectives show gray instead of crashing
+- **Lua error when turning in commission quests (Issue #428)**
+  - Fixed nil value error in QuestieQuest.lua line 1037
+  - Added safety check for quests without objectives data (common for commission/Epoch quests)
+  - Prevents crash when processing source items for quests lacking database entries
+
+- **Data Collection critical errors fixed**
+  - Fixed "QuestieDB was passed as questId" errors from incorrect API syntax
+  - Changed QuestieDB:GetQuest() to QuestieDB.GetQuest() (dot notation)
+  - Resolves critical errors that were spamming console on initialization
+  - Fixed QUEST_ACCEPTED event providing nil questId in WoW 3.3.5
+  - Now properly retrieves questId from quest log when event doesn't provide it
+
+### Added
+- **New `/qdc questgiver` command (Issue #485)**
+  - Manually capture quest giver NPC information for any quest
+  - Works similarly to `/qdc turnin` command
+  - Target the quest giver NPC and run `/qdc questgiver <questId>`
+  - Helps recover missing or incorrect quest giver data
+  - Automatically creates quest entry if it doesn't exist
+  - Clears "incomplete data" warning when quest giver is captured
+- **Profession data capture in QuestieDataCollector**
+  - Captures player's profession levels when accepting quests
+  - Records current skill rank, max rank, and tier (Apprentice/Journeyman/Expert/Artisan)
+  - Helps identify profession requirements for commission quests
+  - Displays profession data in quest export for GitHub submissions
+- **Full quest text capture**
+  - Now captures complete quest description text
+  - Captures full objectives text (not just parsed bullet points)
+  - Preserves quest narrative for database improvement
+  - Included in quest export for better documentation
+- **New toggle: Auto Track All Quests on Login**
+  - Located in Tracker Settings under Auto Track Quests option
+  - When disabled, your manually tracked quest selection persists between sessions
+  - When enabled (default), all quests are automatically tracked on login/reload
+  - Allows players to maintain their preferred quest tracking without it resetting
+
+## [Unreleased]
+
+## [1.0.70] - 2024-08-31
+
+### Added
+- **Object ID capture for quest-starting objects (wanted posters, books, etc.)**
+  - Data collector now captures object IDs when accepting quests from interactable objects
+  - Export format includes object quest starters with proper database entries
+  - Displays object information in quest tracking and export windows
+
+### Fixed
+- **Felicia Maline flight master location in Darkshire (Issue #419)**
+  - Fixed flight master map pin showing at wrong location
+  - Corrected coordinates to proper flight master position (77.4, 44.3)
+
+### Added (from GitHub issues)
+- **Commission: Vegan-Friendly Recipe (Issue #416)**
+  - First Aid profession quest requiring skill level 75+
+  - Properly marked with requiredSkill field for profession filtering
+  - Quest giver: Garrison Grader in Tirisfal Glades
+  - Turn-in: Private Waldric in Elwynn Forest
+- **28 new Epoch quests from GitHub issues #238-261**
+  - Complete quest data for The Handmaiden's Fall chain (26714, 26715)
+  - Multiple "Fit For A King" quests with different objectives
+  - Cross-faction delivery quests with proper NPC locations
+  - 11 new custom NPCs for quest givers and turn-ins
+- **6 new Epoch quests from GitHub issues #264-267**
+  - Silverpine Forest: The Missing Initiate chain (26875, 26877, 26878)
+  - Hillsbrad Foothills: A Lost Warrior (26795)
+  - Alterac Mountains: Justice Left Undone (26817) - updated with complete data
+  - Ashenvale: CHOP! (27030) - Horde event quest
+
+### Fixed
+- **Quest 27049 faction flag corrected (Issue #261)**
+  - Changed from Alliance (8) to Horde (2) since quest sends players to Orgrimmar
+- **96 TBC/WotLK flight masters removed from maps (Issue #262)**
+  - Blacklisted all non-existent flight masters (NPCs with IDs 17000+)
+  - Fixes Suralais Farwind incorrectly showing at Forest Song in Ashenvale
+  - Removes confusing flight path markers for NPCs not present in Project Epoch
+- **7 Classic flight masters restored to maps**
+  - Fixed incorrect npcFlags overrides that were hiding legitimate flight masters
+  - Restored: Jarrodenus (Azshara), Mishellena (Felwood), Bibilfaz Featherwhistle (WPL), Vhulgra (Ashenvale), Khaelyn Steelwing (EPL), Georgia (EPL), Faustron (Moonglade)
+
+## [1.0.69] - 2024-08-31
+
+### Added
+- **New Epoch quests from GitHub issues #241-244, #246**
+  - The Barrens: Exterminate the Brutes (26856)
+    - Added quest giver Ko'gar the Thunderer and target mobs (Razormane Hunters, Thornweavers, and Defenders)
+  - The Barrens: Plainstrider Menace (26918)
+    - Added quest giver Kodo Wrangler Grish and loot targets (Greater, Ornery, and Elder Plainstriders)
+  - Stormwind/Elwynn Forest: Commission for Marshal Haggard (28350)
+    - Quest giver: Brother Benjamin in Stormwind (coords adjusted from user data)
+    - Turn-in: Marshal Haggard at Eastvale Logging Camp
+    - Note: Corrected coordinate inconsistencies in submitted data
+  - Darnassus/Westfall: An Old Man's Request (26597)
+    - Quest giver/turn-in: Old Man Thistle in Darnassus
+    - Kill target: Klaven Mortwake in Westfall
+    - Note: NPC 7740 is Gracina Spiritmight in Classic but renamed for Epoch
+  - Eastern Plaguelands: Into the Scarlet Enclave (28905 - originally 26769)
+    - Quest giver/turn-in: Knight-Commander Entari
+    - Kill 12 Scarlet mobs in the Scarlet Enclave
+    - Note: Changed to ID 28905 due to duplicate quest ID conflict
+
+### Fixed
+- **Duplicate quest ID issue**
+  - Quest 26769 was defined twice (Gnarlier Than Thou and Just Desserts)
+  - Moved "Just Desserts" part 1 to ID 28904 to resolve conflict
+
 ## [1.0.68] - 2024-08-31
 
 ### Fixed

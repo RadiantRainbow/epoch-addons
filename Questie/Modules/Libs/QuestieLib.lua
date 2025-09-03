@@ -108,6 +108,16 @@ function QuestieLib:GetRGBForObjective(objective)
     if not objective.Collected or type(objective.Collected) ~= "number" then
         return FloatRGBToHex(0.8, 0.8, 0.8)
     end
+    
+    -- Safety check for nil or zero Needed value (common with Epoch runtime stub quests)
+    if not objective.Needed or type(objective.Needed) ~= "number" or objective.Needed == 0 then
+        -- If objective is marked as complete, show green, otherwise gray
+        if objective.Completed then
+            return RGBToHex(76, 255, 76)  -- Green for completed
+        else
+            return FloatRGBToHex(0.8, 0.8, 0.8)  -- Gray for unknown progress
+        end
+    end
 
     local float = objective.Collected / objective.Needed
     local trackerColor = Questie.db.profile.trackerColorObjectives
@@ -341,6 +351,19 @@ end
 ---@return Level requiredLevel
 ---@return Level requiredMaxLevel
 function QuestieLib.GetTbcLevel(questId, playerLevel)
+    -- Check if this is a runtime stub first
+    local QuestiePlayer = QuestieLoader:ImportModule("QuestiePlayer")
+    if QuestiePlayer and QuestiePlayer.currentQuestlog and QuestiePlayer.currentQuestlog[questId] then
+        local quest = QuestiePlayer.currentQuestlog[questId]
+        if quest.__isRuntimeStub and quest.questLevel then
+            -- Use the level data from the runtime stub
+            local stubQuestLevel = quest.questLevel
+            local stubRequiredLevel = quest.requiredLevel or stubQuestLevel
+            local stubMaxLevel = quest.requiredMaxLevel or 0
+            return stubQuestLevel, stubRequiredLevel, stubMaxLevel
+        end
+    end
+    
     local questLevel, requiredLevel = QuestieDB.QueryQuestSingle(questId, "questLevel"), QuestieDB.QueryQuestSingle(questId, "requiredLevel")
     if (questLevel == -1) then
         local level = playerLevel or QuestiePlayer.GetPlayerLevel();

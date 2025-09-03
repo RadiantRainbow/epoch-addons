@@ -468,9 +468,27 @@ function QuestieOptions.tabs.advanced:Initialize()
                     end
                 end,
             },
+            dataCollectionDevMode = {
+                type = "toggle",
+                order = 6.04,
+                name = function() return "|cFFFF0000[DEV MODE]|r Collect All Quests"; end,
+                desc = function() return "|cFFFF0000Developer Mode:|r Collect data for ALL quests, not just missing ones.\n\n|cFFFFFF00WARNING: This will collect data for quests already in the database!\nOnly use this for testing the collection system.|r"; end,
+                descStyle = "inline",
+                width = "full",
+                disabled = function() return not Questie.db.profile.enableDataCollection; end,
+                get = function() return Questie.db.profile.dataCollectionDevMode; end,
+                set = function(_, value)
+                    Questie.db.profile.dataCollectionDevMode = value
+                    if value then
+                        DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[Questie] DEV MODE ENABLED - Collecting ALL quests (including known ones)|r", 1, 0, 0)
+                    else
+                        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie] Dev mode disabled - Only collecting missing quests|r", 0, 1, 0)
+                    end
+                end,
+            },
             dataCollectionInfo = {
                 type = "description",
-                order = 6.03,
+                order = 6.05,
                 name = function() return "|cFFFFFF00Commands when enabled:|r\n/qdc show - Show tracked quests\n/qdc export <id> - Export quest data\n/qdc clear - Clear collected data\n\n|cFFFF0000Warning:|r This feature tracks all quest interactions and saves data to SavedVariables."; end,
                 fontSize = "medium",
             },

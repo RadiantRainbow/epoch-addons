@@ -300,7 +300,7 @@ ZGV.ConditionEnv = {
   end,
 
   hasbuff = function(query, count)
-    local aura = C_UnitAuras.GetPlayerAuraBySpellID(tonumber(query))
+    local aura = ZGV.Retrofit.C_UnitAuras.GetPlayerAuraBySpellID(tonumber(query))
     if aura and (aura.applications or 0) >= (count or 0) then
       return true
     end
@@ -343,46 +343,8 @@ ZGV.ConditionEnv = {
     return false
   end,
 
-  completedq = function(...)
-    local count = select('#', ...)
-    for i = 1, count do
-      local id = select(i, ...)
-      if tonumber(id) then -- just quest
-        if C_QuestLog.IsQuestFlaggedCompleted(id) then
-          return true
-        end
-      else
-        if id:match('-') then -- range of quests
-          for _, qid in ipairs(ParseRanges(id)) do
-            if C_QuestLog.IsQuestFlaggedCompleted(qid) then
-              return true
-            end
-          end
-        else -- quest/objective
-          local _, id, obj = ParseID(id)
-          local qcomplete = C_QuestLog.IsQuestFlaggedCompleted(id)
-          if qcomplete then
-            return true
-          end
-          if not obj then
-            return false
-          end
-          local q = ZGV.questsbyid[id]
-          if not q then
-            return false
-          end
-          if q.complete then
-            return true
-          end
-          if not q.goals or not q.goals[obj] then
-            return false
-          end
-          return q.goals[obj].complete
-        end
-      end
-    end
-
-    return false
+  completedq = function(quest)
+    return ZGV.Retrofit.C_QuestLog.IsQuestFlaggedCompleted(id)
   end,
 
   subzone = function(name)
@@ -468,6 +430,8 @@ local function MakeCondition(cond, forcebool)
   end
   return fun, err
 end
+
+local last_goal_was_text = nil
 
 --- parse ONE guide section into usable arrays.
 function me:ParseEntry(guidedata)
@@ -981,8 +945,10 @@ function me:ParseEntry(guidedata)
         if splits[2] then
           --goal.experience = tonumber(splits[2])
           goal.level = tonumber(splits[1])
+          goal.experience = tonumber(splits[2])
         else
           goal.level = tonumber(params)
+          goal.experience = 0
         end
 
         --print(goal.level)
@@ -1217,7 +1183,7 @@ function me:ParseEntry(guidedata)
         if goal.x then
           goal.map = prevmap
         end
-
+        goal.notinsticky = true
         goal.text = (cmd == "'") and params or chunk
       end
 

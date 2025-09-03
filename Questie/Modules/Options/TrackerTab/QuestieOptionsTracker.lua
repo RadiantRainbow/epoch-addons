@@ -17,6 +17,9 @@ local TrackerQuestTimers = QuestieLoader:ImportModule("TrackerQuestTimers")
 ---@type TrackerUtils
 local TrackerUtils = QuestieLoader:ImportModule("TrackerUtils")
 
+---@type TomTomAuto
+local TomTomAuto = QuestieLoader:ImportModule("TomTomAuto")
+
 ---@type l10n
 local l10n = QuestieLoader:ImportModule("l10n")
 
@@ -110,9 +113,25 @@ function QuestieOptions.tabs.tracker:Initialize()
                             QuestieTracker:Update()
                         end
                     },
-                    showQuestLevels = {
+                    autoTrackOnLogin = {
                         type = "toggle",
                         order = 2,
+                        width = 1.5,
+                        name = function() return l10n('Auto Track All Quests on Login') end,
+                        desc = function() return l10n("When enabled, all quests in your quest log will be automatically tracked when you log in or reload. When disabled, your manually tracked quest selection will persist between sessions.\n\nNOTE: This only affects the initial login behavior. The 'Auto Track Quests' setting still controls whether new quests are automatically tracked when accepted.") end,
+                        disabled = function() return not Questie.db.profile.trackerEnabled or not Questie.db.profile.autoTrackQuests end,
+                        get = function() return Questie.db.profile.autoTrackOnLogin end,
+                        set = function(_, value)
+                            Questie.db.profile.autoTrackOnLogin = value
+                            if value then
+                                -- If enabling, track all quests now
+                                QuestieTracker:SyncAllQuests()
+                            end
+                        end
+                    },
+                    showQuestLevels = {
+                        type = "toggle",
+                        order = 3,
                         width = 1.5,
                         name = function() return l10n('Show Quest Level') end,
                         desc = function() return l10n('When this is checked, the Quest Level Tags for Quest Titles will show in the Questie Tracker.') end,
@@ -125,7 +144,7 @@ function QuestieOptions.tabs.tracker:Initialize()
                     },
                     showQuestTimer = {
                         type = "toggle",
-                        order = 3,
+                        order = 4,
                         width = 1.5,
                         name = function() return l10n('Show Blizzard Timer') end,
                         desc = function() return l10n('When this is checked, the default Blizzard Timer Frame for Quests will be shown instead of being embedded inside the Questie Tracker.') end,
@@ -145,7 +164,7 @@ function QuestieOptions.tabs.tracker:Initialize()
                     },
                     listAchievementsFirst = {
                         type = "toggle",
-                        order = 4,
+                        order = 5,
                         width = 1.5,
                         name = function() return l10n("List Achievements First") end,
                         desc = function() return l10n("When this is checked, the Questie Tracker will list Achievements first then Quests.") end,
@@ -591,9 +610,10 @@ function QuestieOptions.tabs.tracker:Initialize()
                             get = function() return Questie.db.profile.tomtomAutoTargetMode end,
                             set = function(_, value)
                                 Questie.db.profile.tomtomAutoTargetMode = value
-                                TrackerUtils:StartTomTomAutoTracking()
-                                if not value then
-                                    TrackerUtils:StopTomTomAutoTracking()
+                                if value then
+                                    TomTomAuto:StartTomTomAutoTracking()
+                                else
+                                    TomTomAuto:StopTomTomAutoTracking()
                                 end
                             end
                     },

@@ -102,6 +102,7 @@ local function _CreateRuntimeQuestStub(questId, questLogData)
                 
                 -- Always try to get fresh objectives from quest log API for consistency
                 if SelectQuestLogEntry and GetNumQuestLeaderBoards and GetQuestLogLeaderBoard then
+                    local originalSelection = GetQuestLogSelection()
                     SelectQuestLogEntry(qli)
                     local numObjectives = GetNumQuestLeaderBoards()
                     if numObjectives and numObjectives > 0 then
@@ -121,6 +122,10 @@ local function _CreateRuntimeQuestStub(questId, questLogData)
                             rawObjectives = objectives  -- Use fresh API data for consistency
                             Questie:Debug(Questie.DEBUG_INFO, "[_CreateRuntimeQuestStub] Retrieved", #objectives, "objectives from 3.3.5a API for quest", questId)
                         end
+                    end
+                    -- Restore original selection
+                    if originalSelection and originalSelection > 0 then
+                        SelectQuestLogEntry(originalSelection)
                     end
                 end
             end
@@ -1034,7 +1039,14 @@ end
 local function _AddSourceItemObjective(quest)
     if quest.sourceItemId then
         -- Save the itemObjective table from the quests objectives table
-        local objectives = QuestieDB.QueryQuestSingle(quest.Id, "objectives")[3]
+        local questObjectives = QuestieDB.QueryQuestSingle(quest.Id, "objectives")
+        if not questObjectives then
+            -- Quest has no objectives data (common for commission/Epoch quests)
+            Questie:Debug(Questie.DEBUG_DEVELOP, "[QuestieQuest:_AddSourceItemObjective] Quest", quest.Id, "has no objectives data")
+            return
+        end
+        
+        local objectives = questObjectives[3]
 
         -- Look for an itemObjective Id that matches sourceItemId - if found exit
         if objectives then
@@ -1872,6 +1884,7 @@ function _QuestieQuest.ObjectiveUpdate(self)
     if quest and quest.__isRuntimeStub then
         local qli = GetQuestLogIndexByID and GetQuestLogIndexByID(self.questId)
         if qli and SelectQuestLogEntry and GetNumQuestLeaderBoards and GetQuestLogLeaderBoard then
+            local originalSelection = GetQuestLogSelection()
             SelectQuestLogEntry(qli)
             local numObjectives = GetNumQuestLeaderBoards()
             if numObjectives and self.Index <= numObjectives then
@@ -1888,8 +1901,16 @@ function _QuestieQuest.ObjectiveUpdate(self)
                     self.Needed = tonumber(numRequired) or 0
                     self.Completed = finished or ((self.Collected > 0) and (self.Needed > 0) and (self.Collected == self.Needed))
                     self.isUpdated = true
+                    -- Restore original selection before return
+                    if originalSelection and originalSelection > 0 then
+                        SelectQuestLogEntry(originalSelection)
+                    end
                     return
                 end
+            end
+            -- Restore original selection
+            if originalSelection and originalSelection > 0 then
+                SelectQuestLogEntry(originalSelection)
             end
         end
     end

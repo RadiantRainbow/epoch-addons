@@ -141,6 +141,8 @@ function Step:PrepareCompletion()
     end
   end
 
+  ZGV:ResetMacroButtons()
+
   -- REMOVE non-matching goals
   --[[
 	local i=1
@@ -304,6 +306,7 @@ function Step:IsCurrentlySticky()
   if not self.is_sticky then
     return false
   end -- obviously.
+
   if not ZGV.CurrentStickies then
     return false
   end
@@ -331,7 +334,8 @@ function Step:CanBeSticky()
       if goal.questid and not goal.future then
         hasquests = true
         local quest = ZGV.questsbyid[goal.questid]
-        local inlog = (quest and quest.inlog)
+        --print("Onquest? "..tostring(quest.inlog))
+        local inlog = quest
         if goal.action == 'accept' or inlog then
           onquest = true
           break

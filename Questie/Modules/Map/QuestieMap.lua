@@ -580,8 +580,25 @@ function QuestieMap:DrawWorldIcon(data, areaID, x, y, showFlag)
     if type(data) ~= "table" then
         error("Questie" .. ": AddWorldMapIconMap: must have some data")
     end
-    --if type(areaID) ~= "number" or type(x) ~= "number" or type(y) ~= "number" then
-    --    error("Questie"..": AddWorldMapIconMap: 'AreaID', 'x' and 'y' must be numbers "..areaID.." "..x.." "..y.." "..tostring(showFlag))
+    
+    -- Validate areaID - must be a number, not a string like frame names or NPC names
+    if type(areaID) ~= "number" then
+        -- Check if it's a known problematic frame name from modern WoW
+        if type(areaID) == "string" and (areaID:find("Camera") or areaID:find("Selfie") or areaID:find("Solo")) then
+            Questie:Debug(Questie.DEBUG_DEVELOP, "[QuestieMap] Ignoring modern WoW frame name passed as areaID:", areaID)
+            return nil, nil
+        end
+        -- Check if it looks like an NPC name/ID string (e.g., "22 - Magistrate Solomon")
+        if type(areaID) == "string" and areaID:find("^%d+ %- ") then
+            Questie:Debug(Questie.DEBUG_DEVELOP, "[QuestieMap] Ignoring NPC ID/name string passed as areaID:", areaID)
+            return nil, nil
+        end
+        Questie:Warning("[QuestieMap] Invalid areaID type - expected number, got:", type(areaID), tostring(areaID))
+        return nil, nil
+    end
+    
+    --if type(x) ~= "number" or type(y) ~= "number" then
+    --    error("Questie"..": AddWorldMapIconMap: 'x' and 'y' must be numbers "..x.." "..y.." "..tostring(showFlag))
     --end
     --if type(data.Id) ~= "number" or type(data.Id) ~= "number"then
     --    error("Questie".."Data.Id must be set to the quests ID!")
@@ -590,11 +607,19 @@ function QuestieMap:DrawWorldIcon(data, areaID, x, y, showFlag)
     local uiMapId = ZoneDB:GetUiMapIdByAreaId(areaID)
     if (not uiMapId) then
         local parentMapId
-        local mapInfo = C_Map.GetMapInfo(areaID)
-        if mapInfo then
-            parentMapId = mapInfo.parentMapID
+        -- C_Map.GetMapInfo expects a uiMapID, not an areaID
+        -- Also need to validate the areaID is actually numeric before using it
+        if type(areaID) == "number" then
+            local mapInfo = C_Map.GetMapInfo(areaID)
+            if mapInfo then
+                parentMapId = mapInfo.parentMapID
+            else
+                parentMapId = ZoneDB:GetParentZoneId(areaID)
+            end
         else
-            parentMapId = ZoneDB:GetParentZoneId(areaID)
+            -- Invalid areaID type, can't proceed
+            Questie:Debug(Questie.DEBUG_DEVELOP, "[QuestieMap] Non-numeric areaID in DrawWorldIcon:", tostring(areaID))
+            return nil, nil
         end
 
         if (not parentMapId) then
@@ -618,8 +643,13 @@ function QuestieMap:DrawWorldIcon(data, areaID, x, y, showFlag)
             Questie:Debug(Questie.DEBUG_DEVELOP, "[QuestieMap] Skipping continent-level icon for zone:", areaID, data.Name)
             return nil, nil
         end
+        -- Check if this might be an NPC ID mistakenly used as zone ID (common low numbers)
+        if areaID < 100 and data.Name and type(data.Name) == "string" and not data.Name:find("Zone") then
+            Questie:Debug(Questie.DEBUG_DEVELOP, "[QuestieMap] Likely NPC ID used as zone ID, skipping:", areaID, data.Name)
+            return nil, nil
+        end
         --ZoneDB:GetUiMapIdByAreaId
-        error("No UiMapID or fitting uiMapId for areaId : " .. areaID .. " - " .. tostring(data.Name))
+        Questie:Warning("[QuestieMap] No UiMapID for areaId:", areaID, "- Name:", tostring(data.Name))
         return nil, nil
     end
 

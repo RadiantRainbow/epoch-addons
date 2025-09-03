@@ -4,6 +4,12 @@ local QuestieDB = QuestieLoader:ImportModule("QuestieDB");
 
 local epochItemData = {
 [782] = {"Painted Gnoll Armband",{97,478},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{11}},
+[5635] = {"Sharp Claw",{47102},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{28759}}, -- Added: Sharp Claw from Juvenile Tiger for quest 28759
+[60200] = {"Sun-Ripened Banana",nil,{188800},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{28757}}, -- Added: Sun-Ripened Banana from ground object for quest 28757
+[60201] = {"Conch Shell",nil,{188801},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{28758}}, -- Added: Conch Shell from shore object for quest 28758
+[60300] = {"Medical Supplies",nil,{190010},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{28727}}, -- Added: Medical Supplies from supply crates for quest 28727
+[60301] = {"Emergency Rations",nil,{190011},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{28733}}, -- Added: Emergency Rations from supply caches for quest 28733
+[60302] = {"Warm Blanket",nil,{190012},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{28733}}, -- Added: Warm Blankets from supply bundles for quest 28733
 [3625] = {"Nek'rosh's Head",{45262},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{26999}},
 [6252] = {"[Epoch] Item 6252",{4677},nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,{27256}},
 [8684] = {"Hinterlands Honey Ripple",nil,{142191}},

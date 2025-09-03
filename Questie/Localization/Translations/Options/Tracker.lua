@@ -39,6 +39,12 @@ local trackerOptionsLocales = {
         ["esES"] = "Rastrear misiones automáticamente",
         ["frFR"] = "Suivi auto des quêtes",
     },
+    ["Auto Track All Quests on Login"] = {
+        ["enUS"] = true,
+    },
+    ["When enabled, all quests in your quest log will be automatically tracked when you log in or reload. When disabled, your manually tracked quest selection will persist between sessions.\n\nNOTE: This only affects the initial login behavior. The 'Auto Track Quests' setting still controls whether new quests are automatically tracked when accepted."] = {
+        ["enUS"] = true,
+    },
     ["This is the same as 'Enable Automatic Quest Tracking' in the Blizzard Interface Options. When enabled, the Questie Tracker will automatically track all Quests in your Quest Log. Disabling this option will untrack all Quests. You will have to manually select which Quests to track.\n\nNOTE: 'Show Complete Quests' is disabled while this option is not being used."] = {
         ["ptBR"] = "É o mesmo que 'Ativar rastreamento automático de missões' nas opções da interface. Quando ativado, o Questie Rastreador rastreia automaticamente todas as missões em seu registro. Isso evita o rastreamento manual com a tecla Shift pressionada.",
         ["ruRU"] = "Когда включено, трекер будет автоматически отслеживать все задания в вашем журнале (это то же самое, что и 'Отслеживание заданий' в настройках интерфейса игры). Отключение данной настройки приведет к отмене отслеживания всех заданий в вашем журнале, вам придется вручную выбрать задания для отслеживания.\n\nПРИМЕЧАНИЕ: Настройка 'Выполненные задания' будет отключена при отключении данной настройки",
