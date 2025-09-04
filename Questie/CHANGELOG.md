@@ -2,6 +2,92 @@
 
 ## [Unreleased]
 
+### Added
+- **Update Reminder System** - Silent, one-time reminder to help users know about latest releases
+  - Shows once per session with 2-second delay to avoid intrusiveness
+  - Includes option to disable update reminders in Advanced Options
+  - Cleaned up version check and slash commands
+  - Helps users stay informed about important fixes and features
+
+### Fixed
+- **CRITICAL: QuestieDB.lua StartedBy Nil Value Flood** - Fixed massive error spam in database processing threads
+  - Added defensive nil check for `QO.startedBy` before accessing startedBy[1], startedBy[2], startedBy[3]
+  - Prevents flood of "attempt to index local 'startedBy' (a nil value)" errors at QuestieDB.lua:1401
+  - Quest data with missing startedBy fields now gets safe nil values instead of crashing
+  - **This stops the continuous error spam that was flooding users**
+
+- **CRITICAL: Database Corruption Cascade Errors** - Fixed critical errors causing addon initialization failures
+  - Added comprehensive defensive checks to `QuestieQuest:PopulateObjective()` function to prevent crashes from corrupted quest data
+  - Implemented automatic detection and cleanup of corrupted SavedVariables data during addon initialization
+  - Fixed crashes from missing `quest.ObjectiveData`, invalid `objective.Index`, and malformed objective structures
+  - Added runtime validation and repair of quest objective properties (`spawnList`, `Update` method, etc.)
+  - Prevents cascade errors that were preventing addon loading after database expansion
+  - Users with corrupted data will see automatic cleanup messages on first login after this fix
+  - **This resolves the "QuestieQuest.lua:71" error chain reported by users**
+
+- **CRITICAL: Corrections Module Initialization Errors** - Fixed "table index is nil" errors during corrections loading
+  - Implemented comprehensive hardcoded fallback system for all database tables when not loaded during initialization
+  - Fixed multiple functions in `classicQuestFixes.lua`: `Load()` and `LoadFactionFixes()` both get fallback logic
+  - Fixed missing `name` key (value 1) that was causing "classicQuestFixes.lua:143" error  
+  - Fixed `LoadFactionFixes()` function that was missing fallback logic causing "classicQuestFixes.lua:4128" error
+  - Added complete questKeys fallback table with all 30 keys from questDB.lua to all correction functions
+  - Added zoneIDs fallback table with 40+ commonly used zones from zoneTables.lua  
+  - Added fallback tables for raceIDs, classIDs, sortKeys, factionIDs, and profession keys
+  - **Removed scary warning messages** - fallback system now operates silently to avoid user panic
+  - **This resolves "questKeys.reputationReward is nil (0 total)", "classicQuestFixes.lua:143", and "classicQuestFixes.lua:4128" errors**
+
+- **QuestLogCache Race Condition Errors** - Fixed "quest doesn't exist in QuestLogCache" errors during quest acceptance  
+  - Modified `QuestLogCache.GetQuest()` to return nil gracefully instead of throwing user-visible errors
+  - Modified `QuestLogCache.GetQuestObjectives()` to return nil gracefully instead of throwing user-visible errors  
+  - Added intelligent logging: only shows debug messages for questId=0 (invalid) or when debug mode enabled
+  - Fixed race condition where quest acceptance tries to access cache before it's populated
+  - Prevents error spam during quest acceptance for quests not yet in database or cache
+  - **Resolves "GetQuest: The quest doesn't exist in QuestLogCache. 0" errors reported in Hinterlands**
+
+- **CRITICAL: WoW 3.3.5 Profession Tracking (Issue #1093)** - Fixed "GetProfessions doesn't exist" crash during profession quest acceptance
+  - Replaced incompatible `GetProfessions()` API call with QuestieProfessions module for 3.3.5 compatibility
+  - **EXPANDED SCOPE**: Now tracks professions for ALL skill-required quests, not just commission quests
+  - Uses `questDB.requiredSkill` database field to detect ANY quest requiring profession skills
+  - Fixed crash when accepting herbalism/mining/crafting quests and ALL profession-based quest types
+  - Data collector now captures player professions for proper quest requirement validation
+  - Uses `GetNumSkillLines()` and `GetSkillLineInfo()` APIs that exist in WoW 3.3.5 instead of post-4.0.1 APIs
+  - **Resolves "GetProfessions doesn't exist in QuestieDataCollector.lua" errors for ALL profession quests**
+
+### Fixed
+- **CRITICAL: Coordinate System API Failures (Issue #3)** - Fixed coordinate type mismatches causing crashes and positioning errors
+  - **API Usage Fix**: Fixed QuestieDataCollector incorrectly calling QuestieCoords.GetPlayerMapPosition() expecting separate x,y values instead of position table
+  - **Type Safety**: Eliminated "x=table y=number" coordinate type mismatches that were causing crashes in data collection
+  - **Position Accuracy**: Quest objective markers now appear in correct locations instead of failing coordinate validation
+  - **Data Collection Stability**: Fixed coordinate comparison failures that were crashing QuestieDataCollector during quest tracking
+  - **Map Integration**: Restored proper coordinate handling for quest positioning and map waypoints
+  - **This eliminates the coordinate crashes affecting quest data collection and map integration**
+
+- **CRITICAL: Runtime Stub System Logic Errors (Issue #2)** - Fixed incorrect quest prefixes, zones, and levels
+  - **Quest Prefix Logic**: Fixed hardcoded ID range check causing Project Epoch's reused TBC quest IDs (11160, 11161) to get [Missing] prefix instead of [Epoch]
+  - **Zone Assignment**: Runtime stubs now use actual current zone ID instead of defaulting to 0 (unknown zone)
+  - **Quest Levels**: Fixed quest levels defaulting to 0 by extracting actual level from client quest log
+  - **Known Quest ID Reuses**: Added explicit handling for Project Epoch quests that reuse TBC quest IDs in different zones
+  - Quest 11160 "Banner of the Stonemaul" now correctly shows [Epoch] prefix and Dustwallow Marsh zone instead of [Missing] and Westfall
+  - Quest 11161 "The Essence of Enmity" now correctly shows [Epoch] prefix and proper zone/level information
+  - **This fixes the systematic misreporting of quest attributes (level, location, faction) for hundreds of quests**
+
+- **CRITICAL: Missing NPC Database Entries (Issue #1)** - Resolved database compilation failures
+  - Fixed 10 missing NPC entries in epochNpcDB.lua causing `[CRITICAL] [QuestieDB:GetNPC] rawdata is nil` errors
+  - Added NPCs: Mogern Blackeye (45069), Aeromir (45555), High Chief Ungarl (46009), Marwin Shrillwill (46094), Luyua Earthmoon (46130), Ordo Earthmoon (46131), Sasia Forestcrest (46165), Lorespeaker Vanza (46233), Dead Troll (46234), S.J. Erlgadin Jr. (46278)
+  - Added placeholder for NPC 46293 pending data collection
+  - All NPCs extracted from GitHub quest submissions with complete coordinate and quest relationship data
+  - Database compilation now succeeds without CRITICAL lookup errors
+  - Quest markers and interactions now work properly for affected quests (27370, 26771, 27314, 27315, 27509, etc.)
+  - **This fixes the cascade failures preventing proper quest display and interaction**
+
+### Added
+- **Enhanced Quest Data Collection** - Now tracks player class, race, faction, and level information
+  - Records player class and race when accepting quests (useful for class/race specific quest analysis)
+  - Captures player faction (Alliance/Horde) for faction-specific quest identification
+  - Records player level at time of quest acceptance
+  - Information appears in exported quest data for GitHub submissions
+  - Helps identify quest requirements and availability patterns
+
 ## [1.1.3] - 2025-09-03
 
 ### Fixed

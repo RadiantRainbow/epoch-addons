@@ -113,7 +113,11 @@ function ZoneDB:GetAreaIdByUiMapId(uiMapId)
                 return areaId
             end
         end
-        error("No AreaId found for UiMapId: " .. uiMapId .. ":" .. C_Map.GetMapInfo(uiMapId).name)
+        -- CRITICAL FIX: Don't throw error for missing AreaId, return nil gracefully
+        local mapInfo = C_Map.GetMapInfo(uiMapId)
+        local mapName = mapInfo and mapInfo.name or "Unknown"
+        Questie:Debug(Questie.DEBUG_DEVELOP, "[ZoneDB:GetAreaIdByUiMapId] WARNING: No AreaId found for UiMapId:", uiMapId, ":", mapName)
+        return nil  -- Return nil instead of throwing error
     end
 end
 

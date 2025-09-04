@@ -1267,14 +1267,42 @@ function QuestieDB.GetQuest(questId) -- /dump QuestieDB.GetQuest(867)
             
             -- Create minimal stub data for the tracker with error protection
             local stubSuccess, stubData = pcall(function()
-                -- Use different prefix based on quest ID range
-                local prefix = questId >= 26000 and "[Epoch] " or "[Missing] "
+                -- FIX #1: Known Project Epoch quest ID reuses (better than hardcoded range)
+                local epochQuestIDReuses = {
+                    [11160] = true, -- Banner of the Stonemaul (reused TBC ID in Dustwallow Marsh)
+                    [11161] = true, -- The Essence of Enmity (reused TBC ID in Dustwallow Marsh)
+                }
+                local isEpochQuest = questId >= 26000 or epochQuestIDReuses[questId]
+                local prefix = isEpochQuest and "[Epoch] " or "[Missing] "
+                
+                -- FIX #2: Get actual zone ID instead of defaulting to 0
+                local currentZoneId = 0 -- Default fallback
+                if GetCurrentMapAreaID then
+                    currentZoneId = GetCurrentMapAreaID() or 0
+                end
+                
+                -- FIX #3: Get quest level from client quest log
+                local questLevel = 60 -- Default fallback
+                if questTitle then -- We found it in quest log
+                    for i = 1, GetNumQuestLogEntries() do
+                        local title, level, _, _, _, _, _, id = GetQuestLogTitle(i)
+                        if id == questId and level then
+                            questLevel = level
+                            break
+                        end
+                    end
+                end
+                
+                -- DEBUG: Log improvements for troubleshooting (only for specific quests)
+                if questId == 11160 or questId == 11161 then
+                    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[DEBUG]|r Runtime stub FIXED for questId: " .. questId .. " prefix: '" .. prefix .. "' zone: " .. currentZoneId .. " level: " .. questLevel, 0, 1, 0)
+                end
                 return {
                     prefix .. (questTitle or ("Quest " .. questId)), -- [1] name
                     {{}, {}, {}}, -- [2] startedBy (properly structured: {NPCs, GameObjects, Items})
                     {{}, {}}, -- [3] finishedBy (properly structured: {NPCs, GameObjects})
                     1,   -- [4] requiredLevel (default)
-                    60,  -- [5] questLevel (default max)
+                    questLevel, -- [5] questLevel (from client quest log)
                     0,   -- [6] requiredRaces (all)
                     0,   -- [7] requiredClasses (all)
                     nil, -- [8] objectivesText
@@ -1286,7 +1314,7 @@ function QuestieDB.GetQuest(questId) -- /dump QuestieDB.GetQuest(867)
                     nil, -- [14] childQuests
                     nil, -- [15] inGroupWith
                     nil, -- [16] exclusiveTo
-                    0,   -- [17] zoneOrSort (unknown zone)
+                    currentZoneId, -- [17] zoneOrSort (actual current zone)
                     nil, -- [18] requiredSkill
                     nil, -- [19] requiredMinRep
                     nil, -- [20] requiredMaxRep

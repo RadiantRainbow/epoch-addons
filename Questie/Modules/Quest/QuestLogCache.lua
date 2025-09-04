@@ -356,11 +356,13 @@ end
 ---@param questId QuestId
 ---@return QuestLogCacheData? @NEVER EVER MODIFY THE RETURNED TABLE
 function QuestLogCache.GetQuest(questId)
-    -- Fix the issue at function caller side if this error pops up.
+    -- Return nil gracefully for missing quests to avoid race conditions during quest acceptance
     if (not cache[questId]) then
-        Questie:Print(debugstack(1, 20, 4))
-        Questie:Error("Please report this error. GetQuest: The quest doesn't exist in QuestLogCache.", questId)
-        return
+        -- Only debug log for questId=0 (invalid) or in debug mode to avoid spam
+        if questId == 0 or Questie.db.profile.debugLevel >= Questie.DEBUG_DEVELOP then
+            Questie:Debug(Questie.DEBUG_DEVELOP, "[QuestLogCache] Quest not in cache (race condition):", questId)
+        end
+        return nil
     end
     return cache[questId]
 end
@@ -369,11 +371,13 @@ end
 ---@param questId QuestId
 ---@return table<ObjectiveIndex, QuestLogCacheObjectiveData>? @NEVER EVER MODIFY THE RETURNED TABLE
 function QuestLogCache.GetQuestObjectives(questId)
-    -- Fix the issue at function caller side if this error pops up.
+    -- Return nil gracefully for missing quests to avoid race conditions during quest acceptance
     if (not cache[questId]) then
-        Questie:Print(debugstack(1, 20, 4))
-        Questie:Error("Please report this error. GetQuestObjectives: The quest doesn't exist in QuestLogCache.", questId)
-        return
+        -- Only debug log for questId=0 (invalid) or in debug mode to avoid spam
+        if questId == 0 or Questie.db.profile.debugLevel >= Questie.DEBUG_DEVELOP then
+            Questie:Debug(Questie.DEBUG_DEVELOP, "[QuestLogCache] Quest objectives not in cache (race condition):", questId)
+        end
+        return nil
     end
     return cache[questId].objectives
 end

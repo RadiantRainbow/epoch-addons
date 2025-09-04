@@ -9,7 +9,7 @@ local C_Timer = QuestieCompat and QuestieCompat.C_Timer or C_Timer
 
 -- Current version and latest known version
 local CURRENT_VERSION = GetAddOnMetadata("Questie", "Version")
-local LATEST_KNOWN_VERSION = "1.0.65"  -- Update this with each release
+local LATEST_KNOWN_VERSION = "1.1.3"  -- Update this with each release
 local VERSION_CHECK_SHOWN = false
 
 -- GitHub releases URL for manual checking
@@ -22,6 +22,12 @@ function QuestieVersionCheck:Initialize()
             QuestieVersionCheck:CheckVersion()
         end)
     end
+
+    -- Listen for other players' version messages and broadcast ours once
+    QuestieVersionCheck:RegisterAddonMessages()
+    C_Timer.After(8, function()
+        QuestieVersionCheck:BroadcastVersion()
+    end)
 end
 
 function QuestieVersionCheck:CheckVersion()
@@ -77,39 +83,24 @@ function QuestieVersionCheck:CompareVersions(version1, version2)
 end
 
 function QuestieVersionCheck:ShowUpdateNotification()
-    -- Show in chat
-    DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00Questie Epoch:|r Your version (|cFFFF6B6B" .. CURRENT_VERSION .. "|r) is outdated!", 1, 0.5, 0)
-    DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00Questie Epoch:|r Latest version is |cFF6BFF6B" .. LATEST_KNOWN_VERSION .. "|r", 1, 0.5, 0)
-    DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00Questie Epoch:|r Visit |cFF6B9BFF" .. GITHUB_RELEASES_URL .. "|r to download the update", 1, 0.5, 0)
-    
-    -- Also show as a screen message
-    UIErrorsFrame:AddMessage("Questie Epoch: New version " .. LATEST_KNOWN_VERSION .. " available!", 1.0, 0.5, 0.0, 1.0, 5)
+    -- Silent popup reminder 
+    local QuestieUpdateReminder = QuestieLoader:ImportModule("QuestieUpdateReminder")
+    if QuestieUpdateReminder and QuestieUpdateReminder.ShowPopup then
+        QuestieUpdateReminder:ShowPopup(CURRENT_VERSION, LATEST_KNOWN_VERSION, GITHUB_RELEASES_URL)
+        return
+    end
+
+    -- Falls back to chat as a redundant reminder
+    DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00Questie Epoch:|r Update available: " .. LATEST_KNOWN_VERSION .. " — " .. GITHUB_RELEASES_URL, 1, 0.5, 0)
 end
 
--- Slash command to manually check version
-SLASH_QUESTIEVERSION1 = "/questieversion"
-SLASH_QUESTIEVERSION2 = "/qversion"
-SlashCmdList["QUESTIEVERSION"] = function()
-    local current = QuestieVersionCheck:ParseVersion(CURRENT_VERSION)
-    local latest = QuestieVersionCheck:ParseVersion(LATEST_KNOWN_VERSION)
-    
-    DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00Questie Epoch Version Check|r", 1, 0.5, 0)
-    DEFAULT_CHAT_FRAME:AddMessage("Your version: |cFF6B9BFF" .. CURRENT_VERSION .. "|r", 1, 1, 1)
-    DEFAULT_CHAT_FRAME:AddMessage("Latest known: |cFF6B9BFF" .. LATEST_KNOWN_VERSION .. "|r", 1, 1, 1)
-    
-    if QuestieVersionCheck:CompareVersions(current, latest) < 0 then
-        DEFAULT_CHAT_FRAME:AddMessage("|cFFFF6B6BYour version is outdated!|r", 1, 0, 0)
-        DEFAULT_CHAT_FRAME:AddMessage("Download at: |cFF6B9BFF" .. GITHUB_RELEASES_URL .. "|r", 1, 1, 1)
-    elseif QuestieVersionCheck:CompareVersions(current, latest) > 0 then
-        DEFAULT_CHAT_FRAME:AddMessage("|cFF6BFF6BYou're running a development version|r", 0, 1, 0)
-    else
-        DEFAULT_CHAT_FRAME:AddMessage("|cFF6BFF6BYour version is up to date!|r", 0, 1, 0)
-    end
-end
+-- Manual version slash commands removed to reduce command surface
 
 -- Advanced: Check version from other players (optional)
 function QuestieVersionCheck:RegisterAddonMessages()
-    RegisterAddonMessagePrefix("QuestieVersion")
+    if RegisterAddonMessagePrefix then
+        RegisterAddonMessagePrefix("QuestieVersion")
+    end
     
     local frame = CreateFrame("Frame")
     frame:RegisterEvent("CHAT_MSG_ADDON")
@@ -126,9 +117,14 @@ function QuestieVersionCheck:HandleVersionMessage(version, sender)
     
     if theirVersion and ourVersion then
         if QuestieVersionCheck:CompareVersions(theirVersion, ourVersion) > 0 then
-            -- They have a newer version
-            if not VERSION_CHECK_SHOWN then
-                DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00Questie:|r " .. sender .. " is using version " .. version .. " (newer than yours!)", 1, 0.5, 0)
+            
+            local QuestieUpdateReminder = QuestieLoader:ImportModule("QuestieUpdateReminder")
+            if QuestieUpdateReminder and QuestieUpdateReminder.ShowPopup then
+                QuestieUpdateReminder:ShowPopup(CURRENT_VERSION, version, GITHUB_RELEASES_URL)
+                VERSION_CHECK_SHOWN = true
+            else
+                -- Fallback to minimal chat message
+                DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00Questie Epoch:|r Newer version detected: " .. version .. " — " .. GITHUB_RELEASES_URL, 1, 0.5, 0)
                 VERSION_CHECK_SHOWN = true
             end
         end

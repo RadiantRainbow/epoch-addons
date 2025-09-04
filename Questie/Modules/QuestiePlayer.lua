@@ -119,11 +119,19 @@ function QuestiePlayer:GetCurrentContinentId()
         return 1 -- Default to Eastern Kingdom
     end
 
+    -- CRITICAL FIX: Add defensive checks for l10n.zoneLookup
+    if not l10n or not l10n.zoneLookup then
+        Questie:Debug(Questie.DEBUG_DEVELOP, "[QuestiePlayer:GetCurrentContinentId] WARNING: l10n.zoneLookup not available, defaulting to Eastern Kingdom")
+        return 1 -- Default to Eastern Kingdom
+    end
+
     local currentContinentId = 1 -- Default to Eastern Kingdom
     for cId, cont in pairs(l10n.zoneLookup) do
-        for id, _ in pairs(cont) do
-            if id == currentZoneId then
-                currentContinentId = cId
+        if cont and type(cont) == "table" then
+            for id, _ in pairs(cont) do
+                if id == currentZoneId then
+                    currentContinentId = cId
+                end
             end
         end
     end

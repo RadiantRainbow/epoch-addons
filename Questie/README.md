@@ -1,3 +1,10 @@
+### ☕ Support Development
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Support%20Development-orange?style=for-the-badge&logo=buy-me-a-coffee)](https://buymeacoffee.com/trav346)
+
+If you find this version of Questie with data collection helpful, consider [buying me a coffee](https://buymeacoffee.com/trav346) to support continued development!
+
+---
+
 # Questie for Project Epoch
 NOTE: Data submissions prior to v1.1.1 will soon be deprecated.
 

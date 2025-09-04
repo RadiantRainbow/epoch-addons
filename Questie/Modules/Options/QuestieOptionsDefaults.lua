@@ -46,8 +46,8 @@ function QuestieOptionsDefaults:Load()
             questObjectiveColors = false,
             questMinimapObjectiveColors = false,
             enableObjectives = true,
-            enableTurnins = true,
-            enableAvailable = true,
+            enableTurnins = false,
+            enableAvailable = false,
             enableTooltips = true,
             enableTooltipsItemID = false,
             enableTooltipsNPCID = false,
@@ -153,6 +153,9 @@ function QuestieOptionsDefaults:Load()
             soundOnObjectiveProgress = false,
             objectiveProgressSoundChoiceName = "ObjectiveProgress",
             iconTheme = "questie",
+
+            -- Update reminder
+            disableUpdateReminder = false,
 
             minimap = {
                 hide = false

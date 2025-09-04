@@ -406,11 +406,11 @@ end
 function QuestieStreamLib:_WriteInt12Pair_assert(val1, val2)
     assert(type(val1) == "number", "Not a number")
     assert(val1 >= 0, "Underflow")
-    assert(val1 <= 4095, "Overflow") -- 12 bits
+    assert(val1 <= 65535, "Overflow") -- Increased to 16 bits for expanded database
 
     assert(type(val2) == "number", "Not a number")
     assert(val2 >= 0, "Underflow")
-    assert(val2 <= 4095, "Overflow") -- 12 bits
+    assert(val2 <= 65535, "Overflow") -- Increased to 16 bits for expanded database
 
     self:_WriteInt12Pair(val1, val2)
 end

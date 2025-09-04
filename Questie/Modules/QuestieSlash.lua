@@ -36,8 +36,10 @@ function QuestieSlash.HandleCommands(input)
         table.insert(commands, c)
     end
 
+    -- Parse primary/secondary command early for all handlers
     local mainCommand = commands[1]
     local subCommand = commands[2]
+
 
     -- /questie
     if mainCommand == "" or not mainCommand then
@@ -65,8 +67,6 @@ function QuestieSlash.HandleCommands(input)
         print(Questie:Colorize("/questie dumplog - " .. l10n("Export your quest log data for troubleshooting"), "yellow"));
         print(Questie:Colorize("/questie flex - " .. l10n("Flex the amount of quests you have completed so far"), "yellow"));
         print(Questie:Colorize("/questie doable [questID] - " .. l10n("Prints whether you are eligibile to do a quest"), "yellow"));
-        print(Questie:Colorize("/questie version - " .. l10n("Prints Questie and client version info"), "yellow"));
-        print(Questie:Colorize("/questie version check - " .. l10n("Compare EpogQuestie versions with all server users"), "yellow"));
         return;
     end
 
@@ -106,34 +106,69 @@ function QuestieSlash.HandleCommands(input)
     
     -- /questie refreshcomplete - Force refresh completed quests and clean up stuck map icons
     if mainCommand == "refreshcomplete" then
-        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie]|r Querying server for completed quests...", 0, 1, 0)
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie]|r Refreshing quest icons...", 0, 1, 0)
         
-        -- Query the server for completed quests (this triggers QUEST_QUERY_COMPLETE event)
-        QueryQuestsCompleted()
+        -- Try to query server for completed quests (may not work on all servers)
+        local serverQueryAttempted = false
+        if QueryQuestsCompleted then
+            serverQueryAttempted = true
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie]|r Attempting server query for completed quests...", 0, 1, 0)
+            QueryQuestsCompleted()
+        else
+            DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[Questie]|r Server query not available, using local data only.", 1, 1, 0)
+        end
         
-        -- Set up a one-time listener for when the query completes
-        local frame = CreateFrame("Frame")
-        frame:RegisterEvent("QUEST_QUERY_COMPLETE")
-        frame:SetScript("OnEvent", function(self, event)
-            -- Update our completed quest database
-            GetQuestsCompleted(Questie.db.char.complete)
+        -- Set up refresh logic with timeout protection
+        local refreshFrame = CreateFrame("Frame")
+        local timeoutTimer
+        local refreshExecuted = false
+        
+        local function executeRefresh()
+            if refreshExecuted then return end
+            refreshExecuted = true
             
-            -- Remove all quest map icons first
-            QuestieQuest:ClearAllNotes()
+            -- Cancel timeout if it exists
+            if timeoutTimer then
+                timeoutTimer:SetScript("OnUpdate", nil)
+            end
             
-            -- Force a full quest refresh
-            QuestieQuest:Initialize()
-            QuestieQuest:UpdateQuests()
+            -- Update completed quest database if server query worked
+            if Questie.db.char.complete and GetQuestsCompleted then
+                GetQuestsCompleted(Questie.db.char.complete)
+            end
             
-            -- Redraw the map
-            QuestieMap.InitializeQueue()
+            -- Force a complete refresh of all quest icons
+            QuestieQuest:SmoothReset()
             
-            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie]|r Completed quests refreshed! Map has been redrawn.", 0, 1, 0)
-            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie]|r If issues persist, try /reload", 0, 1, 0)
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie]|r Quest icons refreshed! Map has been redrawn.", 0, 1, 0)
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie]|r If icons are still missing, try /reload", 0, 1, 0)
             
-            -- Clean up the frame
-            self:UnregisterEvent("QUEST_QUERY_COMPLETE")
-        end)
+            -- Clean up
+            refreshFrame:UnregisterAllEvents()
+        end
+        
+        if serverQueryAttempted then
+            -- Set up listener for server response
+            refreshFrame:RegisterEvent("QUEST_QUERY_COMPLETE")
+            refreshFrame:SetScript("OnEvent", function(self, event)
+                DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie]|r Server query completed.", 0, 1, 0)
+                executeRefresh()
+            end)
+            
+            -- Set up timeout in case server never responds (3 seconds)
+            timeoutTimer = CreateFrame("Frame")
+            local elapsed = 0
+            timeoutTimer:SetScript("OnUpdate", function(self, deltaTime)
+                elapsed = elapsed + deltaTime
+                if elapsed >= 3 then
+                    DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[Questie]|r Server query timeout - refreshing with local data.", 1, 1, 0)
+                    executeRefresh()
+                end
+            end)
+        else
+            -- No server query available, refresh immediately
+            executeRefresh()
+        end
         
         return;
     end

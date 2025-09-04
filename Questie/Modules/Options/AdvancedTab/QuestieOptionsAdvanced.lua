@@ -48,6 +48,21 @@ function QuestieOptions.tabs.advanced:Initialize()
                 order = 1,
                 name = function() return l10n('Advanced Settings'); end,
             },
+            updateReminderToggle = {
+                type = "toggle",
+                order = 1.05,
+                name = function() return l10n('Disable Update Reminder'); end,
+                desc = function() return l10n('Suppress the login update popup and peer version popups.'); end,
+                width = 1.7,
+                get = function()
+                    return Questie.db and Questie.db.profile and (Questie.db.profile.disableUpdateReminder == true) or false
+                end,
+                set = function(_, value)
+                    if Questie and Questie.db and Questie.db.profile then
+                        Questie.db.profile.disableUpdateReminder = (value == true)
+                    end
+                end,
+            },
             enableIconLimit = {
                 type = "toggle",
                 order = 1.1,
