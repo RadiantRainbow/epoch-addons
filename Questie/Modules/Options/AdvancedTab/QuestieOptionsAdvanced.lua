@@ -15,6 +15,8 @@ local QuestieTracker = QuestieLoader:ImportModule("QuestieTracker");
 local IsleOfQuelDanas = QuestieLoader:ImportModule("IsleOfQuelDanas");
 ---@type l10n
 local l10n = QuestieLoader:ImportModule("l10n")
+---@type QuestieDataCollector
+local QuestieDataCollector = QuestieLoader:ImportModule("QuestieDataCollector")
 
 QuestieOptions.tabs.advanced = {...}
 local optionsDefaults = QuestieOptionsDefaults:Load()
@@ -246,7 +248,14 @@ function QuestieOptions.tabs.advanced:Initialize()
                     Questie.db.profile.enabled = optionsDefaults.profile.enabled;
                     Questie.db.profile.lowLevelStyle = optionsDefaults.profile.lowLevelStyle;
 
-                    Questie.db.profile.migrationVersion = nil
+                    -- Set migrationVersion to current version to prevent migrations from running after reset
+                    local Migration = QuestieLoader:ImportModule("Migration")
+                    if Migration and Migration.GetCurrentMigrationVersion then
+                        Questie.db.profile.migrationVersion = Migration:GetCurrentMigrationVersion()
+                    else
+                        -- Fallback: if Migration module fails, set to a high number to avoid re-migrations
+                        Questie.db.profile.migrationVersion = 999
+                    end
 
                     Questie.db.profile.minimap.hide = optionsDefaults.profile.minimap.hide;
 
@@ -300,6 +309,19 @@ function QuestieOptions.tabs.advanced:Initialize()
                 order = 5,
                 name = l10n('Developer Options'),
             },
+            tooltipIDsNotice = {
+                type = "description",
+                order = 5.005,
+                name = function()
+                    if Questie.db.profile.enableDataCollection then
+                        return "|cFFFF0000Tooltip IDs are automatically enabled for data collection.\nDisable data collection to manually control these settings.|r\n"
+                    else
+                        return ""
+                    end
+                end,
+                fontSize = "medium",
+                hidden = function() return not Questie.db.profile.enableDataCollection end,
+            },
             bugWorkarounds = {
                 type = "toggle",
                 order = 5.01,
@@ -316,7 +338,7 @@ function QuestieOptions.tabs.advanced:Initialize()
                 order = 5.02,
                 name = function() return l10n('Show Item IDs'); end,
                 desc = function() return l10n('When this is checked, the ID of items will shown in tooltips.'); end,
-                disabled = function() return (not Questie.db.profile.enableTooltips); end,
+                disabled = function() return ((not Questie.db.profile.enableTooltips) or Questie.db.profile.enableDataCollection); end,
                 width = "full",
                 get = function() return Questie.db.profile.enableTooltipsItemID; end,
                 set = function (_, value)
@@ -328,7 +350,7 @@ function QuestieOptions.tabs.advanced:Initialize()
                 order = 5.03,
                 name = function() return l10n('Show NPC IDs'); end,
                 desc = function() return l10n('When this is checked, the ID of NPCs will be shown in tooltips.'); end,
-                disabled = function() return (not Questie.db.profile.enableTooltips); end,
+                disabled = function() return ((not Questie.db.profile.enableTooltips) or Questie.db.profile.enableDataCollection); end,
                 width = "full",
                 get = function() return Questie.db.profile.enableTooltipsNPCID; end,
                 set = function (_, value)
@@ -340,7 +362,7 @@ function QuestieOptions.tabs.advanced:Initialize()
                 order = 5.04,
                 name = function() return l10n('Show Object IDs'); end,
                 desc = function() return l10n('When this is checked, the ID of objects will be shown in tooltips. These are guesses and only show the first matching ID in the QuestieDB.'); end,
-                disabled = function() return (not Questie.db.profile.enableTooltips); end,
+                disabled = function() return ((not Questie.db.profile.enableTooltips) or Questie.db.profile.enableDataCollection); end,
                 width = "full",
                 get = function() return Questie.db.profile.enableTooltipsObjectID; end,
                 set = function (_, value)
@@ -352,7 +374,7 @@ function QuestieOptions.tabs.advanced:Initialize()
                 order = 5.05,
                 name = function() return l10n('Show Quest IDs'); end,
                 desc = function() return l10n('When this is checked, the ID of quests will show in tooltips and the tracker.'); end,
-                disabled = function() return (not Questie.db.profile.enableTooltips); end,
+                disabled = function() return ((not Questie.db.profile.enableTooltips) or Questie.db.profile.enableDataCollection); end,
                 width = "full",
                 get = function() return Questie.db.profile.enableTooltipsQuestID; end,
                 set = function (_, value)
@@ -439,7 +461,7 @@ function QuestieOptions.tabs.advanced:Initialize()
                 type = "toggle",
                 order = 6.02,
                 name = function() return "Enable Quest Data Collection"; end,
-                desc = function() return "When enabled, automatically captures quest data for missing Epoch quests. |cFFFF0000DEVELOPER FEATURE ONLY|r\n\nThis will alert you when accepting quests not in the database and capture NPC IDs, coordinates, and objectives."; end,
+                desc = function() return "When enabled, automatically captures quest data for missing Epoch quests. |cFF00FF00Thank you for contributing!|r\n\nThis will alert you when accepting quests not in the database and capture NPC IDs, coordinates, and objectives."; end,
                 descStyle = "inline",
                 width = "full",
                 get = function() return Questie.db.profile.enableDataCollection; end,
@@ -449,19 +471,19 @@ function QuestieOptions.tabs.advanced:Initialize()
                         -- Initialize the data collector
                         if QuestieDataCollector and QuestieDataCollector.Initialize then
                             QuestieDataCollector:Initialize()
+                            DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[Questie] Quest Data Collection ENABLED - Developer mode active|r", 1, 0, 0)
                         end
                         -- Enable tooltip IDs for data collection
                         if QuestieDataCollector and QuestieDataCollector.EnableTooltipIDs then
                             QuestieDataCollector:EnableTooltipIDs()
+                            DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[Questie] Tooltip IDs have been enabled to assist with data collection|r", 1, 1, 0)
                         end
-                        DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[Questie] Quest Data Collection ENABLED - Developer mode active|r", 1, 0, 0)
-                        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[Questie] Tooltip IDs have been enabled to assist with data collection|r", 1, 1, 0)
                     else
                         -- Restore original tooltip settings
-                        if QuestieDataCollector and QuestieDataCollector.RestoreTooltipIDs then
-                            QuestieDataCollector:RestoreTooltipIDs()
+                        if QuestieDataCollector and QuestieDataCollector.RestoreTooltipSettings then
+                            QuestieDataCollector:RestoreTooltipSettings()
+                            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie] Quest Data Collection disabled|r", 0, 1, 0)
                         end
-                        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie] Quest Data Collection disabled|r", 0, 1, 0)
                     end
                 end,
             },
@@ -487,7 +509,7 @@ function QuestieOptions.tabs.advanced:Initialize()
                 type = "toggle",
                 order = 6.04,
                 name = function() return "|cFFFF0000[DEV MODE]|r Collect All Quests"; end,
-                desc = function() return "|cFFFF0000Developer Mode:|r Collect data for ALL quests, not just missing ones.\n\n|cFFFFFF00WARNING: This will collect data for quests already in the database!\nOnly use this for testing the collection system.|r"; end,
+                desc = function() return "|cFFFF0000Developer Mode:|r Collect data for ALL quests, not just missing ones."; end,
                 descStyle = "inline",
                 width = "full",
                 disabled = function() return not Questie.db.profile.enableDataCollection; end,

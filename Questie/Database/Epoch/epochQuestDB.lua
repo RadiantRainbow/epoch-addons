@@ -2,6 +2,7 @@
 local QuestieDB = QuestieLoader:ImportModule("QuestieDB")
 
 epochQuestData = {
+[783] = {"A Threat Within",{{823}},{{197}},nil,1,nil,nil,{"Speak with Marshal McBride."},nil,nil,nil,nil,nil,nil,nil,nil,12,nil,nil,nil,nil,7,8,0,nil,nil,nil,nil,nil,nil},
 [1288] = {"Vimes's Report",{{4944}},{{4967}},nil,38,nil,2,nil,nil,nil,nil,nil,nil,nil,nil,nil,15,nil,nil,nil,nil,nil,2,0,nil,nil,nil,nil,nil,nil},
 [11160] = {"Banner of the Stonemaul",{{23579}},{{23579}},35,39,0,nil,{"Retrieve the Stonemaul Banner and bring it to Brogg at Brogg's Hollow."},nil,{nil,nil,{{33086}}},nil,nil,{11158},nil,nil,nil,15,nil,nil,nil,nil,nil,8},
 [11161] = {"The Essence of Enmity",{{23579}},{{23579}},35,39,0,nil,{"Bring 10 Black Dragonkin Essences to Brogg at Brogg's Hollow."},nil,{nil,nil,{{33087}}},33088,nil,{11158},nil,nil,nil,15},

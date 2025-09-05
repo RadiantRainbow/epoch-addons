@@ -41,6 +41,8 @@ local QuestiePlayer = QuestieLoader:ImportModule("QuestiePlayer")
 local QuestieMap = QuestieLoader:ImportModule("QuestieMap")
 ---@type l10n
 local l10n = QuestieLoader:ImportModule("l10n")
+---@type QuestieDataCollector
+local QuestieDataCollector = QuestieLoader:ImportModule("QuestieDataCollector")
 
 --- COMPATIBILITY ---
 local C_Timer = QuestieCompat.C_Timer
@@ -328,11 +330,18 @@ function _QuestEventHandler:QuestAccepted(questLogIndex, questId)
                 Questie:Debug(Questie.DEBUG_INFO, "[QuestAccepted] Converted questTag:", questTag, "to questType:", questType)
             end
             
+            -- Analyze quest completeness for enhanced stub creation
+            local QuestCompletenessScorer = QuestieLoader:ImportModule("QuestCompletenessScorer")
+            local completenessInfo = QuestCompletenessScorer:AnalyzeQuestCompleteness(questId)
+            
+            -- Create appropriate quest name with completeness-based prefix
+            local prefixedTitle = completenessInfo.prefix .. tostring(title)
+            
             -- Create a basic stub immediately with full quest metadata
             local immediateStub = {
                 Id = questId,
-                name = "[Epoch] " .. tostring(title),
-                LocalizedName = "[Epoch] " .. tostring(title),
+                name = prefixedTitle,
+                LocalizedName = prefixedTitle,
                 Level = actualQuestLevel,
                 level = actualQuestLevel, -- tracker uses lower-case 'level'
                 zoneOrSort = currentZoneName and -9999 or 0,
@@ -482,6 +491,59 @@ function _QuestEventHandler:HandleQuestAccepted(questId)
         end
     else
         Questie:Debug(Questie.DEBUG_INFO, "[HandleQuestAccepted] Quest", questId, "is already in database, no runtime stub needed")
+        
+        -- Check quest completeness using the new scoring system
+        local quest = QuestieDB.GetQuest(questId)
+        if quest and _IsIncompleteQuestWithMinimumData(questId, quest) then
+            -- Import completeness scorer for detailed analysis
+            local QuestCompletenessScorer = QuestieLoader:ImportModule("QuestCompletenessScorer")
+            local completenessInfo = QuestCompletenessScorer:AnalyzeQuestCompleteness(questId)
+            
+            -- Provide specific warning based on completeness level
+            local warningMessage = ""
+            local helpMessage = ""
+            
+            if completenessInfo.state == QuestCompletenessScorer.COMPLETENESS_STATES.MINIMAL then
+                warningMessage = string.format("|cFFFFAA00WARNING: Quest is only %d%% complete in database! Missing: %s|r", 
+                    completenessInfo.percentage, table.concat(completenessInfo.missingFields, ", "))
+                if not completenessInfo.canShowPins then
+                    helpMessage = "|cFFFF6F22No map pins will be available - quest giver location missing.|r"
+                end
+            elseif completenessInfo.state == QuestCompletenessScorer.COMPLETENESS_STATES.PARTIAL then
+                warningMessage = string.format("|cFFFFD700Quest is %d%% complete in database. Missing: %s|r", 
+                    completenessInfo.percentage, table.concat(completenessInfo.missingFields, ", "))
+                if completenessInfo.canShowPins then
+                    helpMessage = "|cFF00AA00Good news: Quest giver pins should be available!|r"
+                end
+            elseif completenessInfo.state == QuestCompletenessScorer.COMPLETENESS_STATES.MOSTLY_COMPLETE then
+                warningMessage = string.format("|cFFAAFFAA Quest is %d%% complete - only minor data missing: %s|r", 
+                    completenessInfo.percentage, table.concat(completenessInfo.missingFields, ", "))
+            end
+            
+            if warningMessage ~= "" then
+                DEFAULT_CHAT_FRAME:AddMessage(warningMessage)
+            end
+            if helpMessage ~= "" then
+                DEFAULT_CHAT_FRAME:AddMessage(helpMessage)
+            end
+            
+            -- Check if data collection is enabled, with targeted message
+            if QuestieDataCollector and QuestieDataCollector.IsDataCollectionEnabled and QuestieDataCollector.IsDataCollectionEnabled() then
+                local collectMessage = string.format("|cFF00FF00Data collection is enabled - help us improve this quest from %d%% to 100%% complete!|r", 
+                    completenessInfo.percentage)
+                DEFAULT_CHAT_FRAME:AddMessage(collectMessage)
+            else
+                -- Show one-time prompt if user hasn't been asked before
+                if QuestieDataCollector and QuestieDataCollector.PromptForDataCollection then
+                    QuestieDataCollector:PromptForDataCollection(questId, quest.name, completenessInfo)
+                else
+                    -- Fallback with targeted message
+                    local collectMessage = string.format("|cFFFFFF00Type '/qdc enable' to help improve this quest from %d%% to 100%% complete!|r", 
+                        completenessInfo.percentage)
+                    DEFAULT_CHAT_FRAME:AddMessage(collectMessage)
+                end
+            end
+        end
     end
 
     QuestieJourney:AcceptQuest(questId)
@@ -908,4 +970,78 @@ function _QuestEventHandler:OnEvent(event, ...)
     elseif event == "CHAT_MSG_COMBAT_FACTION_CHANGE" then
         _QuestEventHandler:ReputationChange()
     end
+end
+
+--- Helper function to determine if quest is incomplete but has minimum viable data for display
+--- Requirements: quest name, quest ID, quest giver NPC ID, NPC location in database
+--- But missing turn-in location or objective details
+---@param questId number
+---@param quest Quest?
+---@return boolean
+_IsIncompleteQuestWithMinimumData = function(questId, quest)
+    if not quest then
+        quest = QuestieDB.GetQuest(questId)
+    end
+    if not quest then
+        return false
+    end
+    
+    -- Must have a real quest name (not runtime stub)
+    if not quest.name or string.find(quest.name, "%[Epoch%]") then
+        return false
+    end
+    
+    -- Must have quest giver NPC with valid location
+    local questGiver = quest.startedBy and quest.startedBy[1] and quest.startedBy[1][1]
+    if not questGiver then
+        return false
+    end
+    
+    local npc = QuestieDB.GetNPC(questGiver)
+    if not npc or not npc.spawns then
+        return false
+    end
+    
+    -- Check if NPC has valid spawn coordinates
+    local hasValidSpawn = false
+    for zone, spawns in pairs(npc.spawns) do
+        if spawns and #spawns > 0 then
+            for _, coords in ipairs(spawns) do
+                if coords[1] and coords[2] and coords[1] > 0 and coords[2] > 0 then
+                    hasValidSpawn = true
+                    break
+                end
+            end
+        end
+        if hasValidSpawn then break end
+    end
+    
+    if not hasValidSpawn then
+        return false
+    end
+    
+    -- Now check if quest is missing critical completion data
+    local isMissingData = false
+    
+    -- Check if missing turn-in NPC
+    if not quest.finishedBy or not quest.finishedBy[1] or not quest.finishedBy[1][1] then
+        isMissingData = true
+    end
+    
+    -- Check if missing objectives
+    if not quest.objectives or not quest.objectives[1] then
+        isMissingData = true
+    end
+    
+    -- Check if objectives are placeholder/empty
+    if quest.objectives and quest.objectives[1] then
+        local creatures = quest.objectives[1]
+        local objects = quest.objectives[2] 
+        local items = quest.objectives[3]
+        if (not creatures or #creatures == 0) and (not objects or #objects == 0) and (not items or #items == 0) then
+            isMissingData = true
+        end
+    end
+    
+    return isMissingData
 end

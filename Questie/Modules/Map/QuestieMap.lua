@@ -309,13 +309,18 @@ function QuestieMap.ProcessQueue()
         -- Nothing to process
         return
     end
-
+    
     local scaleValue = QuestieMap.GetScaleValue()
-    for _ = 1, math.min(24, math.max(#mapDrawQueue, #minimapDrawQueue)) do
+    if scaleValue <= 0 then
+        scaleValue = 1.0
+    end
+    for i = 1, math.min(24, math.max(#mapDrawQueue, #minimapDrawQueue)) do
         local mapDrawCall = tremove(mapDrawQueue, 1);
+        
         if mapDrawCall then
             local frame = mapDrawCall[2];
-            HBDPins:AddWorldMapIconMap(tunpack(mapDrawCall));
+            
+            HBDPins:AddWorldMapIconMap(tunpack(mapDrawCall))
 
             --? If you ever chanage this logic, make sure you change the logic in QuestieMap.utils:RescaleIcon function too!
             local size = (16 * (frame.data.IconScale or 1) * (Questie.db.profile.globalScale or 0.7)) * scaleValue;
@@ -323,6 +328,7 @@ function QuestieMap.ProcessQueue()
             frame:SetSize(size, size)
 
             QuestieMap.utils:SetDrawOrder(frame);
+            
         end
 
         local minimapDrawCall = tremove(minimapDrawQueue, 1);
@@ -333,14 +339,23 @@ function QuestieMap.ProcessQueue()
             QuestieMap.utils:SetDrawOrder(frame);
         end
 
-        mapDrawCall[2]._loaded = true
-        if mapDrawCall[2]._needsUnload then
-            mapDrawCall[2]:Unload()
+        -- REVERT TO ORIGINAL LOGIC: Set _loaded flags unconditionally like pre-regression
+        -- The queues should be synchronized - if one has an item, both should process
+        if mapDrawCall and mapDrawCall[2] then
+            mapDrawCall[2]._loaded = true
+            if mapDrawCall[2]._needsUnload then
+                mapDrawCall[2]:Unload()
+            end
         end
-
-        minimapDrawCall[2]._loaded = true
-        if minimapDrawCall[2]._needsUnload then
-            minimapDrawCall[2]:Unload()
+        
+        -- CRITICAL: minimapDrawCall might be nil but we still need to process mapDrawCall
+        -- The original error was because minimapDrawCall was nil
+        -- But we can't skip setting _loaded on mapDrawCall just because minimapDrawCall is nil
+        if minimapDrawCall and minimapDrawCall[2] then
+            minimapDrawCall[2]._loaded = true
+            if minimapDrawCall[2]._needsUnload then
+                minimapDrawCall[2]:Unload()
+            end
         end
     end
 end
@@ -738,6 +753,7 @@ function QuestieMap:DrawWorldIcon(data, areaID, x, y, showFlag)
         -- iconMinimap:SetScript("OnUpdate", )
     end
 
+    -- Queue both icons unconditionally (v1.1.4 behavior)
     QuestieMap:QueueDraw(QuestieMap.ICON_MINIMAP_TYPE, Questie, iconMinimap, uiMapId, x / 100, y / 100, true, floatOnEdge)
     QuestieMap:QueueDraw(QuestieMap.ICON_MAP_TYPE, Questie, iconMap, uiMapId, x / 100, y / 100, showFlag)
     local r, g, b = iconMinimap.texture:GetVertexColor()

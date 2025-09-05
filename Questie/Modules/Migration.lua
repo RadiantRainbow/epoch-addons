@@ -98,12 +98,30 @@ function Migration:Migrate()
         return
     end
 
+    -- Detect if user might be stuck in migration loop (common issue after "Reset Questie")
+    if currentVersion == 0 and Questie.db.profile.enabled ~= nil then
+        Questie:Warning("[Migration] Detected migrationVersion=0 on existing profile - this usually means 'Reset Questie' was used incorrectly")
+        Questie:Warning("[Migration] If your settings keep resetting every login, this is the cause")
+    end
+
     Questie:Debug(Questie.DEBUG_DEVELOP, "[Migration] Starting Questie migration for targetVersion", targetVersion)
 
     while currentVersion < targetVersion do
         currentVersion = currentVersion + 1
+        if currentVersion == 1 then
+            -- Migration 1 is the "reset all settings" migration from v9.0
+            -- If we're running this on an existing profile, warn the user
+            if Questie.db.profile.enabled ~= nil then
+                Questie:Print("[Migration] Running migration v1 - this resets settings to defaults")
+                Questie:Print("[Migration] If this happens every login, see /questie diagnose for troubleshooting")
+            end
+        end
         migrationFunctions[currentVersion]()
     end
 
     Questie.db.profile.migrationVersion = currentVersion
+end
+
+function Migration:GetCurrentMigrationVersion()
+    return table.getn(migrationFunctions)
 end

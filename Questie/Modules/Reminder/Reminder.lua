@@ -25,6 +25,12 @@ local function DefinePopups()
             local url = data and data.url or ""
             StaticPopup_Show("QUESTIE_UPDATE_COPY_URL", nil, nil, { url = url })
         end,
+        OnCancel = function(self, data)
+            -- User clicked "Later" - mark as dismissed
+            if Questie and Questie.db and Questie.db.profile then
+                Questie.db.profile.updateDismissedVersion = data and data.latest or "unknown"
+            end
+        end,
     }
 
     StaticPopupDialogs["QUESTIE_UPDATE_COPY_URL"] = {
@@ -72,7 +78,7 @@ function QuestieUpdateReminder:ShowPopup(current, latest, url)
             return
         end
         shownThisSession = true
-        StaticPopup_Show("QUESTIE_UPDATE_AVAILABLE", current or "?", latest or "?", { url = url or "" })
+        StaticPopup_Show("QUESTIE_UPDATE_AVAILABLE", current or "?", latest or "?", { url = url or "", latest = latest })
     end
 
     if C_Timer and C_Timer.After then

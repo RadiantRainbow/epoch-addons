@@ -162,9 +162,14 @@ QuestieInit.Stages[1] = function() -- run as a coroutine
 
     HBDHooks:Init()
 
-    -- Migration: Fix users who have 'custom' theme selected (causes invisible pins)
-    if Questie.db.profile.iconTheme == 'custom' then
-        Questie:Debug(Questie.DEBUG_INFO, "[Init] Migrating from 'custom' icon theme to 'questie' to fix invisible pins")
+    -- Migration: Fix users who have deprecated themes selected (causes invisible pins or unavailable options)
+    -- Migrates 'custom', 'blizzard' (disabled for Epoch), or any invalid/unknown theme names to 'questie'
+    if Questie.db.profile.iconTheme == 'custom' or 
+       Questie.db.profile.iconTheme == 'blizzard' or
+       (Questie.db.profile.iconTheme ~= 'questie' and 
+        Questie.db.profile.iconTheme ~= 'pfquest') then
+        local oldTheme = Questie.db.profile.iconTheme
+        Questie:Debug(Questie.DEBUG_INFO, "[Init] Migrating from '" .. tostring(oldTheme) .. "' icon theme to 'questie' to fix invisible/invalid pins")
         Questie.db.profile.iconTheme = 'questie'
     end
 
@@ -484,15 +489,9 @@ function QuestieInit:LoadBaseDB()
             -- Check if it's a service NPC (vendor, trainer, innkeeper, etc.)
             local npcFlags = data[15] -- npcFlags field
             if npcFlags and npcFlags > 0 then
-                -- Service NPCs have flags like vendor (128), trainer (16), innkeeper (65536), etc.
-                -- But only merge if it doesn't exist in Classic or is in Northrend
-                local zoneID = data[9] -- zoneID field
-                if zoneID and zoneID >= 65 then -- Northrend zones
-                    shouldMerge = true
-                elseif QuestieDB.npcData[id] == nil then
-                    -- Add new WotLK NPCs that don't exist in Classic
-                    shouldMerge = true
-                end
+                -- ALWAYS use WotLK data for service NPCs to get correct flag values
+                -- Classic has different flag values that are wrong for WotLK
+                shouldMerge = true
             elseif id > 23000 then -- Northrend NPCs generally have higher IDs
                 shouldMerge = true
             end
@@ -502,12 +501,10 @@ function QuestieInit:LoadBaseDB()
                     QuestieDB.npcData[id] = data
                     added = added + 1
                 else
-                    -- Only overwrite if it's a Northrend NPC
-                    local zoneID = data[9]
-                    if zoneID and zoneID >= 65 then
-                        QuestieDB.npcData[id] = data
-                        overwritten = overwritten + 1
-                    end
+                    -- Overwrite Classic data with WotLK data for service NPCs
+                    -- This is critical for correct flag values
+                    QuestieDB.npcData[id] = data
+                    overwritten = overwritten + 1
                 end
             end
         end
@@ -620,7 +617,7 @@ function _QuestieInit.StartStageCoroutine()
         Questie:Debug(Questie.DEBUG_INFO, "[QuestieInit:StartStageCoroutine] Stage " .. i .. " done.")
     end
     -- Show ready message after all initialization stages complete
-    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie]|r Ready! Quest tracking and map icons are now active.", 0, 1, 0)
+    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie]|r Ready!", 0, 1, 0)
 end
 
 -- called by the PLAYER_LOGIN event handler
@@ -639,8 +636,32 @@ function QuestieInit:Init()
     -- EpogQuestie: Clean startup message
     local currentVersion = GetAddOnMetadata("Questie", "Version") or
                           GetAddOnMetadata("EpogQuestie", "Version") or "Unknown"
-    print("|cFF00FF00[Questie-Epoch]|r Version " .. currentVersion ..
-          " | Check for updates at Github: https://github.com/trav346/Questie-Epoch")
+    
+    local versionMessage = "|cFF00FF00[Questie-Epoch]|r Version " .. currentVersion
+    
+    -- Check if user dismissed an update prompt, but clear it if they've updated
+    if Questie.db and Questie.db.profile and Questie.db.profile.updateDismissedVersion then
+        -- Parse versions to see if user has updated
+        local QuestieVersionCheck = QuestieLoader:ImportModule("QuestieVersionCheck")
+        if QuestieVersionCheck then
+            local currentParsed = QuestieVersionCheck:ParseVersion(currentVersion)
+            local dismissedParsed = QuestieVersionCheck:ParseVersion(Questie.db.profile.updateDismissedVersion)
+            
+            if QuestieVersionCheck:CompareVersions(currentParsed, dismissedParsed) >= 0 then
+                -- User has updated to or past the dismissed version, clear the flag
+                Questie.db.profile.updateDismissedVersion = nil
+            else
+                -- User is still on older version
+                versionMessage = versionMessage .. " |cFFFF6F22- out of date|r"
+            end
+        else
+            versionMessage = versionMessage .. " |cFFFF6F22- out of date|r"
+        end
+    end
+    
+    versionMessage = versionMessage .. " | Check for updates at Github: https://github.com/trav346/Questie-Epoch"
+    
+    print(versionMessage)
     
     -- Initialize version checker
     local QuestieVersionCheck = QuestieLoader:ImportModule("QuestieVersionCheck")

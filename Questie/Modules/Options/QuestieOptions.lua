@@ -133,7 +133,35 @@ _CreateOptionsTable = function()
     local advanced_tab = QuestieOptions.tabs.advanced:Initialize()
     coroutine.yield()
     return {
-        name = "Questie",
+        name = function()
+            local title = "Questie"
+            
+            -- Add version number
+            local version = GetAddOnMetadata("Questie", "Version") or "Unknown"
+            title = title .. " v" .. version
+            
+            -- Check if user dismissed an update prompt, but clear it if they've updated
+            if Questie.db and Questie.db.profile and Questie.db.profile.updateDismissedVersion then
+                -- Parse versions to see if user has updated
+                local QuestieVersionCheck = QuestieLoader:ImportModule("QuestieVersionCheck")
+                if QuestieVersionCheck then
+                    local currentParsed = QuestieVersionCheck:ParseVersion(version)
+                    local dismissedParsed = QuestieVersionCheck:ParseVersion(Questie.db.profile.updateDismissedVersion)
+                    
+                    if QuestieVersionCheck:CompareVersions(currentParsed, dismissedParsed) >= 0 then
+                        -- User has updated to or past the dismissed version, clear the flag
+                        Questie.db.profile.updateDismissedVersion = nil
+                    else
+                        -- User is still on older version
+                        title = title .. " - out of date"
+                    end
+                else
+                    title = title .. " - out of date"
+                end
+            end
+            
+            return title
+        end,
         handler = Questie,
         type = "group",
         childGroups = "tab",

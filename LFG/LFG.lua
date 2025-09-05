@@ -849,6 +849,15 @@ LFGComms:SetScript("OnEvent", function()
                 LFG.weInQueue(queueEx[2])
             end
             if string.sub(arg2, 1, 10) == 'roleCheck:' then
+                -- Force clean the LFMGroup before starting role check to prevent stale data
+                LFG.LFMGroup = {
+                    tank = '',
+                    healer = '',
+                    damage1 = '',
+                    damage2 = '',
+                    damage3 = '',
+                }
+
                 if arg4 ~= me then
                     PlaySoundFile("Interface\\AddOns\\LFG\\sound\\lfg_rolecheck.ogg")
                 end
@@ -884,26 +893,9 @@ LFGComms:SetScript("OnEvent", function()
 
                 _G['LFGRoleCheckAcceptRole']:Enable()
 
-                --commented this to show my rolecheck window
-                --if LFG.isLeader then
-                --    lfdebug('is leader')
-                --    if LFG_ROLE == 'tank' then
-                --        LFG.LFMGroup.tank = me
-                --        SendAddonMessage(LFG_ADDON_CHANNEL, "acceptRole:" .. LFG_ROLE, "PARTY")
-                --    end
-                --    if LFG_ROLE == 'healer' then
-                --        LFG.LFMGroup.healer = me
-                --        SendAddonMessage(LFG_ADDON_CHANNEL, "acceptRole:" .. LFG_ROLE, "PARTY")
-                --    end
-                --    if LFG_ROLE == 'damage' then
-                --        LFG.LFMGroup.damage1 = me
-                --        SendAddonMessage(LFG_ADDON_CHANNEL, "acceptRole:" .. LFG_ROLE, "PARTY")
-                --    end
-                --else
                 _G['LFGRoleCheckQForText']:SetText(COLOR_WHITE .. "Queued for " .. COLOR_YELLOW .. LFG.dungeonNameFromCode(mCode))
                 _G['LFGRoleCheck']:Show()
                 _G['LFGGroupReady']:Hide()
-                --end
                 LFGRoleCheck:Show()
             end
 
@@ -2074,15 +2066,35 @@ end)
 
 function LFG.checkLFGChannel()
     lfdebug('check LFG channel call - after 15s')
-    local lastVal = 0
-    local chanList = { GetChannelList() }
 
-    for _, value in next, chanList do
-        if value == LFG.channel then
-            LFG.channelIndex = lastVal
+    local chanList = { GetChannelList() }
+    LFG.channelIndex = 0
+
+    for i = 1, #chanList, 2 do
+        local channelIndex = chanList[i]
+        local channelName = chanList[i + 1]
+
+        if channelName == LFG.channel then
+            LFG.channelIndex = channelIndex
+            lfdebug('Found LFG channel at index: ' .. LFG.channelIndex)
+
+            if LFG.channelIndex == 1 then
+                lfprint('WARNING: LFG channel in slot 1, leaving and rejoining...')
+                LeaveChannelByName(LFG.channel)
+                LFG.channelIndex = 0
+                local retryFrame = CreateFrame("Frame")
+                retryFrame.elapsed = 0
+                retryFrame:SetScript("OnUpdate", function(self, elapsed)
+                    self.elapsed = self.elapsed + elapsed
+                    if self.elapsed >= 3 then
+                        JoinChannelByName(LFG.channel)
+                        self:SetScript("OnUpdate", nil)
+                    end
+                end)
+                return
+            end
             break
         end
-        lastVal = value
     end
 
     if LFG.channelIndex == 0 then
@@ -2091,7 +2103,72 @@ function LFG.checkLFGChannel()
     else
         lfdebug('in chan, chilling LFG.channelIndex = ' .. LFG.channelIndex)
     end
+end
 
+function LFG.joinLFGChannelSafely()
+    local generalIndex = GetChannelName("General")
+    if generalIndex ~= 1 then
+        lfdebug('General channel moved, aborting LFG join')
+        local retryFrame = CreateFrame("Frame")
+        retryFrame.elapsed = 0
+        retryFrame:SetScript("OnUpdate", function(self, elapsed)
+            self.elapsed = self.elapsed + elapsed
+            if self.elapsed >= 3 then
+                LFG.checkLFGChannel()
+                self:SetScript("OnUpdate", nil)
+            end
+        end)
+        return
+    end
+
+    JoinChannelByName(LFG.channel)
+
+    local verifyFrame = CreateFrame("Frame")
+    verifyFrame.elapsed = 0
+    verifyFrame:SetScript("OnUpdate", function(self, elapsed)
+        self.elapsed = self.elapsed + elapsed
+        if self.elapsed >= 1 then
+            local lfgIndex = GetChannelName(LFG.channel)
+            if lfgIndex == 1 then
+                lfprint('ERROR: LFG channel took channel 1! Fixing immediately...')
+                LFG.fixChannelConflict()
+            else
+                LFG.channelIndex = lfgIndex
+                lfdebug('LFG channel safely joined at index: ' .. LFG.channelIndex)
+            end
+            self:SetScript("OnUpdate", nil)
+        end
+    end)
+end
+
+function LFG.fixChannelConflict()
+    lfdebug('Attempting to fix channel 1 conflict')
+
+    LeaveChannelByName(LFG.channel)
+    LFG.channelIndex = 0
+
+    local fixFrame = CreateFrame("Frame")
+    fixFrame.elapsed = 0
+    fixFrame.attempts = 0
+    fixFrame:SetScript("OnUpdate", function(self, elapsed)
+        self.elapsed = self.elapsed + elapsed
+        if self.elapsed >= 3 then
+            self.elapsed = 0
+            self.attempts = self.attempts + 1
+
+            local generalIndex = GetChannelName("General")
+            if generalIndex == 1 then
+                lfdebug('General restored to channel 1, rejoining LFG')
+                LFG.joinLFGChannelSafely()
+                self:SetScript("OnUpdate", nil)
+            elseif self.attempts >= 10 then
+                lfprint('Unable to restore proper channel order. Please /reload if issues persist.')
+                self:SetScript("OnUpdate", nil)
+            else
+                lfdebug('General still not in channel 1, attempt: ' .. self.attempts)
+            end
+        end
+    end)
 end
 
 function LFG.GetPossibleRoles()
@@ -3804,14 +3881,21 @@ function LFGsetRole(role, status, readyCheck)
 
     local newRole = ''
 
-    if tankCheck:GetChecked() then
-        newRole = newRole .. 'tank'
-    end
-    if healerCheck:GetChecked() then
-        newRole = newRole .. 'healer'
-    end
-    if damageCheck:GetChecked() then
-        newRole = newRole .. 'damage'
+    if LFG.inGroup then
+        tankCheck:SetChecked(role == 'tank')
+        healerCheck:SetChecked(role == 'healer')
+        damageCheck:SetChecked(role == 'damage')
+        newRole = role
+    else
+        if tankCheck:GetChecked() then
+            newRole = newRole .. 'tank'
+        end
+        if healerCheck:GetChecked() then
+            newRole = newRole .. 'healer'
+        end
+        if damageCheck:GetChecked() then
+            newRole = newRole .. 'damage'
+        end
     end
 
     LFG_ROLE = newRole
@@ -4429,22 +4513,29 @@ function LFG.sendAdvertisement(chan)
 end
 
 function LFG.removeChannelFromWindows()
-    if LFG_CONFIG['debug'] then
+    if LFG_CONFIG and LFG_CONFIG['debug'] then
         return false
     end
     if me == 'Bennylava' then
         return false
     end
 
+    if LFG.channelIndex == 1 then
+        lfdebug('Not removing LFG from windows - channel conflict detected')
+        return false
+    end
+
     for windowIndex = 1, 9 do
-        local DefaultChannels = { GetChatWindowChannels(windowIndex) };
-        for i = 1, #DefaultChannels, 2 do  -- Chat window channels come in pairs: name, ID
-            if DefaultChannels[i] == LFG.channel then
+        local channels = { GetChatWindowChannels(windowIndex) }
+        for i = 1, #channels, 2 do
+            local channelName = channels[i]
+            local channelIndex = channels[i + 1]
+
+            if channelName == LFG.channel and channelIndex == LFG.channelIndex then
                 local chatFrame = _G["ChatFrame" .. windowIndex]
                 if chatFrame then
-                    ChatFrame_RemoveChannel(chatFrame, LFG.channel); -- DEFAULT_CHAT_FRAME works well, too
-                    lfprint('LFG channel removed from window ' .. windowIndex .. ' LFG')
-                    lfnotice('Please do not type in the LFG channel or add it to your chat frames.')
+                    ChatFrame_RemoveChannel(chatFrame, LFG.channel)
+                    lfdebug('LFG channel removed from window ' .. windowIndex)
                 end
             end
         end
@@ -4524,12 +4615,12 @@ LFG.allDungeons = {
     ['Shadowfang Keep'] = { minLevel = 22, maxLevel = 30, code = 'sfk', queued = false, canQueue = true, background = 'shadowfangkeep', myRole = '' },
     ['The Stockade'] = { minLevel = 22, maxLevel = 30, code = 'stocks', queued = false, canQueue = true, background = 'stormwindstockades', myRole = '' },
     ['Blackfathom Deeps'] = { minLevel = 23, maxLevel = 32, code = 'bfd', queued = false, canQueue = true, background = 'blackfathomdeeps', myRole = '' },
-    ['Scarlet Monastery Graveyard'] = { minLevel = 27, maxLevel = 36, code = 'smgy', queued = false, canQueue = true, background = 'scarletmonastery', myRole = '' },
-    ['Scarlet Monastery Library'] = { minLevel = 28, maxLevel = 39, code = 'smlib', queued = false, canQueue = true, background = 'scarletmonastery', myRole = '' },
+    ['Scarlet Monastery Graveyard'] = { minLevel = 28, maxLevel = 36, code = 'smgy', queued = false, canQueue = true, background = 'scarletmonastery', myRole = '' },
+    ['Scarlet Monastery Library'] = { minLevel = 32, maxLevel = 39, code = 'smlib', queued = false, canQueue = true, background = 'scarletmonastery', myRole = '' },
     ['Gnomeregan'] = { minLevel = 29, maxLevel = 38, code = 'gnomer', queued = false, canQueue = true, background = 'gnomeregan', myRole = '' },
     ['Razorfen Kraul'] = { minLevel = 29, maxLevel = 38, code = 'rfk', queued = false, canQueue = true, background = 'razorfenkraul', myRole = '' },
-    ['Scarlet Monastery Armory'] = { minLevel = 32, maxLevel = 41, code = 'smarmory', queued = false, canQueue = true, background = 'scarletmonastery', myRole = '' },
-    ['Scarlet Monastery Cathedral'] = { minLevel = 35, maxLevel = 45, code = 'smcath', queued = false, canQueue = true, background = 'scarletmonastery', myRole = '' },
+    ['Scarlet Monastery Armory'] = { minLevel = 34, maxLevel = 41, code = 'smarmory', queued = false, canQueue = true, background = 'scarletmonastery', myRole = '' },
+    ['Scarlet Monastery Cathedral'] = { minLevel = 37, maxLevel = 45, code = 'smcath', queued = false, canQueue = true, background = 'scarletmonastery', myRole = '' },
     ['Razorfen Downs'] = { minLevel = 36, maxLevel = 46, code = 'rfd', queued = false, canQueue = true, background = 'razorfendowns', myRole = '' },
     ['Glittermurk Mines'] = { minLevel = 39, maxLevel = 44, code = 'ggm', queued = false, canQueue = true, background = 'tcg', myRole = '' }, -- Glittermurk
     ['Uldaman'] = { minLevel = 40, maxLevel = 51, code = 'ulda', queued = false, canQueue = true, background = 'uldaman', myRole = '' },
@@ -4554,6 +4645,7 @@ LFG.allDungeons = {
 LFG.eliteEncounters = {
     ['Jintha\'Alor'] = { minLevel = 45, maxLevel = 60, code = 'ja', queued = false, canQueue = true, background = 'jinthaalor', myRole = '' },
     ['Felstone Fortress'] = { minLevel = 50, maxLevel = 60, code = 'ff', queued = false, canQueue = true, background = 'felstonefort', myRole = '' },
+    ['Silithus Dailies'] = { minLevel = 60, maxLevel = 60, code = 'silithusd', queued = false, canQueue = true, background = 'silithusdailies', myRole = '' },
 }
 
 LFG.bosses = {
@@ -4822,6 +4914,9 @@ LFG.bosses = {
     ['ff'] = {
         --'Vile Priestess Hexx',
     },
+    ['silithusd'] = {
+        --'Vile Priestess Hexx',
+    },
 };
 
 -- utils
@@ -4875,33 +4970,33 @@ function StringSplit(str, delimiter)
     return result
 end
 
-local eventMonitorFrame = CreateFrame("Frame")
-local lastCheck = 0
-eventMonitorFrame:RegisterEvent("ADDON_LOADED")
-eventMonitorFrame:RegisterEvent("CHAT_MSG_CHANNEL")
-eventMonitorFrame:RegisterEvent("CHAT_MSG_CHANNEL_JOIN")
-eventMonitorFrame:RegisterEvent("CHAT_MSG_CHANNEL_LEAVE")
-eventMonitorFrame:SetScript("OnEvent", function(self, event, ...)
-    if event == "ADDON_LOADED" and arg1 == "LFG" then
-        LFG.removeChannelFromWindows()
-    elseif event == "CHAT_MSG_CHANNEL_JOIN" or event == "CHAT_MSG_CHANNEL_LEAVE" or event == "CHAT_MSG_CHANNEL" then
-        -- Skip if debug mode is on or if this is Bennylava
-        if LFG_CONFIG and LFG_CONFIG['debug'] then
-            return
+local channelMonitorFrame = CreateFrame("Frame")
+channelMonitorFrame:RegisterEvent("CHAT_MSG_CHANNEL_NOTICE")
+channelMonitorFrame:RegisterEvent("CHAT_MSG_CHANNEL_NOTICE_USER")
+channelMonitorFrame:SetScript("OnEvent", function()
+    if event == "CHAT_MSG_CHANNEL_NOTICE" then
+        if arg1 == "YOU_JOINED" and arg9 == LFG.channel then
+            local channelIndex = arg8
+            if channelIndex == 1 then
+                lfprint('LFG joined in channel 1! Auto-fixing...')
+                LFG.fixChannelConflict()
+            else
+                LFG.channelIndex = channelIndex
+                lfdebug('LFG properly joined in channel: ' .. channelIndex)
+            end
         end
-        if me == 'Bennylava' then
-            return
-        end
-
-        local currentTime = GetTime()
-        if currentTime - lastCheck > 2 then -- check every 2 seconds
-            lastCheck = currentTime
-            local timer = CreateFrame("Frame")
-            timer.elapsed = 0
-            timer:SetScript("OnUpdate", function(self, elapsed)
+    elseif event == "CHAT_MSG_CHANNEL_NOTICE_USER" then
+        if LFG.channelIndex > 0 then
+            local checkFrame = CreateFrame("Frame")
+            checkFrame.elapsed = 0
+            checkFrame:SetScript("OnUpdate", function(self, elapsed)
                 self.elapsed = self.elapsed + elapsed
-                if self.elapsed >= 0.3 then
-                    LFG.removeChannelFromWindows()
+                if self.elapsed >= 0.5 then
+                    local currentIndex = GetChannelName(LFG.channel)
+                    if currentIndex == 1 and LFG.channelIndex ~= 1 then
+                        lfprint('Channel conflict detected! Fixing...')
+                        LFG.fixChannelConflict()
+                    end
                     self:SetScript("OnUpdate", nil)
                 end
             end)

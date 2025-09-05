@@ -2883,11 +2883,16 @@ function QuestieTracker:AQW_Insert(index, expire)
                         end
                     end
                     
+                    -- Analyze quest completeness for appropriate prefix
+                    local QuestCompletenessScorer = QuestieLoader:ImportModule("QuestCompletenessScorer")
+                    local completenessInfo = QuestCompletenessScorer:AnalyzeQuestCompleteness(questId)
+                    local prefixedTitle = completenessInfo.prefix .. tostring(title)
+                    
                     -- Create a minimal runtime stub
                     quest = {
                         Id = questId,
-                        name = "[Epoch] " .. tostring(title),
-                        LocalizedName = "[Epoch] " .. tostring(title),
+                        name = prefixedTitle,
+                        LocalizedName = prefixedTitle,
                         Level = QuestiePlayer.GetPlayerLevel(),
                         level = QuestiePlayer.GetPlayerLevel(),
                         zoneOrSort = 0,

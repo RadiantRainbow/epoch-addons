@@ -149,16 +149,43 @@ function QuestieOptions.tabs.icons:Initialize()
                         name = function() return l10n('Quests'); end,
                     },
                     showNormalQuests = {
-                        type = "toggle",
+                        type = "toggle", 
                         order = 2.01,
-                        name = function() return l10n('Available Normal Quests'); end,
-                        desc = function() return l10n('When this is enabled, the locations of available quests will be shown on the map/minimap.'); end,
+                        name = function() return l10n('Available Quests (Legacy)'); end,
+                        desc = function() return l10n('Legacy setting for backward compatibility. Use the separate World Map and Minimap toggles below instead.'); end,
                         width = 1.595,
                         disabled = function() return (not Questie.db.profile.enabled); end,
                         get = function() return Questie.db.profile.enableAvailable; end,
                         set = function(info, value)
                             Questie.db.profile.enableAvailable = value
                             QuestieQuest:ToggleNotes(value)
+                        end,
+                        hidden = true,  -- Hide the legacy setting
+                    },
+                    enableAvailableWorldMap = {
+                        type = "toggle",
+                        order = 2.011,
+                        name = function() return l10n('Available Quests (World Map)'); end,
+                        desc = function() return l10n('When enabled, available quest locations will be shown on the world map.'); end,
+                        width = 1.595,
+                        disabled = function() return (not Questie.db.profile.enabled); end,
+                        get = function() return Questie.db.profile.enableAvailableWorldMap; end,
+                        set = function(info, value)
+                            Questie.db.profile.enableAvailableWorldMap = value
+                            QuestieQuest:ToggleNotes()
+                        end,
+                    },
+                    enableAvailableMinimap = {
+                        type = "toggle",
+                        order = 2.012,
+                        name = function() return l10n('Available Quests (Minimap)'); end,
+                        desc = function() return l10n('When enabled, available quest locations will be shown on the minimap. Disable to reduce minimap clutter.'); end,
+                        width = 1.595,
+                        disabled = function() return (not Questie.db.profile.enabled); end,
+                        get = function() return Questie.db.profile.enableAvailableMinimap; end,
+                        set = function(info, value)
+                            Questie.db.profile.enableAvailableMinimap = value
+                            QuestieQuest:ToggleNotes()
                         end,
                     },
                     showEventQuests = {
@@ -1212,7 +1239,7 @@ _GetIconThemes = function()
     if Questie.IsWotlk or QuestieCompat.Is335 then
         return {
             ['questie'] = "|T" .. Questie.icons["slay"] .. ":14|t Questie",
-            ['blizzard'] = "|TInterface/buttons/adventureguidemicrobuttonalert.blp:20:20:0:0:32:32:2:28:2:28|t Blizzard",
+            -- ['blizzard'] = "|TInterface/buttons/adventureguidemicrobuttonalert.blp:20:20:0:0:32:32:2:28:2:28|t Blizzard",  -- Disabled for Epoch
             ['pfquest'] = "|T" .. Questie.icons["node"] .. ":14|t pfQuest",
             -- ['custom'] = "|T" .. Questie.icons["object"] .. ":16|t " .. l10n("Custom"),  -- Disabled: causes invisible pins
         }
@@ -1229,7 +1256,7 @@ _GetIconThemesSort = function()
     if Questie.IsWotlk or QuestieCompat.Is335 then
         return {
             "questie",
-            "blizzard",
+            -- "blizzard",  -- Disabled for Epoch
             "pfquest",
             -- "custom",  -- Disabled: causes invisible pins
         }
@@ -1244,7 +1271,8 @@ end
 
 function QuestieOptionsUtils.DetermineTheme()
     if (GetCVar("questPOI") == "1" and Questie.db.profile.enableObjectives == false) then
-        Questie.db.profile.iconTheme = 'blizzard'
+        -- Blizzard theme disabled for Epoch - default to questie instead
+        Questie.db.profile.iconTheme = 'questie'
     else
         if (Questie.db.profile.enableObjectives == true and
             Questie.db.profile.ICON_SLAY == Questie.icons["node"] and
@@ -1318,24 +1346,24 @@ function QuestieOptionsUtils.ExecuteTheme(info, value)
         Questie.db.profile.questMinimapObjectiveColors = true
         Questie.db.profile.alwaysGlowMinimap = false
         Questie.db.profile.clusterLevelHotzone = 1
-    elseif value == 'blizzard' then
-        if GetCVar("questPOI") then -- if wotlk objectives available
-            SetCVar("questPOI", "1") -- enable them
-        end
-        if WorldMapQuestShowObjectives then -- if wotlk blizzard objectives button exists
-            WorldMapQuestShowObjectives:SetChecked(false) -- check it
-        end
-        Questie.db.profile.enableObjectives = false
-        Questie.db.profile.ICON_SLAY = Questie.icons["slay"]
-        Questie.db.profile.ICON_LOOT = Questie.icons["loot"]
-        Questie.db.profile.ICON_EVENT = Questie.icons["event"]
-        Questie.db.profile.ICON_OBJECT = Questie.icons["object"]
-        Questie.db.profile.ICON_TALK = Questie.icons["talk"]
-        Questie.db.profile.questObjectiveColors = optionsDefaults.profile.questObjectiveColors
-        Questie.db.profile.alwaysGlowMap = optionsDefaults.profile.alwaysGlowMap
-        Questie.db.profile.questMinimapObjectiveColors = optionsDefaults.profile.questMinimapObjectiveColors
-        Questie.db.profile.alwaysGlowMinimap = optionsDefaults.profile.alwaysGlowMinimap
-        Questie.db.profile.clusterLevelHotzone = optionsDefaults.profile.clusterLevelHotzone
+    -- elseif value == 'blizzard' then  -- Disabled for Epoch
+        -- if GetCVar("questPOI") then -- if wotlk objectives available
+            -- SetCVar("questPOI", "1") -- enable them
+        -- end
+        -- if WorldMapQuestShowObjectives then -- if wotlk blizzard objectives button exists
+            -- WorldMapQuestShowObjectives:SetChecked(false) -- check it
+        -- end
+        -- Questie.db.profile.enableObjectives = false
+        -- Questie.db.profile.ICON_SLAY = Questie.icons["slay"]
+        -- Questie.db.profile.ICON_LOOT = Questie.icons["loot"]
+        -- Questie.db.profile.ICON_EVENT = Questie.icons["event"]
+        -- Questie.db.profile.ICON_OBJECT = Questie.icons["object"]
+        -- Questie.db.profile.ICON_TALK = Questie.icons["talk"]
+        -- Questie.db.profile.questObjectiveColors = optionsDefaults.profile.questObjectiveColors
+        -- Questie.db.profile.alwaysGlowMap = optionsDefaults.profile.alwaysGlowMap
+        -- Questie.db.profile.questMinimapObjectiveColors = optionsDefaults.profile.questMinimapObjectiveColors
+        -- Questie.db.profile.alwaysGlowMinimap = optionsDefaults.profile.alwaysGlowMinimap
+        -- Questie.db.profile.clusterLevelHotzone = optionsDefaults.profile.clusterLevelHotzone
     elseif value == 'custom' then
         return
     end

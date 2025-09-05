@@ -83,13 +83,30 @@ QuestieMenu.private.townsfolk_texturemap = _townsfolk_texturemap
 local _spawned = {} -- used to check if we have already spawned an icon for this npc
 
 local function toggle(key, forceRemove) -- /run QuestieLoader:ImportModule("QuestieMap"):ShowNPC(525, nil, 1, "teaste", {}, true)
-    local ids = Questie.db.global.townsfolk[key] or
-            Questie.db.char.townsfolk[key] or
-            Questie.db.global.professionTrainers[key] or
-            Questie.db.char.vendorList[key]
+    -- Debug: Show where lists are coming from
+    local source = "unknown"
+    local ids = nil
+    
+    if Questie.db.global.townsfolk and Questie.db.global.townsfolk[key] then
+        ids = Questie.db.global.townsfolk[key]
+        source = "global.townsfolk"
+    elseif Questie.db.char.townsfolk and Questie.db.char.townsfolk[key] then
+        ids = Questie.db.char.townsfolk[key]
+        source = "char.townsfolk"
+    elseif Questie.db.global.professionTrainers and Questie.db.global.professionTrainers[key] then
+        ids = Questie.db.global.professionTrainers[key]
+        source = "global.professionTrainers"
+    elseif Questie.db.char.vendorList and Questie.db.char.vendorList[key] then
+        ids = Questie.db.char.vendorList[key]
+        source = "char.vendorList"
+    end
+    
 
     if (not ids) then
         Questie:Debug(Questie.DEBUG_INFO, "Invalid townsfolk key", tostring(key))
+        if key == "Stable Master" then
+            print("[ERROR] No Stable Master list found in any source!")
+        end
         return
     end
 
@@ -139,8 +156,11 @@ local function toggle(key, forceRemove) -- /run QuestieLoader:ImportModule("Ques
                         local friendly = QuestieDB.QueryNPCSingle(id, "friendlyToFaction")
                         if ((not friendly) or friendly == "AH" or (faction == "Alliance" and friendly == "A") or (faction == "Horde" and friendly == "H")) and (not QuestieCorrections.questNPCBlacklist[id]) then
                             local npcName = QuestieDB.QueryNPCSingle(id, "name") or ("Missing NPC name for " .. tostring(id))
-                            local subName = l10n(QuestieDB.QueryNPCSingle(id, "subName") or tostring(key))
+                            local dbSubName = QuestieDB.QueryNPCSingle(id, "subName")
+                            local subName = l10n(dbSubName or tostring(key))
                             local npcTitle = Questie:Colorize(npcName, "white") .. " (" .. subName .. ")"
+                            
+                            
                             QuestieMap:ShowNPC(id, icon, 1.2, npcTitle, {}, true, key, true)
                             _spawned[id] = true
                         end
@@ -317,7 +337,7 @@ function QuestieMenu:Show(hideDelay)
     tinsert(menuTable, { text= l10n("Available Quest"), func = function()
         local value = not Questie.db.profile.enableAvailable
         Questie.db.profile.enableAvailable = value
-        QuestieQuest:ToggleNotes(value)
+        -- Don't toggle ALL notes, just reset to redraw available quests
         QuestieQuest:SmoothReset()
     end, icon=QuestieLib.AddonPath.."Icons\\available.blp", notCheckable=false, checked=Questie.db.profile.enableAvailable, isNotRadio=true, keepShownOnClick=true})
     tinsert(menuTable, { text= l10n("Trivial Quest"), func = function()
@@ -332,7 +352,7 @@ function QuestieMenu:Show(hideDelay)
     tinsert(menuTable, { text= l10n("Objective"), func = function()
         local value = not Questie.db.profile.enableObjectives
         Questie.db.profile.enableObjectives = value
-        QuestieQuest:ToggleNotes(value)
+        -- Don't toggle ALL notes based on objective state
         QuestieQuest:SmoothReset()
     end, icon=QuestieLib.AddonPath.."Icons\\event.blp", notCheckable=false, checked=Questie.db.profile.enableObjectives, isNotRadio=true, keepShownOnClick=true})
     tinsert(menuTable, {text= l10n("Profession Trainer"), func = function() end, keepShownOnClick=true, hasArrow=true, menuList=QuestieMenu.buildProfessionMenu(), notCheckable=true})

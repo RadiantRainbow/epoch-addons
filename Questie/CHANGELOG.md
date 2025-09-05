@@ -3,6 +3,105 @@
 ## [Unreleased]
 
 ### Added
+- **NPC Service Flag Detection in Data Collection** - Automatic detection and capture of NPC service types
+  - Detects service NPCs through game events (MERCHANT_SHOW, TAXIMAP_OPENED, PET_STABLE_SHOW, etc.)
+  - Automatically calculates correct WotLK flag values for detected services
+  - Includes detected services in export comments for verification
+  - Supports detection of: Quest Giver, Vendor, Repair, Trainer, Flight Master, Innkeeper, Banker, Auctioneer, Stable Master, Battlemaster
+  - Ensures submitted NPC data has proper flag values to prevent service NPC miscategorization
+
+### Fixed
+- **QuestieQuest nil spawnList Crash** - Fixed "bad argument #1 to 'next' (table expected, got nil)" error at line 1513
+  - Added defensive checks for nil or missing spawnList data in quest objectives
+  - Prevents crash when quest objectives have incomplete or corrupted spawn data
+  - Fixes SavedVariables generation failure reported by v1.1.4 users
+  - Safely handles objectives without spawn locations instead of crashing
+
+- **Data Collection UI/UX Improvements** - Made data collection feature more user-friendly and approachable
+  - Added clear red notice text when data collection is enabled explaining that tooltip IDs are automatically forced on
+  - Removed intimidating "WARNING" text from developer mode options
+  - Changed "DEVELOPER FEATURE ONLY" to friendly "Thank you for contributing!" message
+  - Users now clearly understand why tooltip ID options are greyed out when data collection is active
+
+- **GitHub Issue Templates Not Working** - Fixed templates not appearing when creating new issues (PR #1110)
+  - Renamed `.github/issue_Template` folder to `.github/ISSUE_TEMPLATE` (all uppercase)  
+  - GitHub requires exact uppercase naming for issue templates to be recognized
+  - Templates now properly appear when users create new issues
+
+- **Data Collector Tooltip Settings Issues** - Fixed multiple tooltip restoration bugs (PR #1168, PR #1190)
+  - Fixed case sensitivity bug: `enableTooltipsNpcID` changed to `enableTooltipsNPCID` throughout codebase  
+  - Fixed incorrect function call: `RestoreTooltipIDs()` → `RestoreTooltipSettings()` (PR #1190)
+  - Data collector now properly saves and restores NPC tooltip settings when disabled
+  - Data collector now initializes immediately when enabled in options
+  - Tooltip ID options are now grayed out when data collection is enabled (prevents confusion since data collection forces all IDs on)
+  - Added missing QuestieDataCollector module import in options panel
+
+- **Runtime Stub Quest Colors Not Respecting User Settings** - Fixed [Epoch] quests always showing white/gray objectives regardless of color preference
+  - Objectives without progress counts (exploration, events) were bypassing user's "Red to Green" color setting
+  - Safety checks added for Epoch runtime stubs were incorrectly returning gray instead of respecting tracker color preferences
+  - Now properly shows red for incomplete objectives and green for completed when "Red to Green" is selected
+  - Fixes GitHub Issue #1135 where users reported white objectives despite having gradient colors enabled
+
+- **CRITICAL: Available Quest Toggle Broken** - Fixed issue where disabling Available Quests caused icons to cluster at service NPCs
+  - Quest icons were being drawn but redirected to flight masters, mailboxes, and spirit healers when toggle was off
+  - Added proper check in `DrawAvailableQuest` to prevent drawing when `enableAvailable` is false
+  - Icons now properly hide when Available Quests is disabled instead of clustering at wrong locations
+  - Affected all zones, not just specific areas
+  - This fixes the confusing behavior where quest data appeared on unrelated map pins
+
+- **CRITICAL: Minimap Menu Toggles Breaking All Icons** - Fixed Available Quest and Objective toggles disabling ALL map icons
+  - Available Quest toggle was incorrectly calling `ToggleNotes()` with its own state, affecting all icons globally
+  - Objective toggle had the same bug, turning off all icons when disabled
+  - Removed incorrect `ToggleNotes()` calls from both toggles
+  - This fixes the issue where toggling these options would completely break icon display
+  - Also fixes interaction with Trivial Quest toggle that was causing all icons to disappear
+
+- **CRITICAL: Classic Database Using Wrong NPC Flag Values** - Fixed entire Classic database using Classic WoW 1.x flags instead of WotLK 3.3.5 flags
+  - Classic and WotLK use completely different flag values for service NPCs (e.g., STABLEMASTER: Classic=8192 vs WotLK=4194304)
+  - Fixed ~480 service NPCs with wrong flag values:
+    - 43 Stable Masters (8193 -> 4194305) - were showing as flight masters
+    - 14 Spirit Healers (0 -> 16385) - were completely missing
+    - 61 Flight Masters (11 -> 8195) - including Gryphon Masters, Wind Rider Masters, Bat Handlers
+    - 45 Innkeepers (133/135 -> 65669/65671)
+    - 27 Bankers (256-259 -> 131072-131075)
+    - 28 Auctioneers (4096 -> 2097152) - were completely missing from lists
+    - 24 Battlemasters (2049 -> 1048577) - were not showing properly
+    - 258 Repair NPCs (16388/16391 -> 4224/4227) - had wrong categorization
+    - 22+ Vendors (6/7 -> 130/131)
+  - This fixes stable masters showing as flight masters, spirit healers as vendors, and service NPCs missing entirely
+  - Required complete database recompilation after flag fixes
+  - Service NPC counts after fixes: 240 Repair, 40 Innkeepers, 35 Spirit Healers, 58 Flight Masters, 41 Stable Masters, 28 Auctioneers, 15 Battlemasters, 27 Bankers
+
+- **Available Quests Disabled by Default** - Fixed Available Quests being OFF by default after fresh install
+  - Available quests on map is a core Questie feature and should be enabled by default
+  - Changed `enableAvailable` from false to true in QuestieOptionsDefaults
+  - New users will now see available quests immediately after installation
+
+## [1.2.0-prerelease2] - 2025-01-04
+
+### Added
+- **QuestCompletenessScorer Module** - New data quality validation system for quest submissions
+  - Comprehensive scoring algorithm for quest data completeness
+  - Validates quest giver, turn-in, objectives, and coordinate accuracy
+  - Supports both legacy and live data collection formats
+- **Enhanced Data Collection** - Improved quest data capture and validation
+- **DATABASE_REFERENCE.md Integration** - Complete database structure documentation for development
+
+### Changed
+- **Version Update** - Bumped to 1.2.0-prerelease2 for expanded testing
+- **Database Structure Validation** - Enhanced validation for Epoch quest and NPC entries
+- **Options and UI Improvements** - Refined tracker and options interface behavior
+
+### Fixed
+- **CRITICAL: QuestieMap.lua Nil Value Error** - Fixed "attempt to index local 'minimapDrawCall' (a nil value)" crash at line 341
+  - Moved draw call post-processing inside proper if blocks to prevent nil access
+  - Prevents crashes when map drawing queues are empty or partially processed
+  - Affects both map and minimap icon rendering systems
+- **Quest Event Handling** - Improved quest state tracking and event processing
+- **Data Collection Accuracy** - Better capture of quest giver and turn-in information
+- **Epoch Database Corrections** - Updated quest and NPC data for Project Epoch server
+
+### Added
 - **Update Reminder System** - Silent, one-time reminder to help users know about latest releases
   - Shows once per session with 2-second delay to avoid intrusiveness
   - Includes option to disable update reminders in Advanced Options
@@ -52,6 +151,52 @@
   - Data collector now captures player professions for proper quest requirement validation
   - Uses `GetNumSkillLines()` and `GetSkillLineInfo()` APIs that exist in WoW 3.3.5 instead of post-4.0.1 APIs
   - **Resolves "GetProfessions doesn't exist in QuestieDataCollector.lua" errors for ALL profession quests**
+
+- **Data Collection Debug Message Bypassing User Settings** - Fixed flight master and quest tracking messages showing even when [DATA] messages disabled
+  - Fixed `DEFAULT_CHAT_FRAME:AddMessage()` calls bypassing user's debug message preferences
+  - All [DATA] messages now properly respect the "Show data collection messages" setting
+  - Flight master capture messages now use `DebugMessage()` instead of direct chat output
+  - **Resolves users seeing unwanted [DATA] messages despite having them disabled in settings**
+
+- **CRITICAL: Settings Reset on Version Updates** - Fixed user settings reverting to defaults during addon updates
+  - Changed AceDB profile initialization to preserve user settings instead of resetting on compatibility issues
+  - Map icon disable settings now persist through version updates instead of being re-enabled
+  - All custom user preferences (tracker settings, icon scales, etc.) now survive addon updates
+  - **Resolves widespread user reports of having to reconfigure settings after each update**
+
+- **CRITICAL: Map Pins Not Showing** - Fixed invisible pins and added comprehensive diagnostics
+  - **Enhanced Migration**: Fixed 'custom' icon theme detection that was bypassed by profile resets during version updates
+  - **Invalid Theme Protection**: Now detects and fixes any invalid/unknown icon theme names that cause invisible pins
+  - **New Diagnostic Command**: Added `/questie diagnose` command to help users identify why pins aren't showing
+  - **Complete Settings Check**: Diagnoses addon enabled status, map/minimap icon settings, icon theme issues, and continent filtering
+  - **User-Friendly Guidance**: Provides clear instructions on how to fix each identified problem
+  - **Automatic Fix**: `/reload` now automatically fixes 'custom' theme and other invalid icon themes
+  - **Resolves all user reports of "map pins not showing" with easy troubleshooting**
+
+- **CRITICAL: Settings Reset Every Login (Issue #871)** - Fixed infinite migration loop causing settings to reset constantly
+  - **Root Cause**: "Reset Questie" button set migrationVersion=nil, causing migration v1 to run on every login and reset all settings
+  - **Fixed Reset Function**: Now properly sets migrationVersion to current version after reset instead of nil
+  - **Dynamic Version Tracking**: Added Migration:GetCurrentMigrationVersion() method to prevent hardcoded version numbers
+  - **Enhanced Diagnostics**: `/questie diagnose` now shows migration status and warns about pending migrations
+  - **User Warnings**: Migration system now detects and warns users stuck in migration loops
+  - **Persistent Settings**: User settings will no longer reset every login after using "Reset Questie"
+  - **Resolves widespread Issue #871 reports of having to reconfigure settings after every login**
+
+- **Enhanced Version Display & Update Tracking** - Added version visibility and out-of-date indicators
+  - **Settings Window Title**: Now shows "Questie v1.2.0" instead of just "Questie" 
+  - **Startup Message**: Chat login message now displays current version number
+  - **Out-of-Date Indicators**: When users dismiss update prompts, shows "- out of date" in both settings title and startup message
+  - **Smart Update Detection**: Automatically clears "out of date" status when user updates to newer version
+  - **Version Persistence**: Tracks which version user dismissed to avoid repeated prompts for same version
+  - **Improved User Awareness**: Users can easily see their current version and update status at a glance
+
+- **Centralized Version Management** - Eliminated hardcoded version numbers throughout codebase
+  - **Single Source of Truth**: All version references now read from Questie.toc file using GetAddOnMetadata()
+  - **Eliminated Hardcoded Versions**: Removed outdated hardcoded versions in QuestieVersionCheck (1.1.3) and QuestieDataCollector (1.1.3, 1.1.0)
+  - **Dynamic Version Detection**: Version checking, data collection exports, and diagnostics now automatically use current version
+  - **Simplified Maintenance**: Only need to update version in one place (TOC file) for releases
+  - **Clear Release Process**: Documented process for version management and update detection
+  - **Prevents Version Drift**: No more outdated hardcoded versions causing confusion or incorrect behavior
 
 ### Fixed
 - **CRITICAL: Coordinate System API Failures (Issue #3)** - Fixed coordinate type mismatches causing crashes and positioning errors

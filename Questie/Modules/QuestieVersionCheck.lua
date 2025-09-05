@@ -7,9 +7,23 @@ local QuestieLib = QuestieLoader:ImportModule("QuestieLib")
 -- Compatibility layer for C_Timer
 local C_Timer = QuestieCompat and QuestieCompat.C_Timer or C_Timer
 
--- Current version and latest known version
+-- VERSION MANAGEMENT:
+-- - CURRENT_VERSION: Always reads from TOC file (single source of truth)  
+-- - LATEST_KNOWN_VERSION: Only update when newer version is confirmed to exist
+--
+-- RELEASE PROCESS:
+-- 1. Update version in Questie.toc (e.g., "1.3.0")
+-- 2. Leave LATEST_KNOWN_VERSION = CURRENT_VERSION (disables static prompts)  
+-- 3. After release, update LATEST_KNOWN_VERSION if we learn of newer versions
+--
+-- This ensures:
+-- - TOC file is the single source of truth
+-- - No version update prompts for current releases  
+-- - Network-based version discovery still works
+-- - Manual override available when newer versions confirmed
+
 local CURRENT_VERSION = GetAddOnMetadata("Questie", "Version")
-local LATEST_KNOWN_VERSION = "1.1.3"  -- Update this with each release
+local LATEST_KNOWN_VERSION = CURRENT_VERSION
 local VERSION_CHECK_SHOWN = false
 
 -- GitHub releases URL for manual checking

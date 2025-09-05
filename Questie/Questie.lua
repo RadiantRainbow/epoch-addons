@@ -20,7 +20,7 @@ local QuestieLib = QuestieLoader:ImportModule("QuestieLib");
 
 function Questie:OnInitialize()
     -- This has to happen OnInitialize to be available asap
-    Questie.db = LibStub("AceDB-3.0"):New("QuestieConfig", QuestieOptionsDefaults:Load(), true)
+    Questie.db = LibStub("AceDB-3.0"):New("QuestieConfig", QuestieOptionsDefaults:Load(), false)
 
     -- These events basically all mean the same: The active profile changed.
     Questie.db.RegisterCallback(Questie, "OnProfileChanged", "RefreshConfig")

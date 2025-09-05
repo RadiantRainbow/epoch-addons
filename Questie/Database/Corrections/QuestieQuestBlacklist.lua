@@ -884,7 +884,7 @@ function QuestieQuestBlacklist:Load()
 
         -- [BETA] quests
         [402] = true, -- Sirra is Busy
-        [785] = true, -- A Strategic Alliance
+        -- [785] = true, -- A Strategic Alliance (WotLK quest - ID reused by Epoch for "A Threat Within")
         [999] = true, -- When Dreams Turn to Nightmares
         [1005] = true, -- What Lurks Beyond
         [1006] = true, -- What Lies Beyond

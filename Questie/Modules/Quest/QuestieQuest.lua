@@ -155,17 +155,28 @@ local function _CreateRuntimeQuestStub(questId, questLogData)
         Questie:Debug(Questie.DEBUG_INFO, "[_CreateRuntimeQuestStub] Quest", questId, "no zone detected, will use Unknown Zone")
     end
 
+    -- Import completeness scorer to analyze partial database data
+    local QuestCompletenessScorer = QuestieLoader:ImportModule("QuestCompletenessScorer")
+    local completenessInfo = QuestCompletenessScorer:AnalyzeQuestCompleteness(questId)
+    
+    Questie:Debug(Questie.DEBUG_INFO, "[_CreateRuntimeQuestStub] Quest", questId, "completeness:", completenessInfo.percentage .. "% (" .. completenessInfo.state .. ")")
+    
+    -- Determine quest name with appropriate prefix based on completeness
+    local questName = ((title and tostring(title)) or ("Quest " .. tostring(questId)))
+    local prefixedName = completenessInfo.prefix .. questName
+    
+    -- Start with base stub
     local stub = {
         Id = questId,
-        name = "[Epoch] " .. ((title and tostring(title)) or ("Quest " .. tostring(questId))),
-        LocalizedName = "[Epoch] " .. ((title and tostring(title)) or ("Quest " .. tostring(questId))),
+        name = prefixedName,
+        LocalizedName = prefixedName,
         Level = questLevel or QuestiePlayer.GetPlayerLevel(), -- Use actual quest level if available
         level = questLevel or QuestiePlayer.GetPlayerLevel(), -- tracker uses lower-case 'level'
         zoneOrSort = currentZoneName and -9999 or 0, -- Special value for runtime stubs with custom zone names
         runtimeZoneName = currentZoneName, -- Store the actual zone name for runtime stubs
         Objectives = {},
         SpecialObjectives = {},
-        ObjectiveData = {}, -- empty so icon spawn logic won’t try to resolve DB data
+        ObjectiveData = {}, -- Will be populated from partial data if available
         Color = QuestieLib:ColorWheel(),
         IsRepeatable = false,
         sourceItemId = 0,
@@ -174,7 +185,44 @@ local function _CreateRuntimeQuestStub(questId, questLogData)
         WasComplete = nil,
         isComplete = (isCompleteFlag == 1) or nil,
         __isRuntimeStub = true,
+        __completenessInfo = completenessInfo, -- Store completeness info for data collection
     }
+    
+    -- Merge partial database data if available and beneficial
+    if completenessInfo.questData and completenessInfo.state ~= QuestCompletenessScorer.COMPLETENESS_STATES.MISSING then
+        local partialQuest = completenessInfo.questData
+        
+        Questie:Debug(Questie.DEBUG_INFO, "[_CreateRuntimeQuestStub] Merging partial database data for quest", questId)
+        
+        -- Use database level if available and valid
+        if partialQuest.Level and partialQuest.Level > 0 and partialQuest.Level <= 80 then
+            stub.Level = partialQuest.Level
+            stub.level = partialQuest.Level
+            Questie:Debug(Questie.DEBUG_INFO, "[_CreateRuntimeQuestStub] Using database level:", partialQuest.Level)
+        end
+        
+        -- Merge NPCs for potential pin display
+        if completenessInfo.canShowPins then
+            stub.startedBy = partialQuest.startedBy
+            stub.finishedBy = partialQuest.finishedBy
+            Questie:Debug(Questie.DEBUG_INFO, "[_CreateRuntimeQuestStub] Added NPC data for pin display")
+        end
+        
+        -- Merge objectives if they exist in database (but prefer live quest log objectives)
+        if completenessInfo.canTrackObjectives and not rawObjectives then
+            stub.Objectives = partialQuest.Objectives or {}
+            Questie:Debug(Questie.DEBUG_INFO, "[_CreateRuntimeQuestStub] Using database objectives as fallback")
+        end
+        
+        -- Copy other useful database fields
+        stub.requiredRaces = partialQuest.requiredRaces
+        stub.requiredClasses = partialQuest.requiredClasses
+        stub.requiredLevel = partialQuest.requiredLevel
+        stub.zoneOrSort = partialQuest.zoneOrSort or stub.zoneOrSort
+        stub.sourceItemId = partialQuest.sourceItemId or 0
+        
+        Questie:Debug(Questie.DEBUG_INFO, "[_CreateRuntimeQuestStub] Enhanced stub with partial database data")
+    end
 
     -- Debug: confirm what zoneOrSort was set to
     Questie:Debug(Questie.DEBUG_INFO, "[_CreateRuntimeQuestStub] Quest", questId, "stub created with zoneOrSort:", stub.zoneOrSort, "runtimeZoneName:", stub.runtimeZoneName)
@@ -1442,7 +1490,7 @@ function QuestieQuest:PopulateObjective(quest, objectiveIndex, objective, blockI
         objective.Color = QuestieLib:ColorWheel()
     end
 
-    if objective.spawnList and next(objective.spawnList) then
+    if objective.spawnList and type(objective.spawnList) == "table" and next(objective.spawnList) then
         local maxPerType = 300
 
         if Questie.db.profile.enableIconLimit and Questie.db.profile.iconLimit < maxPerType then
@@ -1456,15 +1504,25 @@ function QuestieQuest:PopulateObjective(quest, objectiveIndex, objective, blockI
         local zones = {}
         local objectiveZone
 
-        for _, spawnData in pairs(objective.spawnList) do
-            for zone in pairs(spawnData.Spawns) do
-                zones[zone] = true
+        -- Defensive check for spawnList
+        if objective.spawnList and type(objective.spawnList) == "table" then
+            for _, spawnData in pairs(objective.spawnList) do
+                if spawnData and spawnData.Spawns then
+                    for zone in pairs(spawnData.Spawns) do
+                        zones[zone] = true
+                    end
+                end
             end
+        else
+            Questie:Debug(Questie.DEBUG_DEVELOP, "[QuestieQuest] Objective has no spawnList for quest", quest.Id)
         end
 
-        for zone in pairs(zones) do
-            objectiveZone = zone
-            zoneCount = zoneCount + 1
+        -- Extra defensive check for zones table
+        if zones then
+            for zone in pairs(zones) do
+                objectiveZone = zone
+                zoneCount = zoneCount + 1
+            end
         end
 
         if zoneCount == 1 then -- this objective happens in 1 zone, clustering should be relative to that zone
@@ -1481,7 +1539,7 @@ end
 _RegisterObjectiveTooltips = function(objective, questId, blockItemTooltips)
     Questie:Debug(Questie.DEBUG_INFO, "Registering objective tooltips for", objective.Description)
 
-    if objective.spawnList then
+    if objective.spawnList and type(objective.spawnList) == "table" then
         if (not objective.hasRegisteredTooltips) then
             for id, spawnData in pairs(objective.spawnList) do
                 if spawnData.TooltipKey and (not objective.AlreadySpawned[id]) then

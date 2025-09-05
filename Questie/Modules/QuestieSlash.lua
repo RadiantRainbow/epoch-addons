@@ -67,6 +67,7 @@ function QuestieSlash.HandleCommands(input)
         print(Questie:Colorize("/questie dumplog - " .. l10n("Export your quest log data for troubleshooting"), "yellow"));
         print(Questie:Colorize("/questie flex - " .. l10n("Flex the amount of quests you have completed so far"), "yellow"));
         print(Questie:Colorize("/questie doable [questID] - " .. l10n("Prints whether you are eligibile to do a quest"), "yellow"));
+        print(Questie:Colorize("/questie diagnose - " .. "Check why map pins might not be showing", "yellow"));
         return;
     end
 
@@ -976,6 +977,101 @@ function QuestieSlash.HandleCommands(input)
         return
     end
 
+    -- Debug command to check quest availability
+    if mainCommand == "questcheck" then
+        if not subCommand then
+            print(Questie:Colorize("[Questie] ", "yellow") .. "Usage: /questie questcheck <questID>")
+            return
+        end
+        
+        local questId = tonumber(subCommand)
+        if not questId then
+            print(Questie:Colorize("[Questie] ", "yellow") .. "Invalid quest ID: " .. tostring(subCommand))
+            return
+        end
+        
+        print(Questie:Colorize("=== QUEST AVAILABILITY DEBUG: " .. questId .. " ===", "yellow"))
+        
+        -- Check if quest exists in database
+        local questName = QuestieDB.QueryQuestSingle(questId, "name")
+        if not questName then
+            print("|cFFFF0000CRITICAL: Quest " .. questId .. " NOT FOUND in database!|r")
+            return
+        end
+        print("|cFF00FF00Quest found:|r " .. questName)
+        
+        -- Check IsDoable with debug enabled
+        print("\n|cFFFFFF00Testing IsDoable function:|r")
+        local isDoable = QuestieDB.IsDoable(questId, true)
+        print("IsDoable result: " .. (isDoable and "|cFF00FF00TRUE|r" or "|cFFFF0000FALSE|r"))
+        
+        -- Check detailed verbose result
+        print("\n|cFFFFFF00Verbose analysis:|r")
+        local verboseResult = QuestieDB.IsDoableVerbose(questId, true, true, false)
+        if verboseResult then
+            print("Reason: " .. verboseResult)
+        end
+        
+        -- Check if quest is currently active (3.3.5 compatible)
+        local isActive = false
+        for i = 1, GetNumQuestLogEntries() do
+            local _, _, _, _, _, _, _, questLogId = GetQuestLogTitle(i)
+            if questLogId == questId then
+                isActive = true
+                break
+            end
+        end
+        print("Currently active: " .. (isActive and "|cFF00FF00TRUE|r" or "|cFFFF0000FALSE|r"))
+        
+        -- Check quest starter NPCs
+        local starters = QuestieDB.QueryQuestSingle(questId, "startedBy")
+        if starters and starters[1] then
+            print("\n|cFFFFFF00Quest Starters:|r")
+            for i, npcId in ipairs(starters[1]) do
+                local npc = QuestieDB:GetNPC(npcId)
+                if npc then
+                    print("  NPC " .. npcId .. ": " .. npc.name)
+                    print("    NPC Flags: " .. (npc.npcFlags or "nil"))
+                    if npc.spawns then
+                        for zoneId, coords in pairs(npc.spawns) do
+                            print("    Zone " .. zoneId .. ": " .. #coords .. " spawn points")
+                            -- Show first few coordinates
+                            for j = 1, math.min(3, #coords) do
+                                print("      [" .. coords[j][1] .. ", " .. coords[j][2] .. "]")
+                            end
+                        end
+                    else
+                        print("    |cFFFF0000NO SPAWN DATA!|r")
+                    end
+                else
+                    print("  |cFFFF0000NPC " .. npcId .. ": NOT FOUND in database!|r")
+                end
+            end
+        else
+            print("\n|cFFFF0000No quest starters found!|r")
+        end
+        
+        -- Check if quest is in available quests cache
+        print("\n|cFFFFFF00Available Quest Check:|r")
+        local AvailableQuests = QuestieLoader:ImportModule("AvailableQuests")
+        print("AvailableQuests module loaded: " .. (AvailableQuests and "TRUE" or "FALSE"))
+        
+        return
+    end
+
+    -- Manual available quest refresh command
+    if mainCommand == "refreshquests" then
+        print(Questie:Colorize("[Questie] ", "yellow") .. "Manually refreshing available quests...")
+        local AvailableQuests = QuestieLoader:ImportModule("AvailableQuests")
+        if AvailableQuests then
+            AvailableQuests.CalculateAndDrawAll()
+            print(Questie:Colorize("[Questie] ", "yellow") .. "Available quest refresh completed!")
+        else
+            print(Questie:Colorize("[Questie] ", "yellow") .. "ERROR: Could not load AvailableQuests module!")
+        end
+        return
+    end
+
     if mainCommand == "tomap" then
         if not subCommand then
             subCommand = UnitName("target")
@@ -1048,6 +1144,70 @@ function QuestieSlash.HandleCommands(input)
 
         Questie:Print("[Eligibility] " .. tostring(QuestieDB.IsDoableVerbose(tonumber(subCommand), false, true, false)))
 
+        return
+    end
+
+    if mainCommand == "diagnose" or mainCommand == "diagnostic" or mainCommand == "pins" then
+        print(Questie:Colorize("[Questie Diagnostic]", "yellow"))
+        print("═══════════════════════════════")
+        
+        -- Check main addon state
+        print("Questie Addon Status:")
+        if Questie.db.profile.enabled then
+            print("  ✓ " .. Questie:Colorize("Questie enabled", "green"))
+        else
+            print("  ✗ " .. Questie:Colorize("Questie DISABLED", "red") .. " - Use /questie toggle to enable")
+        end
+        
+        -- Check map icons
+        print("Map Icon Settings:")
+        if Questie.db.profile.enableMapIcons then
+            print("  ✓ " .. Questie:Colorize("World map icons enabled", "green"))
+        else
+            print("  ✗ " .. Questie:Colorize("World map icons DISABLED", "red") .. " - Enable in Questie → Icons tab")
+        end
+        
+        if Questie.db.profile.enableMiniMapIcons then
+            print("  ✓ " .. Questie:Colorize("Minimap icons enabled", "green"))
+        else
+            print("  ✗ " .. Questie:Colorize("Minimap icons DISABLED", "red") .. " - Enable in Questie → Icons tab")
+        end
+        
+        -- Check icon theme
+        local theme = Questie.db.profile.iconTheme
+        print("Icon Theme: " .. Questie:Colorize(theme, "yellow"))
+        if theme == "custom" then
+            print("  ⚠ " .. Questie:Colorize("WARNING: 'custom' theme causes INVISIBLE pins!", "orange"))
+            print("    Use /reload to fix automatically, or change theme in Questie → Icons")
+        elseif theme ~= "questie" and theme ~= "blizzard" and theme ~= "pfquest" then
+            print("  ⚠ " .. Questie:Colorize("WARNING: Unknown icon theme may cause issues", "orange"))
+            print("    Recommend changing to 'questie' theme in Questie → Icons")
+        end
+        
+        -- Check continent filtering
+        if Questie.db.profile.hideIconsOnContinents then
+            print("  ⚠ " .. Questie:Colorize("Continent filtering enabled", "orange") .. " - Some zones may have hidden pins")
+        end
+        
+        -- Check migration version (helps diagnose settings reset issues)
+        print("Migration Status:")
+        local Migration = QuestieLoader:ImportModule("Migration")
+        local currentMigrationVersion = Questie.db.profile.migrationVersion or 0
+        local targetMigrationVersion = Migration and Migration:GetCurrentMigrationVersion() or "unknown"
+        
+        if currentMigrationVersion == targetMigrationVersion then
+            print("  ✓ " .. Questie:Colorize("Migration up to date", "green") .. " (v" .. currentMigrationVersion .. ")")
+        else
+            print("  ⚠ " .. Questie:Colorize("Migration pending", "orange") .. " - Current: v" .. currentMigrationVersion .. ", Target: v" .. targetMigrationVersion)
+            if currentMigrationVersion == 0 then
+                print("    This may cause settings to reset on next login if migration v1 runs")
+            end
+        end
+        
+        print("═══════════════════════════════")
+        print("Use " .. Questie:Colorize("/questie toggle", "yellow") .. " to enable/disable Questie")
+        print("Use " .. Questie:Colorize("/questie", "yellow") .. " to open settings")
+        
         return
     end
 

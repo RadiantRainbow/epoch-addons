@@ -1,5 +1,6 @@
 local Spell = Spell or {}
 local SpellMixin = SpellMixin or {}
+local C_Spell = C_Spell
 
 --[[static]] function Spell:CreateFromSpellID(spellID)
 	local spell = CreateFromMixins(SpellMixin)
@@ -44,15 +45,15 @@ function SpellMixin:GetSpellName()
 end
 
 function SpellMixin:GetSpellTexture()
-	return C_GetSpellTexture(self:GetSpellID())
+	return C_Spell.GetSpellTexture(self:GetSpellID())
 end
 
 function SpellMixin:GetSpellSubtext()
-	return GetSpellSubtext(self:GetSpellID())
+	return C_Spell.GetSpellSubtext(self:GetSpellID())
 end
 
 function SpellMixin:GetSpellDescription()
-	return GetSpellDescription(self:GetSpellID())
+	return C_Spell.GetSpellDescription(self:GetSpellID())
 end
 
 -- Add a callback to be executed when spell data is loaded, if the spell data is already loaded then execute it immediately

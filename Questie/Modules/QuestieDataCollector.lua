@@ -15,9 +15,10 @@ local QuestieCompat = QuestieLoader:ImportModule("QuestieCompat")
 -- Compatibility reassignments (following codebase pattern)
 local C_Timer -- Will be assigned after initialization
 
--- Version control - only accept data from this version or later
-local MINIMUM_VERSION = "1.1.0"
-local CURRENT_VERSION = "1.1.3"
+-- Version control - use TOC file as single source of truth
+local CURRENT_VERSION = GetAddOnMetadata("Questie", "Version") or "Unknown"
+-- Accept data from previous stable versions or later
+local MINIMUM_VERSION = "1.1.0" -- Oldest compatible version for data collection
 
 -- WoW AreaID to Questie zone ID mapping for problematic zones
 local WOW_AREA_TO_QUESTIE_ZONE = {
@@ -145,7 +146,7 @@ local function IsQuestInDatabase(questId)
     end
     
     local questData = QuestieDB.GetQuest(questId)
-    local inDB = questData and questData.name and questData.name ~= "[Epoch] Quest " .. questId
+    local inDB = questData and questData.name and questData.name ~= "[EpochDB Missing] Quest " .. questId and questData.name ~= "[Epoch] Quest " .. questId
     
     -- Only debug log for genuinely missing quests or placeholders, not valid existing quests
     if not inDB then
@@ -581,6 +582,9 @@ function QuestieDataCollector:RegisterEvents()
     frame:RegisterEvent("GUILDBANKFRAME_OPENED")
     frame:RegisterEvent("GUILDBANKFRAME_CLOSED")
     frame:RegisterEvent("TAXIMAP_OPENED")
+    frame:RegisterEvent("AUCTION_HOUSE_SHOW")  -- Auctioneer
+    frame:RegisterEvent("PET_STABLE_SHOW")     -- Stable Master
+    frame:RegisterEvent("BATTLEFIELDS_SHOW")   -- Battlemaster
     
     -- XP tracking events
     frame:RegisterEvent("CHAT_MSG_COMBAT_XP_GAIN")
@@ -715,15 +719,22 @@ function QuestieDataCollector:OnEvent(event, ...)
         
     elseif event == "MERCHANT_SHOW" then
         QuestieDataCollector:CaptureServiceNPC("vendor")
+        QuestieDataCollector:DetectNPCService("VENDOR")
+        -- Check if merchant can repair
+        if CanMerchantRepair() then
+            QuestieDataCollector:DetectNPCService("REPAIR")
+        end
         
     elseif event == "TRAINER_SHOW" then
         QuestieDataCollector:CaptureServiceNPC("trainer")
+        QuestieDataCollector:DetectNPCService("TRAINER")
         
     elseif event == "MAIL_SHOW" then
         QuestieDataCollector:CaptureMailbox()
         
     elseif event == "BANKFRAME_OPENED" then
         QuestieDataCollector:CaptureServiceNPC("banker")
+        QuestieDataCollector:DetectNPCService("BANKER")
         
     elseif event == "GUILDBANKFRAME_OPENED" then
         QuestieDataCollector:CaptureServiceNPC("guild_banker")
@@ -742,12 +753,26 @@ function QuestieDataCollector:OnEvent(event, ...)
                     id = npcId,
                     name = npcName,
                     timestamp = time(),
-                    coords = QuestieDataCollector:GetPlayerCoordinates()
+                    coords = QuestieDataCollector:GetPlayerCoordinates(),
+                    detectedServices = {}
                 }
                 DebugMessage("|cFF00FFFF[DATA]|r Captured flight master from TAXIMAP_OPENED: " .. npcName, 0, 1, 1)
             end
+            QuestieDataCollector:DetectNPCService("FLIGHT_MASTER")
         end
         QuestieDataCollector:CaptureServiceNPC("flight_master")
+        
+    elseif event == "AUCTION_HOUSE_SHOW" then
+        QuestieDataCollector:CaptureNPCInfo()
+        QuestieDataCollector:DetectNPCService("AUCTIONEER")
+        
+    elseif event == "PET_STABLE_SHOW" then
+        QuestieDataCollector:CaptureNPCInfo()
+        QuestieDataCollector:DetectNPCService("STABLEMASTER")
+        
+    elseif event == "BATTLEFIELDS_SHOW" then
+        QuestieDataCollector:CaptureNPCInfo()
+        QuestieDataCollector:DetectNPCService("BATTLEMASTER")
         
     elseif event == "CHAT_MSG_COMBAT_XP_GAIN" then
         local message = ...
@@ -792,7 +817,7 @@ function QuestieDataCollector:TrackQuestAccepted(questIndex, questId)
     end
     
     -- Always show this message for missing quests (bypass toggle)
-    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[DATA]|r Epoch quest not in database accepted: " .. questName .. " (ID: " .. questId .. ")", 0, 1, 0)
+    DebugMessage("|cFF00FF00[DATA]|r Epoch quest not in database accepted: " .. questName .. " (ID: " .. questId .. ")", 0, 1, 0)
     
     -- Initialize quest data if needed
     if not QuestieDataCollection.quests[questId] then
@@ -1045,7 +1070,7 @@ function QuestieDataCollector:TrackQuestAccepted(questIndex, questId)
     DebugMessage("|cFF00FF00[DATA]|r Now tracking quest: " .. questName .. " (ID: " .. questId .. ")", 0, 1, 0)
     
     -- Always show this message for missing quests (bypass toggle)
-    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[DATA]|r Quest tracked: " .. questName .. " (ID: " .. questId .. ")", 0, 1, 0)
+    DebugMessage("|cFF00FF00[DATA]|r Quest tracked: " .. questName .. " (ID: " .. questId .. ")", 0, 1, 0)
 end
 
 function QuestieDataCollector:TrackQuestComplete()
@@ -1292,6 +1317,36 @@ function QuestieDataCollector:UpdateQuestObjectives(questId)
                 objective.finished = finished
             end
         end
+    end
+end
+
+function QuestieDataCollector:DetectNPCService(serviceType)
+    -- Store detected service type for the last interacted NPC
+    if _lastInteractedNPC and _lastInteractedNPC.id then
+        if not _lastInteractedNPC.detectedServices then
+            _lastInteractedNPC.detectedServices = {}
+        end
+        _lastInteractedNPC.detectedServices[serviceType] = true
+        
+        -- Also store in our tracked NPCs data
+        local npcId = _lastInteractedNPC.id
+        if not QuestieDataCollection.npcs then
+            QuestieDataCollection.npcs = {}
+        end
+        if not QuestieDataCollection.npcs[npcId] then
+            QuestieDataCollection.npcs[npcId] = {
+                id = npcId,
+                name = _lastInteractedNPC.name,
+                coords = {},
+                detectedServices = {}
+            }
+        end
+        if not QuestieDataCollection.npcs[npcId].detectedServices then
+            QuestieDataCollection.npcs[npcId].detectedServices = {}
+        end
+        QuestieDataCollection.npcs[npcId].detectedServices[serviceType] = true
+        
+        DebugMessage("|cFFFFFF00[DATA]|r Detected service: " .. serviceType .. " for NPC " .. (_lastInteractedNPC.name or "Unknown"), 1, 1, 0)
     end
 end
 
@@ -2132,7 +2187,7 @@ function QuestieDataCollector:CaptureServiceNPC(serviceType)
     -- Get coordinates
     local coords = QuestieDataCollector:GetPlayerCoordinates()
     
-    -- Handle flight masters separately
+    -- Handle flight masters separately (but also add to serviceNPCs)
     if serviceType == "flight_master" then
         -- Initialize flight master data if needed
         if not QuestieDataCollection.flightMasters[npcId] then
@@ -2171,11 +2226,11 @@ function QuestieDataCollector:CaptureServiceNPC(serviceType)
             end
         end
         
-        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[DATA]|r Captured flight master: " .. npcName .. " (ID: " .. npcId .. ")", 0, 1, 0)
-        return
+        DebugMessage("|cFF00FF00[DATA]|r Captured flight master: " .. npcName .. " (ID: " .. npcId .. ")", 0, 1, 0)
+        -- Don't return here - also add to serviceNPCs collection
     end
     
-    -- Initialize service NPC data if needed (for non-flight masters)
+    -- Initialize service NPC data if needed (for all service NPCs including flight masters)
     if not QuestieDataCollection.serviceNPCs[npcId] then
         QuestieDataCollection.serviceNPCs[npcId] = {
             id = npcId,
@@ -2467,7 +2522,7 @@ function QuestieDataCollector:EnableTooltipIDs()
     if not _originalTooltipSettings then
         _originalTooltipSettings = {
             questId = Questie.db.profile.enableTooltipsQuestID,
-            npcId = Questie.db.profile.enableTooltipsNpcID,
+            npcId = Questie.db.profile.enableTooltipsNPCID,
             objectId = Questie.db.profile.enableTooltipsObjectID,
             itemId = Questie.db.profile.enableTooltipsItemID
         }
@@ -2475,7 +2530,7 @@ function QuestieDataCollector:EnableTooltipIDs()
     
     -- Enable all IDs in tooltips for better data collection
     Questie.db.profile.enableTooltipsQuestID = true
-    Questie.db.profile.enableTooltipsNpcID = true
+    Questie.db.profile.enableTooltipsNPCID = true
     Questie.db.profile.enableTooltipsObjectID = true
     Questie.db.profile.enableTooltipsItemID = true
 end
@@ -2483,7 +2538,7 @@ end
 function QuestieDataCollector:RestoreTooltipSettings()
     if _originalTooltipSettings then
         Questie.db.profile.enableTooltipsQuestID = _originalTooltipSettings.questId
-        Questie.db.profile.enableTooltipsNpcID = _originalTooltipSettings.npcId
+        Questie.db.profile.enableTooltipsNPCID = _originalTooltipSettings.npcId
         Questie.db.profile.enableTooltipsObjectID = _originalTooltipSettings.objectId
         Questie.db.profile.enableTooltipsItemID = _originalTooltipSettings.itemId
         
@@ -2884,7 +2939,7 @@ function QuestieDataCollector:ShowExportWindow(questId)
         exportText = exportText .. "════════════════════════════════════════════════════════════════\n"
         exportText = exportText .. "              QUESTIE DATA COLLECTION EXPORT                    \n"
         exportText = exportText .. "════════════════════════════════════════════════════════════════\n\n"
-        exportText = exportText .. "Version: " .. (QuestieDataCollection.version or "1.1.0") .. "\n"
+        exportText = exportText .. "Version: " .. (QuestieDataCollection.version or CURRENT_VERSION) .. "\n"
         exportText = exportText .. "Date: " .. date("%Y-%m-%d %H:%M:%S") .. "\n"
         
         -- Player character information
@@ -3104,6 +3159,34 @@ function QuestieDataCollector:ShowExportWindow(questId)
             
             for npcId, fmData in pairs(QuestieDataCollection.flightMasters) do
                 exportText = exportText .. "Flight Master: " .. (fmData.name or "Unknown") .. " (ID: " .. npcId .. ")\n"
+                
+                -- Include detected services and calculated flag value
+                if QuestieDataCollection.npcs and QuestieDataCollection.npcs[npcId] and QuestieDataCollection.npcs[npcId].detectedServices then
+                    local services = {}
+                    local flagValue = 0
+                    for service, _ in pairs(QuestieDataCollection.npcs[npcId].detectedServices) do
+                        table.insert(services, service)
+                        -- Calculate flag value based on detected services
+                        if service == "FLIGHT_MASTER" then flagValue = flagValue + 8192 end
+                        if service == "QUEST_GIVER" then flagValue = flagValue + 2 end
+                        if service == "VENDOR" then flagValue = flagValue + 128 end
+                        if service == "TRAINER" then flagValue = flagValue + 16 end
+                        if service == "INNKEEPER" then flagValue = flagValue + 65536 end
+                        if service == "BANKER" then flagValue = flagValue + 131072 end
+                        if service == "REPAIR" then flagValue = flagValue + 4096 end
+                        if service == "AUCTIONEER" then flagValue = flagValue + 2097152 end
+                        if service == "STABLEMASTER" then flagValue = flagValue + 4194304 end
+                        if service == "BATTLEMASTER" then flagValue = flagValue + 1048576 end
+                    end
+                    if #services > 0 then
+                        exportText = exportText .. "Detected Services: " .. table.concat(services, ", ") .. "\n"
+                        exportText = exportText .. "NPC Flags: " .. flagValue .. " (WotLK value)\n"
+                    end
+                else
+                    -- Flight master without detected services - default to FLIGHT_MASTER flag
+                    exportText = exportText .. "NPC Flags: 8192 (FLIGHT_MASTER - default)\n"
+                end
+                
                 if fmData.locations and #fmData.locations > 0 then
                     for _, loc in ipairs(fmData.locations) do
                         if loc.x and loc.y then
@@ -3470,7 +3553,7 @@ function QuestieDataCollector:GenerateStagedPageContent(pageNum, maxPerPage)
     exportText = exportText .. "7. Use Next button for remaining pages\n\n"
     
     -- Export metadata
-    exportText = exportText .. "Version: " .. (QuestieDataCollection.version or "1.1.0") .. "\n"
+    exportText = exportText .. "Version: " .. (QuestieDataCollection.version or CURRENT_VERSION) .. "\n"
     exportText = exportText .. "Date: " .. date("%Y-%m-%d %H:%M:%S") .. "\n"
     
     local playerClass = UnitClass("player")
@@ -4359,10 +4442,56 @@ function QuestieDataCollector:GenerateDatabaseEntries(questId, questData)
             questEnds = "{" .. table.concat(npc.questEnds, ",") .. "}"
         end
         
+        -- Calculate NPC flags based on detected services (WotLK values)
+        local npcFlags = 0
+        
+        -- Check if we have detected services for this NPC
+        local detectedServices = {}
+        if QuestieDataCollection.npcs and QuestieDataCollection.npcs[npcId] and QuestieDataCollection.npcs[npcId].detectedServices then
+            detectedServices = QuestieDataCollection.npcs[npcId].detectedServices
+        end
+        
+        -- Add appropriate flags based on detected services
+        if detectedServices["QUEST_GIVER"] or #npc.questStarts > 0 or #npc.questEnds > 0 then
+            npcFlags = npcFlags + 2  -- QUEST_GIVER
+        end
+        if detectedServices["VENDOR"] then
+            npcFlags = npcFlags + 128  -- VENDOR
+        end
+        if detectedServices["TRAINER"] then
+            npcFlags = npcFlags + 16  -- TRAINER
+        end
+        if detectedServices["FLIGHT_MASTER"] then
+            npcFlags = npcFlags + 8192  -- FLIGHT_MASTER
+        end
+        if detectedServices["INNKEEPER"] then
+            npcFlags = npcFlags + 65536  -- INNKEEPER
+        end
+        if detectedServices["BANKER"] then
+            npcFlags = npcFlags + 131072  -- BANKER
+        end
+        if detectedServices["REPAIR"] then
+            npcFlags = npcFlags + 4096  -- REPAIR
+        end
+        if detectedServices["AUCTIONEER"] then
+            npcFlags = npcFlags + 2097152  -- AUCTIONEER
+        end
+        if detectedServices["STABLEMASTER"] then
+            npcFlags = npcFlags + 4194304  -- STABLEMASTER
+        end
+        if detectedServices["BATTLEMASTER"] then
+            npcFlags = npcFlags + 1048576  -- BATTLEMASTER
+        end
+        
+        -- Default to QUEST_GIVER if no services detected but NPC gives/ends quests
+        if npcFlags == 0 and (#npc.questStarts > 0 or #npc.questEnds > 0) then
+            npcFlags = 2
+        end
+        
         -- Build NPC entry with exact 15 fields
         -- [npcId] = {name, minHP, maxHP, minLvl, maxLvl, rank, spawns, waypoints, zoneID, questStarts, questEnds, factionID, friendlyTo, subName, npcFlags}
         npcEntries[npcId] = string.format(
-            '[%d] = {"%s",nil,nil,%s,%s,0,%s,nil,%d,%s,%s,nil,nil,nil,2},',
+            '[%d] = {"%s",nil,nil,%s,%s,0,%s,nil,%d,%s,%s,nil,nil,nil,%d},',
             npcId,            -- NPC ID
             npc.name,         -- Field 1: name
             npc.level,        -- Field 4: minLevel
@@ -4370,13 +4499,30 @@ function QuestieDataCollector:GenerateDatabaseEntries(questId, questData)
             coords,           -- Field 7: spawns
             zoneId,           -- Field 9: zoneID
             questStarts,      -- Field 10: questStarts
-            questEnds         -- Field 11: questEnds
+            questEnds,        -- Field 11: questEnds
+            npcFlags          -- Field 15: npcFlags (calculated based on detected services)
         )
     end
     
     -- Output NPC entries (sorted for consistency)
     if next(npcEntries) then
         output = output .. "-- Add to epochNpcDB.lua:\n"
+        output = output .. "-- Note: NPC flags are automatically calculated based on detected services\n"
+        
+        -- List detected services for each NPC as a comment
+        for npcId, npc in pairs(npcData) do
+            if QuestieDataCollection.npcs and QuestieDataCollection.npcs[npcId] and QuestieDataCollection.npcs[npcId].detectedServices then
+                local services = {}
+                for service, _ in pairs(QuestieDataCollection.npcs[npcId].detectedServices) do
+                    table.insert(services, service)
+                end
+                if #services > 0 then
+                    output = output .. string.format("-- NPC %d (%s): %s\n", npcId, npc.name, table.concat(services, ", "))
+                end
+            end
+        end
+        output = output .. "\n"
+        
         -- Sort NPC IDs for consistent output
         local sortedNpcIds = {}
         for npcId in pairs(npcEntries) do
@@ -4742,7 +4888,7 @@ function QuestieDataCollector:ExportBatchPart(partNumber)
     exportText = exportText .. "════════════════════════════════════════════════════════════════\n"
     exportText = exportText .. "         QUESTIE DATA COLLECTION EXPORT - PART " .. partNumber .. " of " .. totalParts .. "         \n"
     exportText = exportText .. "════════════════════════════════════════════════════════════════\n\n"
-    exportText = exportText .. "Version: " .. (QuestieDataCollection.version or "1.1.0") .. "\n"
+    exportText = exportText .. "Version: " .. (QuestieDataCollection.version or CURRENT_VERSION) .. "\n"
     exportText = exportText .. "Date: " .. date("%Y-%m-%d %H:%M:%S") .. "\n"
     exportText = exportText .. "Part: " .. partNumber .. " of " .. totalParts .. " (" .. questsInThisPart .. " quests in this part)\n"
     exportText = exportText .. "Total Quests: " .. questCount .. " across all parts\n\n"
@@ -5254,3 +5400,48 @@ SlashCmdList["QUESTIEDATACOLLECTOR"] = function(msg)
         DEFAULT_CHAT_FRAME:AddMessage("/qdc devmode - Toggle dev mode (collect ALL quest data)", 1, 1, 1)
     end
 end
+
+--- Check if data collection is currently enabled
+function QuestieDataCollector:IsDataCollectionEnabled()
+    return Questie.db and Questie.db.profile and Questie.db.profile.enableDataCollection or false
+end
+
+--- Prompt user to enable data collection (only shows once per character)
+--- @param questId number The quest ID that triggered this prompt
+--- @param questName string The quest name for context
+function QuestieDataCollector:PromptForDataCollection(questId, questName)
+    -- Check if user has already been prompted and made a choice
+    if Questie.db.profile.dataCollectionPrompted ~= nil then
+        return -- User already made a choice, don't prompt again
+    end
+    
+    -- Mark that we've prompted so it only happens once
+    Questie.db.profile.dataCollectionPrompted = true
+    
+    -- Create popup frame for data collection prompt
+    StaticPopup_Show("QUESTIE_DATA_COLLECTION_PROMPT", questName or "this quest", questId or "")
+end
+
+-- Static popup definition for data collection prompt
+StaticPopupDialogs["QUESTIE_DATA_COLLECTION_PROMPT"] = {
+    text = "You just accepted '%s' which has incomplete data!\n\nWould you like to enable data collection to help complete quest data for the community?\n\n• Your progress will be tracked\n• No personal information is shared\n• Data helps improve Questie for everyone\n• You can disable this anytime with /qdc disable",
+    button1 = "Yes, Enable Collection",
+    button2 = "No Thanks", 
+    OnAccept = function()
+        -- Enable data collection
+        Questie.db.profile.enableDataCollection = true
+        if QuestieDataCollector and QuestieDataCollector.Initialize then
+            QuestieDataCollector:Initialize()
+        end
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie] Data collection enabled! Thank you for contributing to the community.|r")
+        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[Questie] Use '/qdc status' to check collection status, '/qdc disable' to turn off.|r")
+    end,
+    OnCancel = function()
+        -- User declined - we won't prompt again due to dataCollectionPrompted being set to true
+        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[Questie] Data collection remains disabled. You can enable it anytime with '/qdc enable'.|r")
+    end,
+    timeout = 0, -- No auto-timeout
+    whileDead = true,
+    hideOnEscape = false, -- Force user to make a choice
+    showAlert = true, -- Make it more prominent
+}

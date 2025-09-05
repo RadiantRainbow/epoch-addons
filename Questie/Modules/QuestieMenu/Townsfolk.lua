@@ -50,7 +50,10 @@ local function _PopulateTownsfolkTypes(folkTypes) -- populate the table with all
 end
 
 
+
 function Townsfolk.Initialize()
+    
+    -- Building townfolk lists
 
     --? This datastructure is used in PopulateTownsfolkTypes to fetch multiple townfolk data in the same npc loop cycle
     ---@type table<string, {mask: NpcFlags|integer, requireSubname: boolean, data: NpcId[]}>
@@ -96,6 +99,7 @@ function Townsfolk.Initialize()
             data = {}
         }
     }
+    
     _PopulateTownsfolkTypes(townsfolkData)
 
     local townfolk = {
@@ -105,6 +109,8 @@ function Townsfolk.Initialize()
         ["Battlemaster"] = townsfolkData["Battlemaster"].data,
         ["Flight Master"] = townsfolkData["Flight Master"].data,
         ["Innkeeper"] = townsfolkData["Innkeeper"].data,
+        ["Stable Master"] = townsfolkData["Stable Master"].data,  -- Now in global list for all classes
+        ["Spirit Healer"] = townsfolkData["Spirit Healer"].data,  -- Now in global list
         ["Weapon Master"] = {}, -- populated below
     }
 
@@ -126,13 +132,14 @@ function Townsfolk.Initialize()
         [professionKeys.SKINNING] = {}
     }
 
-    if Questie.IsTBC or Questie.IsWotlk then
-        professionTrainers[professionKeys.JEWELCRAFTING] = {}
-    end
-
-    if Questie.IsWotlk then
-        professionTrainers[professionKeys.INSCRIPTION] = {}
-    end
+    -- Project Epoch doesn't have Jewelcrafting or Inscription
+    -- if Questie.IsTBC or Questie.IsWotlk then
+    --     professionTrainers[professionKeys.JEWELCRAFTING] = {}
+    -- end
+    --
+    -- if Questie.IsWotlk then
+    --     professionTrainers[professionKeys.INSCRIPTION] = {}
+    -- end
 
     local count = 0
     local validProfessionTrainers = Townsfolk.GetProfessionTrainers()
@@ -196,7 +203,8 @@ function Townsfolk.Initialize()
         classSpecificTownsfolk[class]["Class Trainer"] = newTrainers
     end
 
-    -- These are filtered later, when the player class does not match
+    -- Hunters still get stable master in their class list (convenience)
+    -- Stable masters are now also in the general townfolk list for all classes to see
     classSpecificTownsfolk["HUNTER"]["Stable Master"] = townsfolkData["Stable Master"].data
     classSpecificTownsfolk["MAGE"]["Portal Trainer"] = {4165,2485,2489,5958,5957,2492,16654,16755,19340,20791,27703,27705}
 
@@ -222,6 +230,10 @@ function Townsfolk.Initialize()
     
     factionSpecificTownsfolk["Horde"]["Flight Master"] = townfolk["Flight Master"]
     factionSpecificTownsfolk["Alliance"]["Flight Master"] = townfolk["Flight Master"]
+    
+    -- Add Stable Masters to faction lists so all classes can see them
+    factionSpecificTownsfolk["Horde"]["Stable Master"] = townfolk["Stable Master"]
+    factionSpecificTownsfolk["Alliance"]["Stable Master"] = townfolk["Stable Master"]
     
     factionSpecificTownsfolk["Horde"]["Weapon Master"] = townfolk["Weapon Master"]
     factionSpecificTownsfolk["Alliance"]["Weapon Master"] = townfolk["Weapon Master"]
@@ -345,6 +357,15 @@ function Townsfolk:BuildCharacterTownsfolk()
     Questie.db.char.townsfolk = {}
     Questie.db.char.vendorList = {}
     Questie.db.char.townsfolkClass = UnitClass("player")
+
+    -- Check if global data exists before trying to use it
+    if not Questie.db.global.factionSpecificTownsfolk then
+        return
+    end
+    
+    if not Questie.db.global.classSpecificTownsfolk then
+        return
+    end
 
     for key, npcs in pairs(Questie.db.global.factionSpecificTownsfolk[playerFaction]) do
         Questie.db.char.townsfolk[key] = npcs
