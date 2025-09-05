@@ -485,7 +485,9 @@ function _Qframe:ShouldBeHidden()
         -- i.e. (iconType == "available")  ==  (iconType ~= "monster" and iconType ~= "object" and iconType ~= "event" and iconType ~= "item" and iconType ~= "complete"):
         or (iconType == "available"
             and ((not DailyQuests:IsActiveDailyQuest(questId)) -- hide not-today-dailies
-                or ((not profile.enableAvailable) and normal)
+                or ((not profile.enableAvailable) and normal and (not self.miniMapIcon)) -- Legacy check for world map
+                or ((not profile.enableAvailableWorldMap) and normal and (not self.miniMapIcon)) -- New world map setting
+                or ((not profile.enableAvailableMinimap) and normal and self.miniMapIcon) -- New minimap setting
                 or ((not profile.showRepeatableQuests) and repeatable)
                 or ((not profile.showEventQuests) and event)
                 or ((not profile.showDungeonQuests) and dungeon)

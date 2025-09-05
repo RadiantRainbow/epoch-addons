@@ -11,6 +11,11 @@
   - Ensures submitted NPC data has proper flag values to prevent service NPC miscategorization
 
 ### Fixed
+- **Available Quests Toggle Not Working** - Fixed issue where unchecking "Show Available Quests" didn't hide quest exclamation marks
+  - The new split settings (enableAvailableWorldMap/enableAvailableMinimap) weren't being checked in ShouldBeHidden()
+  - World map and minimap toggles now properly control available quest visibility independently
+  - Legacy enableAvailable setting also properly respected for backward compatibility
+  
 - **QuestieQuest nil spawnList Crash** - Fixed "bad argument #1 to 'next' (table expected, got nil)" error at line 1513
   - Added defensive checks for nil or missing spawnList data in quest objectives
   - Prevents crash when quest objectives have incomplete or corrupted spawn data

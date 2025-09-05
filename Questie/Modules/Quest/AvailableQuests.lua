@@ -55,8 +55,12 @@ end
 --Draw a single available quest, it is used by the CalculateAndDrawAll function.
 ---@param quest Quest
 function AvailableQuests.DrawAvailableQuest(quest) -- prevent recursion
-    -- Check if available quests are enabled before drawing
-    if not Questie.db.profile.enableAvailable then
+    -- The actual visibility check happens in QuestieFrame:ShouldBeHidden()
+    -- which properly checks enableAvailableWorldMap and enableAvailableMinimap
+    -- This early return is just for performance when ALL available quest settings are disabled
+    if not Questie.db.profile.enableAvailable and 
+       not Questie.db.profile.enableAvailableWorldMap and 
+       not Questie.db.profile.enableAvailableMinimap then
         return
     end
     
