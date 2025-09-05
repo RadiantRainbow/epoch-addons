@@ -22,9 +22,40 @@ local MINIMUM_VERSION = "1.1.0" -- Oldest compatible version for data collection
 
 -- WoW AreaID to Questie zone ID mapping for problematic zones
 local WOW_AREA_TO_QUESTIE_ZONE = {
-    [21] = 85,  -- Tirisfal Glades (WoW uses 21, Questie uses 85)
+    [21] = 85,  -- Tirisfal Glades (WoW sometimes returns 21, Questie uses 85)
     -- Add more mappings as we discover them
 }
+
+-- Load comprehensive subzone mappings
+-- CRITICAL: 1969 subzone names and 2117 subzone-to-parent mappings
+local QuestieSubzoneMappings = QuestieLoader:ImportModule("QuestieSubzoneMappings")
+
+local function LoadSubzoneMappings()
+    -- Try to access the QuestieSubzoneMappings module
+    if QuestieSubzoneMappings and QuestieSubzoneMappings.SUBZONE_NAME_TO_ID then
+        return QuestieSubzoneMappings.SUBZONE_NAME_TO_ID, QuestieSubzoneMappings.SUBZONE_TO_PARENT
+    else
+        -- Fallback to basic Tirisfal mappings if module fails to load
+        local fallback_names = {
+            ["Deathknell"] = 154,
+            ["Brill"] = 159,
+            ["Ruins of Lordaeron"] = 153,
+            ["Night Web's Hollow"] = 155,
+            ["Solliden Farmstead"] = 156,
+            ["Agamand Mills"] = 157,
+            ["Agamand Family Crypt"] = 158,
+            ["Whispering Gardens"] = 160,
+        }
+        local fallback_parent = {
+            [21] = 85,   -- Tirisfal alternate ID
+            [154] = 85,  -- Deathknell -> Tirisfal
+            [159] = 85,  -- Brill -> Tirisfal
+        }
+        return fallback_names, fallback_parent
+    end
+end
+
+local SUBZONE_NAME_TO_ID, SUBZONE_TO_PARENT = LoadSubzoneMappings()
 
 -- Zone name to Questie zone ID mapping (most common zones)
 local ZONE_NAME_TO_ID = {
@@ -405,35 +436,45 @@ local function GetCurrentZoneData()
         end
     end
     
-    -- Method 3: If that didn't work, try using zone name (PRIORITY METHOD)
-    if zoneData.zone and ZONE_NAME_TO_ID[zoneData.zone] then
+    -- Method 3: Check if we're in a subzone and can map it to proper ID
+    -- This is CRITICAL for quests to show up on the map with precise locations
+    if zoneData.subZone and zoneData.subZone ~= "" and SUBZONE_NAME_TO_ID[zoneData.subZone] then
+        -- We have a subzone name like "Brill" - convert to proper subzone ID (159)
+        questieZoneId = SUBZONE_NAME_TO_ID[zoneData.subZone]
+        DebugMessage(string.format("[ZONE] Mapped subzone '%s' to ID %d", zoneData.subZone, questieZoneId), 0, 1, 0)
+    end
+    
+    -- Method 4: If that didn't work, try using zone name (parent zone)
+    if not questieZoneId and zoneData.zone and ZONE_NAME_TO_ID[zoneData.zone] then
         questieZoneId = ZONE_NAME_TO_ID[zoneData.zone]
     end
     
-    -- Method 4: Try GetRealZoneText if zone didn't work
+    -- Method 5: Try GetRealZoneText if zone didn't work
     if not questieZoneId and zoneData.realZone and ZONE_NAME_TO_ID[zoneData.realZone] then
         questieZoneId = ZONE_NAME_TO_ID[zoneData.realZone]
     end
     
-    -- Method 5: Direct WoW AreaID to Questie zone mapping
+    -- Method 6: Direct WoW AreaID to Questie zone mapping
     if not questieZoneId and areaId and WOW_AREA_TO_QUESTIE_ZONE[areaId] then
         questieZoneId = WOW_AREA_TO_QUESTIE_ZONE[areaId]
     end
     
     -- Debug zone detection for problematic zones or when debug is enabled
-    if _debugEnabled or areaId == 21 or questieZoneId == 85 or zoneData.zone == "Tirisfal Glades" then
-        DebugMessage(string.format("[ZONE DETECTION] zone='%s', realZone='%s', areaId=%s, questieZoneId=%s", 
+    if _debugEnabled or areaId == 21 or questieZoneId == 85 or zoneData.zone == "Tirisfal Glades" or zoneData.subZone then
+        DebugMessage(string.format("[ZONE DETECTION] zone='%s', subZone='%s', realZone='%s', areaId=%s, questieZoneId=%s", 
             tostring(zoneData.zone), 
+            tostring(zoneData.subZone),
             tostring(zoneData.realZone), 
             tostring(areaId), 
             tostring(questieZoneId)), 1, 1, 0)
     end
     
     zoneData.mapId = mapId
-    -- CRITICAL: Use Questie's zone ID system, not WoW's GetCurrentMapAreaID
-    -- WoW returns zone 21 for Tirisfal but Questie uses zone 85
-    zoneData.areaId = questieZoneId or areaId  -- Prefer Questie's zone ID
-    zoneData.questieZoneId = questieZoneId
+    -- CRITICAL: Use the mapped subzone ID if we found one, otherwise fall back to area ID
+    -- Example: In Brill, subZone="Brill" maps to 159, which is what we need for precise map display
+    zoneData.areaId = areaId  -- Keep the raw area ID from API (might be 21)
+    zoneData.parentZoneId = SUBZONE_TO_PARENT[questieZoneId] or questieZoneId  -- Get parent zone if this is a subzone
+    zoneData.questieZoneId = questieZoneId or areaId  -- Use the mapped zone ID (159 for Brill, not 21)
     
     -- Get coordinates
     local coords = QuestieDataCollector:GetPlayerCoordinates()
@@ -906,7 +947,9 @@ function QuestieDataCollector:TrackQuestAccepted(questIndex, questId)
     if zoneData then
         questData.acceptZone = zoneData.zone
         questData.acceptSubZone = zoneData.subZone
-        questData.acceptAreaId = zoneData.areaId
+        questData.acceptAreaId = zoneData.areaId  -- The actual area ID (could be subzone like 154)
+        questData.acceptParentZoneId = zoneData.parentZoneId  -- Parent zone (like 85 for Tirisfal)
+        questData.acceptQuestieZoneId = zoneData.questieZoneId  -- What should be used in database
         
         -- Store coordinates for quest acceptance
         if zoneData.x and zoneData.y then
@@ -915,7 +958,9 @@ function QuestieDataCollector:TrackQuestAccepted(questIndex, questId)
                 y = zoneData.y,
                 zone = zoneData.zone,
                 subZone = zoneData.subZone,
-                areaId = zoneData.areaId
+                areaId = zoneData.areaId,
+                parentZoneId = zoneData.parentZoneId,
+                questieZoneId = zoneData.questieZoneId
             }
         end
     end
@@ -1174,7 +1219,9 @@ function QuestieDataCollector:TrackQuestComplete()
     if zoneData then
         questData.turnInZone = zoneData.zone
         questData.turnInSubZone = zoneData.subZone
-        questData.turnInAreaId = zoneData.areaId
+        questData.turnInAreaId = zoneData.areaId  -- The actual area ID (could be subzone)
+        questData.turnInParentZoneId = zoneData.parentZoneId  -- Parent zone
+        questData.turnInQuestieZoneId = zoneData.questieZoneId  -- What should be used in database
         
         if zoneData.x and zoneData.y then
             questData.turnInCoords = {
@@ -1182,7 +1229,9 @@ function QuestieDataCollector:TrackQuestComplete()
                 y = zoneData.y,
                 zone = zoneData.zone,
                 subZone = zoneData.subZone,
-                areaId = zoneData.areaId
+                areaId = zoneData.areaId,
+                parentZoneId = zoneData.parentZoneId,
+                questieZoneId = zoneData.questieZoneId
             }
         end
     end
@@ -1431,7 +1480,19 @@ function QuestieDataCollector:CaptureNPCInfo()
             end
             
             for zoneId, spawns in pairs(dbNpc.spawns) do
+                -- Check if zones match directly OR if current zone is a subzone of the database zone
+                local zonesMatch = false
                 if zoneId == currentZone then
+                    zonesMatch = true
+                elseif SUBZONE_TO_PARENT[currentZone] and SUBZONE_TO_PARENT[currentZone] == zoneId then
+                    -- Current zone is a subzone of the database zone (e.g., Brill (21) -> Tirisfal (85))
+                    zonesMatch = true
+                elseif SUBZONE_TO_PARENT[zoneId] and SUBZONE_TO_PARENT[zoneId] == currentZone then
+                    -- Database zone is a subzone of current zone (less common but possible)
+                    zonesMatch = true
+                end
+                
+                if zonesMatch then
                     foundZone = true
                     
                     -- Check coordinate accuracy within this zone
@@ -3613,6 +3674,14 @@ function QuestieDataCollector:FormatQuestExport(questId, questData)
     export = export .. "Quest Name: " .. (questData.name or "Unknown") .. "\n"
     export = export .. "Level: " .. (questData.level or "Unknown") .. "\n"
     
+    -- Zone information
+    if questData.acceptZone then
+        export = export .. "Zone: " .. questData.acceptZone .. "\n"
+    end
+    if questData.acceptAreaId or questData.acceptQuestieZoneId then
+        export = export .. "Zone ID: " .. (questData.acceptQuestieZoneId or questData.acceptAreaId or "Unknown") .. "\n"
+    end
+    
     -- Show quest status
     if questData.turnedIn then
         export = export .. "Status: COMPLETED\n"
@@ -3925,6 +3994,28 @@ function QuestieDataCollector:ExportQuest(questId)
     export = export .. "Level: " .. (questData.level or "Unknown") .. "\n"
     export = export .. "Player Level: " .. (questData.playerLevel or "Unknown") .. "\n"
     
+    -- Zone information (CRITICAL: Show both subzone and parent zone)
+    if questData.acceptZone then
+        export = export .. "Zone: " .. questData.acceptZone
+        if questData.acceptSubZone and questData.acceptSubZone ~= "" then
+            export = export .. " - " .. questData.acceptSubZone
+        end
+        export = export .. "\n"
+    end
+    if questData.acceptAreaId or questData.acceptParentZoneId then
+        export = export .. "Zone IDs: "
+        if questData.acceptAreaId then
+            export = export .. "Area=" .. questData.acceptAreaId
+        end
+        if questData.acceptParentZoneId then
+            export = export .. " Parent=" .. questData.acceptParentZoneId
+        end
+        if questData.acceptQuestieZoneId then
+            export = export .. " (Use: " .. questData.acceptQuestieZoneId .. ")"
+        end
+        export = export .. "\n"
+    end
+    
     -- Add profession data for skill-required quests  
     if questData.playerProfessions and #questData.playerProfessions > 0 then
         export = export .. "Player Professions:\n"
@@ -4203,6 +4294,15 @@ function QuestieDataCollector:GenerateDatabaseEntries(questId, questData)
     
     -- Generate quest entry with EXACT field order and format
     output = output .. "-- Add to epochQuestDB.lua:\n"
+    
+    -- Add zone information comment if we have subzone data
+    if questData.acceptAreaId and questData.acceptParentZoneId and questData.acceptAreaId ~= questData.acceptParentZoneId then
+        output = output .. "-- Zone: " .. (questData.acceptZone or "Unknown") 
+        output = output .. " (ID: " .. questData.acceptAreaId .. " -> Parent: " .. questData.acceptParentZoneId .. ")\n"
+    elseif questData.acceptAreaId then
+        output = output .. "-- Zone: " .. (questData.acceptZone or "Unknown") .. " (ID: " .. questData.acceptAreaId .. ")\n"
+    end
+    
     output = output .. "[" .. questId .. "] = {"
     
     -- Field 1: Quest name (string)
@@ -4342,14 +4442,25 @@ function QuestieDataCollector:GenerateDatabaseEntries(questId, questData)
     output = output .. ","
     local questZoneId = 0
     if questData.questGiver and questData.questGiver.coords then
-        if questData.questGiver.coords.zone and ZONE_NAME_TO_ID[questData.questGiver.coords.zone] then
-            questZoneId = ZONE_NAME_TO_ID[questData.questGiver.coords.zone]
+        -- Use proper questieZoneId which has been mapped from subzone names
+        -- This ensures we use 159 for Brill, 154 for Deathknell, etc.
+        if questData.acceptQuestieZoneId then
+            -- Use the mapped zone ID from quest acceptance (preferred)
+            questZoneId = questData.acceptQuestieZoneId
         elseif questData.questGiver.coords.questieZoneId then
-            -- Use Questie's zone ID if available (this is the correct one)
+            -- Use the mapped zone ID from quest giver location
             questZoneId = questData.questGiver.coords.questieZoneId
+        elseif questData.acceptAreaId then
+            -- Fallback to raw area ID from quest acceptance
+            questZoneId = questData.acceptAreaId
         elseif questData.questGiver.coords.areaId then
-            -- Fallback to areaId (may be wrong like zone 21 instead of 85)
+            -- Fallback to raw area ID from quest giver location
             questZoneId = questData.questGiver.coords.areaId
+        end
+        
+        -- Only fallback to zone name mapping if we have no zone ID
+        if (not questZoneId or questZoneId == 0) and questData.questGiver.coords.zone and ZONE_NAME_TO_ID[questData.questGiver.coords.zone] then
+            questZoneId = ZONE_NAME_TO_ID[questData.questGiver.coords.zone]
         end
     end
     if questZoneId > 0 then
@@ -4412,14 +4523,18 @@ function QuestieDataCollector:GenerateDatabaseEntries(questId, questData)
         -- Get proper zone ID
         local zoneId = 0
         if npc.coords then
-            if npc.coords.zone and ZONE_NAME_TO_ID[npc.coords.zone] then
-                zoneId = ZONE_NAME_TO_ID[npc.coords.zone]
-            elseif npc.coords.questieZoneId then
-                -- Use Questie's zone ID if available (this is the correct one)
+            -- Use the mapped questieZoneId which has correct subzone IDs
+            -- This ensures we use 159 for Brill, 154 for Deathknell, etc.
+            if npc.coords.questieZoneId then
                 zoneId = npc.coords.questieZoneId
             elseif npc.coords.areaId then
-                -- Fallback to areaId (may be wrong like zone 21 instead of 85)
+                -- Fallback to raw area ID if no mapped zone
                 zoneId = npc.coords.areaId
+            end
+            
+            -- Only fallback to zone name mapping if we have no zone ID
+            if (not zoneId or zoneId == 0) and npc.coords.zone and ZONE_NAME_TO_ID[npc.coords.zone] then
+                zoneId = ZONE_NAME_TO_ID[npc.coords.zone]
             end
         end
         
@@ -4508,6 +4623,19 @@ function QuestieDataCollector:GenerateDatabaseEntries(questId, questData)
     if next(npcEntries) then
         output = output .. "-- Add to epochNpcDB.lua:\n"
         output = output .. "-- Note: NPC flags are automatically calculated based on detected services\n"
+        
+        -- Add zone information for NPCs if we have subzone data
+        local hasSubzoneNPCs = false
+        for npcId, npc in pairs(npcData) do
+            if npc.coords and npc.coords.areaId and npc.coords.parentZoneId and npc.coords.areaId ~= npc.coords.parentZoneId then
+                if not hasSubzoneNPCs then
+                    output = output .. "-- NPCs with subzone data:\n"
+                    hasSubzoneNPCs = true
+                end
+                output = output .. "--   " .. (npc.name or "NPC " .. npcId) 
+                output = output .. ": Zone " .. npc.coords.areaId .. " -> Parent " .. npc.coords.parentZoneId .. "\n"
+            end
+        end
         
         -- List detected services for each NPC as a comment
         for npcId, npc in pairs(npcData) do

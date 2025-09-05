@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Changed
+- **Quest Turn-in Icons Now Enabled by Default** - Changed `enableTurnins` default from false to true
+  - Users expect to see where to turn in completed quests
+  - This is a core feature that should be on by default
+  - Users can still disable it if they prefer
+
 ### Added
 - **NPC Service Flag Detection in Data Collection** - Automatic detection and capture of NPC service types
   - Detects service NPCs through game events (MERCHANT_SHOW, TAXIMAP_OPENED, PET_STABLE_SHOW, etc.)

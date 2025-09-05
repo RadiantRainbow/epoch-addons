@@ -46,7 +46,7 @@ function QuestieOptionsDefaults:Load()
             questObjectiveColors = false,
             questMinimapObjectiveColors = false,
             enableObjectives = true,
-            enableTurnins = false,
+            enableTurnins = true,  -- Changed to true by default - users expect to see quest turn-in locations
             enableAvailable = true,  -- Show available quests on map (core Questie feature)
             enableAvailableWorldMap = true,  -- Available quests on world map (enabled by default)
             enableAvailableMinimap = false,  -- Available quests on minimap (disabled to reduce clutter)

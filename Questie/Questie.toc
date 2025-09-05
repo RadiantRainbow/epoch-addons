@@ -170,6 +170,8 @@ Modules\QuestieCoordinates.lua
 # Data Collection (Developer Feature)
 Modules\QuestieDataValidator.lua
 DevTools\LegacyZoneValidator.lua
+# Comprehensive subzone mappings (must load before DataCollector)
+Modules\QuestieSubzoneMappings.lua
 Modules\QuestieDataCollector.lua
 
 # Network
