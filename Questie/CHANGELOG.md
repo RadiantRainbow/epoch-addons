@@ -3,6 +3,13 @@
 ## [Unreleased]
 
 ### Fixed
+
+- **Fixed Remaining spawnList nil Error** - Fixes GitHub issue #1279
+  - Added defensive check to `_UnloadAlreadySpawnedIcons` function at line 1579
+  - Prevents "bad argument #1 to 'next' (table expected, got nil)" error
+  - This was the last remaining unprotected spawnList access in the codebase
+  - Users on v1.1.4 experiencing this crash should update to latest version
+
 - **Fixed Quest Icon Priority on Map** - Available quests now properly display over unavailable ones
   - Gray (unavailable) quest icons now have lower draw layer priority than yellow (available) icons
   - When multiple quest NPCs are at the same location, the available quest icon displays on top
@@ -57,6 +64,24 @@
   - Restored config.yml (disables blank issues, directs to Discord)
   - Restored missing_quest.yml (template for quest data submissions)
   - Restored feature_request.yml (template for feature requests)
+
+- **Fixed SharedXML SetMaxResize Error in AceGUI** - Fixed WoW 3.3.5 compatibility issue
+  - AceGUI TreeGroup widget was calling SetMaxResize without SetMinResize
+  - In WoW 3.3.5, both SetMinResize and SetMaxResize must be called separately
+  - Added proper fallback handling for older WoW clients lacking SetResizeBounds
+  - Fixes initialization error: "Usage: <unnamed>:SetMaxResize(maxWidth, maxHeight)"
+
+- **Fixed ExportBatchPart ShowExportText nil Error** - Fixes issue #1277
+  - ExportBatchPart was calling non-existent ShowExportText function
+  - Replaced with proper export window display code matching ExportQuest
+  - Export window now correctly shows when using "/qdc export part X" command
+  - Resolves error: "attempt to call method 'ShowExportText' (a nil value)"
+
+- **Fixed Quest Tracker Not Showing 0/1 Progress** - Fixes issue #1271
+  - Quest objectives with count of 1 now properly display "0/1" or "1/1"
+  - Changed condition from `Needed > 1` to `Needed >= 1` to include single-count objectives
+  - Previously only objectives with 2+ required items showed progress counts
+  - Now all countable objectives display their progress consistently
 
 ### Changed
 - **Data Collection Now Always Captures All Quests** - Simplified data collection to always gather complete data

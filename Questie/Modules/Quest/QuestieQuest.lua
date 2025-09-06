@@ -1576,7 +1576,8 @@ _RegisterObjectiveTooltips = function(objective, questId, blockItemTooltips)
 end
 
 _UnloadAlreadySpawnedIcons = function(objective)
-    if next(objective.spawnList) then
+    -- Defensive check to prevent "bad argument #1 to 'next' (table expected, got nil)" error
+    if objective.spawnList and type(objective.spawnList) == "table" and next(objective.spawnList) then
         for id, _ in pairs(objective.spawnList) do
             local spawn = objective.AlreadySpawned[id]
             if spawn then

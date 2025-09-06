@@ -5365,8 +5365,15 @@ function QuestieDataCollector:ExportBatchPart(partNumber)
         end
     end
     
-    -- Show export window
-    self:ShowExportText(exportText)
+    -- Show export window (create frame if needed)
+    if not QuestieDataCollectorExportFrame then
+        self:ShowExportWindow(0) -- Create the frame
+    end
+    
+    -- Set the export text and show
+    QuestieDataCollectorExportFrame.editBox:SetText(exportText)
+    QuestieDataCollectorExportFrame.editBox:HighlightText()
+    QuestieDataCollectorExportFrame:Show()
     
     DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Data Collector]|r Exported part " .. partNumber .. " of " .. totalParts .. " (" .. questsInThisPart .. " quests)", 0, 1, 0)
     if partNumber < totalParts then

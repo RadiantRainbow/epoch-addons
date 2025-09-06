@@ -1667,11 +1667,11 @@ function QuestieTracker:Update()
                                             line.label:SetText(QuestieLib:GetRGBForObjective(objective) .. objDesc)
                                         else
                                             -- Database quests need progress formatting added by the tracker
-                                            if objective.Needed and objective.Needed > 1 and objective.Collected ~= nil then
+                                            if objective.Needed and objective.Needed >= 1 and objective.Collected ~= nil then
                                                 local progressText = ": " .. (objective.Collected or 0) .. "/" .. objective.Needed
                                                 line.label:SetText(QuestieLib:GetRGBForObjective(objective) .. objDesc .. progressText)
                                             else
-                                                -- Use objective description for single-count objectives or when no progress data
+                                                -- Use objective description for objectives without progress data
                                                 line.label:SetText(QuestieLib:GetRGBForObjective(objective) .. objDesc)
                                             end
                                         end

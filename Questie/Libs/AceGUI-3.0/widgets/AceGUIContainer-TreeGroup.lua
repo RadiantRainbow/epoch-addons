@@ -566,6 +566,7 @@ local methods = {
 		if treeframe.SetResizeBounds then
 			treeframe:SetResizeBounds(100, 1, maxtreewidth, 1600)
 		else
+			treeframe:SetMinResize(100, 1)
 			treeframe:SetMaxResize(maxtreewidth, 1600)
 		end
 	end,
