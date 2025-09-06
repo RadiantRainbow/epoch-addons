@@ -1633,6 +1633,9 @@ function QuestieTracker:Update()
                                 if quest.__isRuntimeStub and objective.Update then
                                     objective.isUpdated = false
                                     objective:Update()
+                                    -- Ensure Collected/Needed values are set for color calculation (fix for issue #1296)
+                                    if not objective.Collected then objective.Collected = 0 end
+                                    if not objective.Needed then objective.Needed = 0 end
                                 end
                                 
                                 if (not Questie.db.profile.hideCompletedQuestObjectives or (Questie.db.profile.hideCompletedQuestObjectives and objective.Needed ~= objective.Collected)) then

@@ -3086,7 +3086,7 @@ function QuestieDataCollector:ShowExportWindow(questId)
         headerText = headerText .. "                  HOW TO SUBMIT YOUR REPORT                     \n" 
         headerText = headerText .. "════════════════════════════════════════════════════════════════\n\n"
         headerText = headerText .. "1. Copy all text below (Ctrl+C to copy)\n"
-        headerText = headerText .. "2. Go to: https://github.com/trav346/Questie/issues\n"
+        headerText = headerText .. "2. Go to: https://github.com/trav346/Questie-Epoch/issues\n"
         headerText = headerText .. "3. Click 'New Issue'\n"
         headerText = headerText .. "4. Title: Missing Quest Data: [Brief Description]\n"
         headerText = headerText .. "5. Paste the copied text and click 'Submit new issue'\n\n"
@@ -3108,330 +3108,21 @@ function QuestieDataCollector:ShowExportWindow(questId)
             end
         end
         
-        if totalChars > GITHUB_SAFE_CHARS then
-            -- Content too large - use character-based slicing
-            self:ShowStagedExportWindow(questCount, nil, totalChars, GITHUB_SAFE_CHARS)
-            return
-        else
-            -- Normal single submission
-            exportText = "════════════════════════════════════════════════════════════════\n"
-            exportText = exportText .. "                  HOW TO SUBMIT YOUR REPORT                     \n"
-            exportText = exportText .. "════════════════════════════════════════════════════════════════\n\n"
-        end
-        
-        exportText = exportText .. "1. Copy all text below (Ctrl+C to copy)\n"
-        exportText = exportText .. "2. Go to: https://github.com/trav346/Questie/issues\n"
-        exportText = exportText .. "3. Click 'New Issue'\n"
-        if eligibleQuests > maxQuestsPerSubmission then
-            exportText = exportText .. "4. Title: Large Batch Submission (" .. eligibleQuests .. " quests - MAY BE TOO BIG)\n"
-        else
-            exportText = exportText .. "4. Title: Batch Submission (" .. eligibleQuests .. " quests)\n"
-        end
-        exportText = exportText .. "5. Paste this entire report in the description\n"
-        exportText = exportText .. "6. Click 'Submit new issue'\n\n"
-        exportText = exportText .. "════════════════════════════════════════════════════════════════\n"
-        exportText = exportText .. "              QUESTIE DATA COLLECTION EXPORT                    \n"
-        exportText = exportText .. "════════════════════════════════════════════════════════════════\n\n"
-        exportText = exportText .. "Version: " .. (QuestieDataCollection.version or CURRENT_VERSION) .. "\n"
-        exportText = exportText .. "Date: " .. date("%Y-%m-%d %H:%M:%S") .. "\n"
-        
-        -- Player character information
-        local playerClass = UnitClass("player")
-        local playerRace = UnitRace("player") 
-        local playerFaction = UnitFactionGroup("player")
-        local playerLevel = UnitLevel("player")
-        if playerClass and playerRace then
-            exportText = exportText .. "Player: " .. playerRace .. " " .. playerClass
-            if playerFaction then
-                exportText = exportText .. " (" .. playerFaction .. ")"
-            end
-            if playerLevel then
-                exportText = exportText .. " Level " .. playerLevel
-            end
-            exportText = exportText .. "\n"
-        end
-        
-        -- Clearly explain the capture mode
-        if _captureAllData then
-            exportText = exportText .. "Collection Mode: DEV MODE - Capturing ALL data\n"
-            exportText = exportText .. "  * ALL quests tracked (even if in database)\n"
-            exportText = exportText .. "  * ALL service NPCs captured\n"
-            exportText = exportText .. "  * ALL interactions logged\n"
-        else
-            exportText = exportText .. "Collection Mode: NORMAL - Missing quests only\n"
-            exportText = exportText .. "  * Only missing quests tracked\n"
-            exportText = exportText .. "  * Service NPCs always captured\n"
-            exportText = exportText .. "  * Mailboxes & flight masters always logged\n"
-        end
-        
-        -- Count all data types
-        local questCount = 0
-        local serviceNPCCount = 0
-        local mailboxCount = 0
-        local flightMasterCount = 0
-        
-        if QuestieDataCollection.quests then
-            for _ in pairs(QuestieDataCollection.quests) do
-                questCount = questCount + 1
-            end
-        end
-        
-        if QuestieDataCollection.serviceNPCs then
-            for _ in pairs(QuestieDataCollection.serviceNPCs) do
-                serviceNPCCount = serviceNPCCount + 1
-            end
-        end
-        
-        if QuestieDataCollection.mailboxes then
-            for _ in pairs(QuestieDataCollection.mailboxes) do
-                mailboxCount = mailboxCount + 1
-            end
-        end
-        
-        if QuestieDataCollection.flightMasters then
-            for _ in pairs(QuestieDataCollection.flightMasters) do
-                flightMasterCount = flightMasterCount + 1
-            end
-        end
-        
-        -- Count database mismatches
-        local mismatchCount = 0
-        for _ in pairs(_dataMismatches) do
-            mismatchCount = mismatchCount + 1
-        end
-        
-        exportText = exportText .. "Total Quests: " .. questCount .. "\n"
-        exportText = exportText .. "Service NPCs: " .. serviceNPCCount .. "\n"
-        exportText = exportText .. "Mailboxes: " .. mailboxCount .. "\n"
-        exportText = exportText .. "Flight Masters: " .. flightMasterCount .. "\n"
-        if mismatchCount > 0 then
-            exportText = exportText .. "DATABASE MISMATCHES: " .. mismatchCount .. " ⚠️\n"
-        end
-        exportText = exportText .. "=====================================\n\n"
-        
-        -- DATABASE MISMATCHES SECTION (CRITICAL - ALWAYS SHOW FIRST IF ANY EXIST)
-        if mismatchCount > 0 then
-            exportText = exportText .. "========================================================================\n"
-            exportText = exportText .. "                    ⚠️ DATABASE MISMATCHES DETECTED ⚠️\n"
-            exportText = exportText .. "========================================================================\n\n"
-            exportText = exportText .. "CRITICAL: The following data conflicts with the current database.\n"
-            exportText = exportText .. "This likely means the database needs updating!\n\n"
-            
-            -- Group mismatches by type
-            local questMismatches = {}
-            local npcMismatches = {}
-            
-            for key, mismatch in pairs(_dataMismatches) do
-                if mismatch.entityType == "quest" then
-                    if not questMismatches[mismatch.entityId] then
-                        questMismatches[mismatch.entityId] = {}
-                    end
-                    table.insert(questMismatches[mismatch.entityId], mismatch)
-                elseif mismatch.entityType == "npc" then
-                    if not npcMismatches[mismatch.entityId] then
-                        npcMismatches[mismatch.entityId] = {}
-                    end
-                    table.insert(npcMismatches[mismatch.entityId], mismatch)
-                end
-            end
-            
-            -- Export quest mismatches
-            local hasQuestMismatches = false
-            for questId, mismatches in pairs(questMismatches) do
-                if not hasQuestMismatches then
-                    exportText = exportText .. "QUEST MISMATCHES:\n"
-                    exportText = exportText .. "----------------\n\n"
-                    hasQuestMismatches = true
-                end
-                
-                -- Get quest name if available
-                local questName = "Unknown"
-                if QuestieDataCollection.quests[questId] then
-                    questName = QuestieDataCollection.quests[questId].name or "Unknown"
-                end
-                
-                exportText = exportText .. "Quest " .. questId .. ": " .. questName .. "\n"
-                for _, mismatch in ipairs(mismatches) do
-                    exportText = exportText .. "  • " .. mismatch.fieldName .. ":\n"
-                    exportText = exportText .. "    Database: " .. tostring(mismatch.databaseValue) .. "\n"
-                    exportText = exportText .. "    Collected: " .. tostring(mismatch.collectedValue) .. "\n"
-                end
-                exportText = exportText .. "\n"
-            end
-            
-            -- Export NPC mismatches
-            local hasNpcMismatches = false
-            for npcId, mismatches in pairs(npcMismatches) do
-                if not hasNpcMismatches then
-                    if hasQuestMismatches then
-                        exportText = exportText .. "\n"
-                    end
-                    exportText = exportText .. "NPC MISMATCHES:\n"
-                    exportText = exportText .. "---------------\n\n"
-                    hasNpcMismatches = true
-                end
-                
-                -- Get NPC name from our data
-                local npcName = "Unknown"
-                for questId, questData in pairs(QuestieDataCollection.quests) do
-                    if questData.questGiver and questData.questGiver.id == npcId then
-                        npcName = questData.questGiver.name or "Unknown"
-                        break
-                    elseif questData.turnInNpc and questData.turnInNpc.id == npcId then
-                        npcName = questData.turnInNpc.name or "Unknown"
-                        break
-                    end
-                end
-                
-                exportText = exportText .. "NPC " .. npcId .. ": " .. npcName .. "\n"
-                for _, mismatch in ipairs(mismatches) do
-                    if mismatch.fieldName == "zone" then
-                        exportText = exportText .. "  • Zone mismatch:\n"
-                        exportText = exportText .. "    Database zone: " .. tostring(mismatch.databaseValue) .. "\n"
-                        exportText = exportText .. "    Found in zone: " .. tostring(mismatch.collectedValue) .. "\n"
-                    elseif mismatch.fieldName == "coords" then
-                        exportText = exportText .. "  • Location mismatch:\n"
-                        if mismatch.collectedValue and mismatch.collectedValue.x then
-                            exportText = exportText .. "    Found at: " .. string.format("%.1f, %.1f", mismatch.collectedValue.x, mismatch.collectedValue.y) .. "\n"
-                        end
-                        if mismatch.databaseValue and mismatch.databaseValue.distance then
-                            exportText = exportText .. "    Distance from DB: " .. string.format("%.1f units", mismatch.databaseValue.distance) .. "\n"
-                        end
-                    elseif mismatch.fieldName == "name" then
-                        exportText = exportText .. "  • Name mismatch:\n"
-                        exportText = exportText .. "    Database: " .. tostring(mismatch.databaseValue) .. "\n"
-                        exportText = exportText .. "    Collected: " .. tostring(mismatch.collectedValue) .. "\n"
-                    else
-                        exportText = exportText .. "  • " .. mismatch.fieldName .. ":\n"
-                        exportText = exportText .. "    Database: " .. tostring(mismatch.databaseValue) .. "\n"
-                        exportText = exportText .. "    Collected: " .. tostring(mismatch.collectedValue) .. "\n"
-                    end
-                end
-                exportText = exportText .. "\n"
-            end
-            
-            exportText = exportText .. "========================================================================\n\n"
-        end
-        
-        -- Export Quests FIRST (if any)
-        if questCount > 0 then
-            exportText = exportText .. "========================================================================\n"
-            exportText = exportText .. "                              QUEST DATA\n"
-            exportText = exportText .. "========================================================================\n\n"
-            
-            local questIndex = 0
-            for qId, qData in pairs(QuestieDataCollection.quests) do
-                questIndex = questIndex + 1
-                exportText = exportText .. self:FormatQuestExport(qId, qData)
-                -- Add separator between quests (but not after the last one)
-                if questIndex < questCount then
-                    exportText = exportText .. "\n========================================================================\n\n"
-                else
-                    exportText = exportText .. "\n"
-                end
-            end
-        end
-        
-        -- Export Mailboxes (if any)
-        if mailboxCount > 0 then
-            exportText = exportText .. "\n========================================================================\n"
-            exportText = exportText .. "                          MAILBOX LOCATIONS\n"
-            exportText = exportText .. "========================================================================\n\n"
-            
-            for locKey, locData in pairs(QuestieDataCollection.mailboxes) do
-                exportText = exportText .. "Location: " .. (locData.zone or "Unknown Zone") .. "\n"
-                exportText = exportText .. "Coords: " .. QuestieDataCollector:SafeFormatCoords(locData) .. "\n\n"
-            end
-        end
-        
-        -- Export Flight Masters (if any)
-        if flightMasterCount > 0 then
-            exportText = exportText .. "\n========================================================================\n"
-            exportText = exportText .. "                           FLIGHT MASTERS\n"
-            exportText = exportText .. "========================================================================\n\n"
-            
-            for npcId, fmData in pairs(QuestieDataCollection.flightMasters) do
-                exportText = exportText .. "Flight Master: " .. (fmData.name or "Unknown") .. " (ID: " .. npcId .. ")\n"
-                
-                -- Include detected services and calculated flag value
-                if QuestieDataCollection.npcs and QuestieDataCollection.npcs[npcId] and QuestieDataCollection.npcs[npcId].detectedServices then
-                    local services = {}
-                    local flagValue = 0
-                    for service, _ in pairs(QuestieDataCollection.npcs[npcId].detectedServices) do
-                        table.insert(services, service)
-                        -- Calculate flag value based on detected services
-                        if service == "FLIGHT_MASTER" then flagValue = flagValue + 8192 end
-                        if service == "QUEST_GIVER" then flagValue = flagValue + 2 end
-                        if service == "VENDOR" then flagValue = flagValue + 128 end
-                        if service == "TRAINER" then flagValue = flagValue + 16 end
-                        if service == "INNKEEPER" then flagValue = flagValue + 65536 end
-                        if service == "BANKER" then flagValue = flagValue + 131072 end
-                        if service == "REPAIR" then flagValue = flagValue + 4096 end
-                        if service == "AUCTIONEER" then flagValue = flagValue + 2097152 end
-                        if service == "STABLEMASTER" then flagValue = flagValue + 4194304 end
-                        if service == "BATTLEMASTER" then flagValue = flagValue + 1048576 end
-                    end
-                    if #services > 0 then
-                        exportText = exportText .. "Detected Services: " .. table.concat(services, ", ") .. "\n"
-                        exportText = exportText .. "NPC Flags: " .. flagValue .. " (WotLK value)\n"
-                    end
-                else
-                    -- Flight master without detected services - default to FLIGHT_MASTER flag
-                    exportText = exportText .. "NPC Flags: 8192 (FLIGHT_MASTER - default)\n"
-                end
-                
-                if fmData.locations and #fmData.locations > 0 then
-                    for _, loc in ipairs(fmData.locations) do
-                        if loc.x and loc.y then
-                            exportText = exportText .. "Location: " .. (loc.zone or "Unknown Zone") .. " at " .. string.format("%.1f, %.1f", loc.x, loc.y) .. "\n"
-                        end
-                    end
-                end
-                exportText = exportText .. "\n"
-            end
-        end
-        
-        -- Export Service NPCs LAST (if any)
-        if serviceNPCCount > 0 then
-            exportText = exportText .. "\n========================================================================\n"
-            exportText = exportText .. "                       SERVICE NPCs ENCOUNTERED\n"
-            exportText = exportText .. "========================================================================\n\n"
-            
-            for npcId, npcData in pairs(QuestieDataCollection.serviceNPCs) do
-                exportText = exportText .. "NPC: " .. (npcData.name or "Unknown") .. " (ID: " .. npcId .. ")\n"
-                local services = npcData.services or {"Unknown"}
-                exportText = exportText .. "Services: " .. table.concat(services, ", ") .. "\n"
-                
-                if npcData.locations and #npcData.locations > 0 then
-                    exportText = exportText .. "Locations:\n"
-                    for _, loc in ipairs(npcData.locations) do
-                        if loc.x and loc.y then
-                            exportText = exportText .. "  * " .. (loc.zone or "Unknown Zone") .. " at " .. string.format("%.1f, %.1f", loc.x, loc.y) .. "\n"
-                        end
-                    end
-                end
-                exportText = exportText .. "\n"
-            end
-        end
-        
-        -- If no data at all
-        if questCount == 0 and serviceNPCCount == 0 and mailboxCount == 0 and flightMasterCount == 0 then
-            exportText = exportText .. "No data collected yet.\n\n"
-            exportText = exportText .. "In DEV MODE, ALL interactions are tracked:\n"
-            exportText = exportText .. "* Accept any quest\n"
-            exportText = exportText .. "* Talk to any NPC with services (flight master, vendor, etc.)\n"
-            exportText = exportText .. "* Click on mailboxes\n"
-            exportText = exportText .. "* Complete quest objectives\n"
-        end
+        -- Always use the staged export window for all exports
+        self:ShowStagedExportWindow(questCount, nil, totalChars, GITHUB_SAFE_CHARS)
+        return
     end
     
-    -- Show the frame
-    local f = QuestieDataCollectorExportFrame
-    f.editBox.originalText = exportText
-    f.editBox:SetText(exportText)
-    f:Show()
-    
-    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[QUESTIE]|r Export window opened. Follow the 3 steps to submit your data!", 0, 1, 0)
+    -- Single quest export - use staged window too for consistency
+    if questId then
+        local data = QuestieDataCollection.quests[questId]
+        local questExport = self:FormatQuestExport(questId, data)
+        local exportSize = string.len(questExport)
+        
+        -- Use staged window even for single quest (will show as 1 page)
+        self:ShowStagedExportWindow(1, nil, exportSize, GITHUB_SAFE_CHARS)
+        return
+    end
 end
 
 -- Calculate how to slice quest data based on character limits
@@ -3440,7 +3131,7 @@ function QuestieDataCollector:CalculateCharacterSlices(totalChars, maxChars)
     headerText = headerText .. "                  HOW TO SUBMIT YOUR REPORT                     \n" 
     headerText = headerText .. "════════════════════════════════════════════════════════════════\n\n"
     headerText = headerText .. "1. Copy all text below (Ctrl+C to copy)\n"
-    headerText = headerText .. "2. Go to: https://github.com/trav346/Questie/issues\n"
+    headerText = headerText .. "2. Go to: https://github.com/trav346/Questie-Epoch/issues\n"
     headerText = headerText .. "3. Click 'New Issue'\n"
     headerText = headerText .. "4. Title: Missing Quest Data - Part X of Y\n"
     headerText = headerText .. "5. Paste the copied text and click 'Submit new issue'\n\n"
@@ -3513,6 +3204,9 @@ end
 
 -- Format a single quest for export
 function QuestieDataCollector:ShowStagedExportWindow(totalQuests, maxPerPage, totalChars, maxChars)
+    -- Default maxPerPage if not provided (used when character slicing is triggered)
+    maxPerPage = maxPerPage or 10
+    
     -- Determine slicing method: character-based (new) vs quest-based (legacy)
     local useCharacterSlicing = (totalChars and maxChars)
     local totalPages, sliceInfo
@@ -3677,7 +3371,7 @@ function QuestieDataCollector:ShowStagedExportWindow(totalQuests, maxPerPage, to
                 urlBox:SetWidth(400)
                 urlBox:SetHeight(20)
                 urlBox:SetFontObject(GameFontHighlight)
-                urlBox:SetText("https://github.com/trav346/Questie/issues")
+                urlBox:SetText("https://github.com/trav346/Questie-Epoch/issues")
                 urlBox:SetAutoFocus(false)
                 urlBox:SetScript("OnEditFocusGained", function(self)
                     self:HighlightText()
@@ -3688,7 +3382,7 @@ function QuestieDataCollector:ShowStagedExportWindow(totalQuests, maxPerPage, to
                 end)
                 urlBox:SetScript("OnTextChanged", function(self, userInput)
                     if userInput then
-                        self:SetText("https://github.com/trav346/Questie/issues")
+                        self:SetText("https://github.com/trav346/Questie-Epoch/issues")
                         self:HighlightText()
                     end
                 end)
@@ -3756,6 +3450,15 @@ function QuestieDataCollector:ShowStagedExportWindow(totalQuests, maxPerPage, to
     frame.totalQuests = totalQuests
     frame.useCharacterSlicing = useCharacterSlicing
     frame.sliceInfo = sliceInfo
+    
+    -- Show/hide the "Large submission detected" notice based on whether we have multiple pages
+    if frame.notice then
+        if totalPages > 1 then
+            frame.notice:Show()
+        else
+            frame.notice:Hide()
+        end
+    end
     
     -- Set up navigation button handlers
     frame.prevButton:SetScript("OnClick", function()
@@ -4249,7 +3952,7 @@ function QuestieDataCollector:ExportQuest(questId)
     export = export .. "                  HOW TO SUBMIT YOUR REPORT                     \n"
     export = export .. "════════════════════════════════════════════════════════════════\n\n"
     export = export .. "1. Copy all text below (Ctrl+C to copy)\n"
-    export = export .. "2. Go to: https://github.com/trav346/Questie/issues\n"
+    export = export .. "2. Go to: https://github.com/trav346/Questie-Epoch/issues\n"
     export = export .. "3. Click 'New Issue'\n"
     export = export .. "4. Title: Missing Quest: " .. (questData.name or "Unknown") .. " (ID: " .. questId .. ")\n"
     export = export .. "5. Paste this entire report in the description\n"
@@ -5326,7 +5029,7 @@ function QuestieDataCollector:ExportBatchPart(partNumber)
     exportText = exportText .. "                  HOW TO SUBMIT THIS PART                       \n"
     exportText = exportText .. "════════════════════════════════════════════════════════════════\n\n"
     exportText = exportText .. "1. Copy all text below (Ctrl+C to copy)\n"
-    exportText = exportText .. "2. Go to: https://github.com/trav346/Questie/issues\n"
+    exportText = exportText .. "2. Go to: https://github.com/trav346/Questie-Epoch/issues\n"
     exportText = exportText .. "3. Click 'New Issue'\n"
     exportText = exportText .. "4. Title: Batch Submission - Part " .. partNumber .. " of " .. totalParts .. "\n"
     exportText = exportText .. "5. Paste this entire report in the description\n"

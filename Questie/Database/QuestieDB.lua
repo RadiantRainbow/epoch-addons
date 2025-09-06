@@ -615,8 +615,16 @@ function QuestieDB.IsLevelRequirementsFulfilled(questId, minLevel, maxLevel, pla
             return false
         end
     else
-        if (Questie.db.profile.lowLevelStyle == Questie.LOWLEVEL_RANGE) or maxLevel < requiredLevel then
-            -- Either an absolute level range is set and maxLevel < level OR the maxLevel is manually set to a lower value
+        -- Quest level is higher than our max level filter
+        -- For LOWLEVEL_NONE, we should not show quests above maxLevel regardless of requiredLevel
+        if (Questie.db.profile.lowLevelStyle == Questie.LOWLEVEL_RANGE) then
+            -- In RANGE mode, strictly enforce the range
+            return false
+        elseif (Questie.db.profile.lowLevelStyle == Questie.LOWLEVEL_NONE) then
+            -- In NONE mode (show only XP granting), don't show quests above maxLevel
+            return false
+        elseif maxLevel < requiredLevel then
+            -- For other modes, at least check if player can accept the quest
             return false
         end
     end

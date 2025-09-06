@@ -209,6 +209,11 @@ function TrackerHeaderFrame:Update()
         headerFrame.questieIcon:SetPoint("TOPLEFT", headerFrame, "TOPLEFT", 6, 0)
         headerFrame.questieIcon:Show()
 
+        -- Ensure GetUnboundedStringWidth is assigned (fix for issue #1296)
+        if not headerFrame.trackedQuests.label.GetUnboundedStringWidth then
+            headerFrame.trackedQuests.label.GetUnboundedStringWidth = QuestieCompat.GetUnboundedStringWidth
+        end
+
         headerFrame.trackedQuests.label:SetFont(LSM30:Fetch("font", Questie.db.profile.trackerFontHeader), trackerFontSizeHeader, Questie.db.profile.trackerFontOutline)
 
         local maxQuestAmount = "/" .. C_QuestLog.GetMaxNumQuestsCanAccept()

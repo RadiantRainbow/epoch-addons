@@ -1214,9 +1214,9 @@ local epochNpcData = {
 
 -- Missing NPCs causing database compilation failures (Issue #1 - Database System Issues)
 [45069] = {"Mogern Blackeye",nil,nil,54,54,0,{[85]={{67.1,50.9}}},nil,85,{26245},nil,nil,nil,nil,0},
-[45555] = {"Aeromir",nil,nil,37,37,0,{[85]={{82.5,42.9}}},nil,85,{26554},{26553},nil,nil,nil,0},
-[46009] = {"High Chief Ungarl",nil,nil,52,52,0,{[85]={{52.2,9.5}}},nil,85,{27074,27075,27080},nil,nil,nil,nil,0},
-[46094] = {"Marwin Shrillwill",nil,nil,36,36,0,{[85]={{24.0,68.2}}},nil,85,{27262},{27262},nil,nil,nil,0},
+[45555] = {"Aeromir",nil,nil,37,37,0,{[400]={{82.5,42.9}}},nil,85,{26554},{26553},nil,nil,nil,0},
+[46009] = {"High Chief Ungarl",nil,nil,52,52,0,{[361]={{52.2,9.5}}},nil,85,{27074,27075,27080},nil,nil,nil,nil,0},
+[46094] = {"Marwin Shrillwill",nil,nil,36,36,0,{[440]={{24.0,68.2}}},nil,85,{27262},{27262},nil,nil,nil,0},
 [46130] = {"Luyua Earthmoon",nil,nil,47,47,0,{[85]={{67.0,44.7}}},nil,85,{27314},nil,nil,nil,nil,0},
 [46131] = {"Ordo Earthmoon",nil,nil,47,47,0,{[85]={{67.0,44.7}}},nil,85,{27315,27316},nil,nil,nil,nil,0},
 [46165] = {"Sasia Forestcrest",nil,nil,60,60,0,{[85]={{81.8,18.5}}},nil,85,{27370,27392},nil,nil,nil,nil,0},

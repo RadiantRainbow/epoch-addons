@@ -4,6 +4,33 @@
 
 ### Fixed
 
+- **Fixed Level Filter Breaking High-Level Quest Display** - Resolved issue where low-level players saw unacceptable quests
+  - Fixed loophole in `IsLevelRequirementsFulfilled` that allowed level 11 quests to show for level 1 players
+  - Quests with low required levels but high quest levels (like Hogger) now properly filtered
+  - Level filter now correctly enforces the +4 level maximum for LOWLEVEL_NONE mode
+  - Changed max quest display from +6 levels to +4 (quests turn red at +5 and often can't be accepted)
+  - Map is now much cleaner with only appropriate-level quests showing
+
+- **Fixed 513 Epoch Quests Missing Level Requirements** - Comprehensive database fix
+  - Updated comprehensive_level_fixer.py to properly parse all quest formats
+  - Fixed regex pattern that was only capturing partial quest entries
+  - Added proper brace-counting parser to handle nested structures
+  - 513 quests now have appropriate level requirements based on quest level
+
+- **Fixed Export Window Errors** - Multiple fixes for data export functionality
+  - Fixed nil comparison error at line 3125 by removing undefined maxQuestsPerSubmission variable
+  - Fixed ExportBatchPart "ShowExportText nil value" error from issue #1277 by creating export frame inline
+  - Fixed nil maxPerPage error in ShowStagedExportWindow by providing default value when triggered by quest count
+
+### Changed
+
+- **Unified Export Window** - Replaced old export window with staged export window for all exports
+  - All exports now use the same modern staged export interface
+  - Character count tracking shown for all submissions
+  - Automatic pagination when content exceeds GitHub's 65k character limit
+  - "Large submission detected" notice only shows when data is actually sliced into multiple pages
+  - Removed redundant warnings - window handles character limits automatically
+
 - **Fixed Remaining spawnList nil Error** - Fixes GitHub issue #1279
   - Added defensive check to `_UnloadAlreadySpawnedIcons` function at line 1579
   - Prevents "bad argument #1 to 'next' (table expected, got nil)" error
@@ -82,6 +109,12 @@
   - Changed condition from `Needed > 1` to `Needed >= 1` to include single-count objectives
   - Previously only objectives with 2+ required items showed progress counts
   - Now all countable objectives display their progress consistently
+
+- **Fixed Export Window Nil Comparison Error** - Fixes follow-up export issues
+  - Removed undefined variable comparison on line 3125
+  - Variable `maxQuestsPerSubmission` was not defined in ShowExportWindow scope
+  - Simplified export title to just show quest count without comparison
+  - Resolves error: "attempt to compare nil with number"
 
 ### Changed
 - **Data Collection Now Always Captures All Quests** - Simplified data collection to always gather complete data

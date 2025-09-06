@@ -130,9 +130,9 @@ _CalculateAvailableQuests = function()
     local maxLevel = playerLevel
     
     -- With "Show only quests granting experience" setting, allow higher level quests
-    -- Originally was +4, but increasing to +6 to show more quests (especially for Epoch content)
+    -- At +5 levels, quests turn red and often can't be accepted, so we limit to +4
     if Questie.db.profile.lowLevelStyle == Questie.LOWLEVEL_NONE then
-        maxLevel = playerLevel + 6
+        maxLevel = playerLevel + 4
     end
 
     if Questie.db.profile.lowLevelStyle == Questie.LOWLEVEL_RANGE then

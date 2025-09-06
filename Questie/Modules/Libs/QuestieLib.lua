@@ -197,8 +197,13 @@ function QuestieLib:GetColoredQuestName(questId, showLevel, showState, blizzLike
         -- Use completeness scorer for appropriate prefix
         if hasIncompleteData and not string.find(name, "%[EpochDB") and not string.find(name, "%[Epoch%]") then
             local QuestCompletenessScorer = QuestieLoader:ImportModule("QuestCompletenessScorer")
-            local completenessInfo = QuestCompletenessScorer:AnalyzeQuestCompleteness(questId)
-            name = completenessInfo.prefix .. name
+            if QuestCompletenessScorer and QuestCompletenessScorer.AnalyzeQuestCompleteness then
+                local completenessInfo = QuestCompletenessScorer:AnalyzeQuestCompleteness(questId)
+                name = completenessInfo.prefix .. name
+            else
+                -- Fallback if scorer not available
+                name = "[EpochDB] " .. name
+            end
         end
     end
 

@@ -1803,6 +1803,71 @@ LFG:SetScript("OnEvent", function()
     end
 end)
 
+function LFG.hideButtonTextures(buttonName)
+    local button = _G[buttonName]
+    if button then
+        lfdebug("Hiding textures for button: " .. buttonName)
+        
+        -- More aggressive texture hiding
+        button:SetNormalTexture(nil)
+        button:SetPushedTexture(nil) 
+        button:SetHighlightTexture(nil)
+        button:SetDisabledTexture(nil)
+        
+        -- Hide existing texture objects
+        local normalTexture = button:GetNormalTexture()
+        if normalTexture then
+            normalTexture:SetTexture("")
+            normalTexture:Hide()
+        end
+        
+        local pushedTexture = button:GetPushedTexture()
+        if pushedTexture then
+            pushedTexture:SetTexture("")
+            pushedTexture:Hide()
+        end
+        
+        local highlightTexture = button:GetHighlightTexture()
+        if highlightTexture then
+            highlightTexture:SetTexture("")
+            highlightTexture:Hide()
+        end
+        
+        -- Make the button completely transparent
+        button:SetAlpha(0)
+    else
+        lfdebug("Button not found: " .. buttonName)
+    end
+end
+
+function LFG.hideAllAddonButtonTextures()
+    -- Hide role tooltip buttons
+    LFG.hideButtonTextures("RoleCheckRoleDamageTooltipButton")
+    LFG.hideButtonTextures("RoleCheckRoleTankTooltipButton") 
+    LFG.hideButtonTextures("RoleCheckRoleHealerTooltipButton")
+    LFG.hideButtonTextures("RoleTankTooltipButton")
+    LFG.hideButtonTextures("RoleHealerTooltipButton")
+    LFG.hideButtonTextures("RoleDamageTooltipButton")
+    
+    -- Hide tab buttons
+    LFG.hideButtonTextures("LFGBrowseButton")
+    LFG.hideButtonTextures("LFGDungeonsButton")
+    
+    -- Hide dungeon list buttons
+    for code, frame in next, LFG.availableDungeons do
+        if frame then
+            LFG.hideButtonTextures("Dungeon_" .. code .. "_Button")
+        end
+    end
+    
+    -- Hide browse buttons
+    for code, frame in next, LFG.browseFrames do
+        if frame then
+            LFG.hideButtonTextures("BrowseFrame_" .. code .. "_JoinAs")
+        end
+    end
+end
+
 function LFG.init()
 
     if not LFG_CONFIG then
@@ -1892,6 +1957,15 @@ function LFG.init()
     dungeonsButton:SetScript("OnLeave", function()
         _G['LFGDungeonsButtonHighlight']:Hide()
     end)
+
+    if LFG.shouldHideButtonTextures() then
+	    LFG.hideButtonTextures("RoleCheckRoleDamageTooltipButton")
+	    LFG.hideButtonTextures("RoleCheckRoleTankTooltipButton")
+	    LFG.hideButtonTextures("RoleCheckRoleHealerTooltipButton")
+	    LFG.hideButtonTextures("RoleTankTooltipButton")
+	    LFG.hideButtonTextures("RoleHealerTooltipButton")
+	    LFG.hideButtonTextures("RoleDamageTooltipButton")
+	end
 
     for dungeon, data in next, LFG.dungeons do
         if not LFG.dungeonsSpam[data.code] then
@@ -2063,6 +2137,10 @@ LFGQueue:SetScript("OnUpdate", function()
 
     end
 end)
+
+function LFG.shouldHideButtonTextures()
+    return IsAddOnLoaded("pretty_patchkit")
+end
 
 function LFG.checkLFGChannel()
     lfdebug('check LFG channel call - after 15s')
@@ -2433,6 +2511,11 @@ function LFG.fillAvailableDungeons(queueAfter, dont_scroll)
                 LFG.availableDungeons[data.code] = CreateFrame("Frame", "Dungeon_" .. data.code, _G["DungeonListScrollFrameChildren"], "LFG_DungeonItemTemplate")
             end
 
+            if LFG.shouldHideButtonTextures() then
+	            -- Hide button textures for the newly created dungeon item
+			    LFG.hideButtonTextures("Dungeon_" .. data.code .. "_Button")
+			end
+
             LFG.availableDungeons[data.code]:Show()
 
             local color = COLOR_GREEN
@@ -2608,6 +2691,17 @@ function LFG.fillAvailableDungeons(queueAfter, dont_scroll)
     end
     _G['DungeonListScrollFrame']:SetVerticalScroll(0)
     _G['DungeonListScrollFrame']:UpdateScrollChildRect()
+
+    if LFG.shouldHideButtonTextures() then
+	    for code, frame in next, LFG.availableDungeons do
+	        if frame then
+	            LFG.hideButtonTextures("Dungeon_" .. code .. "_Button")
+	        end
+	    end
+
+	    LFG.hideButtonTextures("LFGBrowseButton")
+	    LFG.hideButtonTextures("LFGDungeonsButton")
+	end
 end
 
 function LFG.enableDungeonCheckButtons()
@@ -3973,6 +4067,11 @@ function DungeonType_OnClick(self, arg1)
     end
 
     LFG.fillAvailableDungeons()
+
+    -- ADD THIS LINE - Hide button textures for newly created dungeon buttons
+    if LFG.shouldHideButtonTextures() then
+    	LFG.hideAllAddonButtonTextures()
+    end
 end
 
 function DungeonType_Initialize()
