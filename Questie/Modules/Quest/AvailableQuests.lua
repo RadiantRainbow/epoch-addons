@@ -393,6 +393,7 @@ _AddStarter = function(starter, quest, tooltipKey)
                         QuestData = quest,
                         Name = starter.name,
                         IsObjectiveNote = false,
+                        Priority = 50,  -- Lower priority than complete quests (100)
                     }
 
                     if (coords[1] == -1 or coords[2] == -1) then
@@ -432,6 +433,7 @@ _AddStarter = function(starter, quest, tooltipKey)
                         QuestData = quest,
                         Name = starter.name,
                         IsObjectiveNote = false,
+                        Priority = 50,  -- Lower priority than complete quests (100)
                     }
                     starterIcons[zone] = QuestieMap:DrawWorldIcon(data, zone, waypoints[1][1][1], waypoints[1][1][2])
                     starterLocs[zone] = { waypoints[1][1][1], waypoints[1][1][2] }

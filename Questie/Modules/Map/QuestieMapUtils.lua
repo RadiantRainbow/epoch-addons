@@ -15,14 +15,22 @@ local pairs = pairs
 function QuestieMap.utils:SetDrawOrder(frame)
     -- This is all fixes to always be on top of HandyNotes notes Let the frame level wars begin.
     -- HandyNotes uses GetFrameLevel + 6, so we use +7
+    -- Use Priority field if available to ensure complete quests show above available quests
+    local basePriority = 7
+    if frame.data and frame.data.Priority then
+        -- Priority 100 = complete quests, 50 = available quests
+        -- Add 0-2 based on priority to ensure proper layering
+        basePriority = basePriority + math.floor((frame.data.Priority or 50) / 50)
+    end
+    
     if frame.miniMapIcon then
-        local frameLevel = Minimap:GetFrameLevel() + 7
+        local frameLevel = Minimap:GetFrameLevel() + basePriority
         local frameStrata = Minimap:GetFrameStrata()
         frame:SetParent(Minimap)
         frame:SetFrameStrata(frameStrata)
         frame:SetFrameLevel(frameLevel)
     else
-        local frameLevel = WorldMapFrame:GetFrameLevel() + 7
+        local frameLevel = WorldMapFrame:GetFrameLevel() + basePriority
         local frameStrata = WorldMapFrame:GetFrameStrata()
         frame:SetParent(WorldMapButton or WorldMapFrame)
         frame:SetFrameStrata(frameStrata)
@@ -33,21 +41,21 @@ function QuestieMap.utils:SetDrawOrder(frame)
     -- These are sorted by order of most common occurrence to reduce if checks; it's less readable but more performant with so many icons
     if frame.data then
         if frame.data.Icon == Questie.ICON_TYPE_AVAILABLE then
-            frame.texture:SetDrawLayer("OVERLAY", 5)
+            frame.texture:SetDrawLayer("OVERLAY", 3)
         elseif frame.data.Icon == Questie.ICON_TYPE_REPEATABLE then
-            frame.texture:SetDrawLayer("OVERLAY", 4)
+            frame.texture:SetDrawLayer("OVERLAY", 2)
         elseif frame.data.Icon == Questie.ICON_TYPE_EVENTQUEST then
-            frame.texture:SetDrawLayer("OVERLAY", 4)
+            frame.texture:SetDrawLayer("OVERLAY", 2)
         elseif frame.data.Icon == Questie.ICON_TYPE_PVPQUEST then
-            frame.texture:SetDrawLayer("OVERLAY", 4)
+            frame.texture:SetDrawLayer("OVERLAY", 2)
         elseif frame.data.Icon == Questie.ICON_TYPE_COMPLETE then
-            frame.texture:SetDrawLayer("OVERLAY", 6)
+            frame.texture:SetDrawLayer("OVERLAY", 7)  -- Highest priority for complete quests
         elseif frame.data.Icon == Questie.ICON_TYPE_REPEATABLE_COMPLETE then
-            frame.texture:SetDrawLayer("OVERLAY", 6)
+            frame.texture:SetDrawLayer("OVERLAY", 7)  -- Highest priority for complete quests
         elseif frame.data.Icon == Questie.ICON_TYPE_EVENTQUEST_COMPLETE then
-            frame.texture:SetDrawLayer("OVERLAY", 6)
+            frame.texture:SetDrawLayer("OVERLAY", 7)  -- Highest priority for complete quests
         elseif frame.data.Icon == Questie.ICON_TYPE_PVPQUEST_COMPLETE then
-            frame.texture:SetDrawLayer("OVERLAY", 6)
+            frame.texture:SetDrawLayer("OVERLAY", 7)  -- Highest priority for complete quests
         elseif frame.data.Icon == Questie.ICON_TYPE_SODRUNE then
             frame.texture:SetDrawLayer("OVERLAY", 6)
         else

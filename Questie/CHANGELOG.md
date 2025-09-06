@@ -3,18 +3,40 @@
 ## [Unreleased]
 
 ### Changed
+- **Data Collection Now Always Captures All Quests** - Simplified data collection to always gather complete data
+  - When data collection is enabled, ALL quests are tracked (not just missing ones)
+  - Ensures maximum data quality for validation and fixing corrupted database entries
+  - "Collect All Quests" option is now permanently enabled and greyed out
+  - Renamed "Show Collection Messages" to "Enable Debug Messages" for clarity
+  - This helps identify and fix placeholder/corrupted quest data in the database
+
 - **Quest Turn-in Icons Now Enabled by Default** - Changed `enableTurnins` default from false to true
   - Users expect to see where to turn in completed quests
   - This is a core feature that should be on by default
   - Users can still disable it if they prefer
 
 ### Added
+- **First-Run Data Collection Popup** - New players are prompted on first login to help improve Questie
+  - One-time popup asks if players want to contribute by enabling data collection
+  - Popup reappears if SavedVariables are reset/purged
+  - Users can opt-in to help fix missing and incorrect quest data
+  - Setting can be changed anytime in Advanced → Developer Tools
+  - Helps build community contribution from day one
+
 - **NPC Service Flag Detection in Data Collection** - Automatic detection and capture of NPC service types
   - Detects service NPCs through game events (MERCHANT_SHOW, TAXIMAP_OPENED, PET_STABLE_SHOW, etc.)
   - Automatically calculates correct WotLK flag values for detected services
   - Includes detected services in export comments for verification
   - Supports detection of: Quest Giver, Vendor, Repair, Trainer, Flight Master, Innkeeper, Banker, Auctioneer, Stable Master, Battlemaster
   - Ensures submitted NPC data has proper flag values to prevent service NPC miscategorization
+
+- **Enhanced Quest Prerequisite and Chain Tracking** - Improved detection of quest relationships and chains
+  - Detects sequential quest IDs (within 5 of current quest) for potential chains
+  - Identifies similar quest names (Part 1/2, Chapter 1/2, etc.) as chain members
+  - Captures turn-in NPC details with coordinates and zone information
+  - Tracks which quests become available after completing a quest (prerequisites satisfied)
+  - Detects exclusive quests that disappear after accepting another quest
+  - Exports complete chain/prerequisite relationships for better quest flow understanding
 
 ### Fixed
 - **Available Quests Toggle Not Working** - Fixed issue where unchecking "Show Available Quests" didn't hide quest exclamation marks
@@ -33,6 +55,21 @@
   - Removed intimidating "WARNING" text from developer mode options
   - Changed "DEVELOPER FEATURE ONLY" to friendly "Thank you for contributing!" message
   - Users now clearly understand why tooltip ID options are greyed out when data collection is active
+
+- **Profession Data Not Being Captured for Commission Quests** - Fixed missing profession data in quest submissions
+  - QuestieProfessions:Update() must be called before GetPlayerProfessions() to populate the data
+  - Added initialization check to ensure QuestieProfessions module is ready
+  - Enhanced debug output to show when professions are successfully captured
+  - Commission quests (IDs 27596-28660+) now properly include player profession data
+  - Critical for validating profession requirements for these special quests
+
+- **Complete Quest Icons Hidden Behind Available Quest Icons** - Fixed rendering priority for quest turn-in markers
+  - Complete quest icons now render at highest priority (frame level 9, draw layer 7)
+  - Available quest icons render at lower priority (frame level 7, draw layer 3)
+  - Complete quest icons are 20% larger than available quests for better visibility
+  - Added Priority field to icon data (100 for complete, 50 for available)
+  - When an NPC has both complete and available quests, the turn-in icon always shows on top
+  - Ensures players see their most important action (quest turn-in) first
 
 - **GitHub Issue Templates Not Working** - Fixed templates not appearing when creating new issues (PR #1110)
   - Renamed `.github/issue_Template` folder to `.github/ISSUE_TEMPLATE` (all uppercase)  

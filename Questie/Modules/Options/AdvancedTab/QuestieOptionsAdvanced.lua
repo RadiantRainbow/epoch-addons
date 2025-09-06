@@ -490,7 +490,7 @@ function QuestieOptions.tabs.advanced:Initialize()
             showDataCollectionMessages = {
                 type = "toggle",
                 order = 6.03,
-                name = function() return "Show Collection Messages"; end,
+                name = function() return "Enable Debug Messages"; end,
                 desc = function() return "Show [DATA] messages in chat when collecting quest data.\n\n|cFFFFFF00Disable this to collect data silently without chat spam.|r"; end,
                 descStyle = "inline",
                 width = "full",
@@ -508,19 +508,14 @@ function QuestieOptions.tabs.advanced:Initialize()
             dataCollectionDevMode = {
                 type = "toggle",
                 order = 6.04,
-                name = function() return "|cFFFF0000[DEV MODE]|r Collect All Quests"; end,
-                desc = function() return "|cFFFF0000Developer Mode:|r Collect data for ALL quests, not just missing ones."; end,
+                name = function() return "|cFF808080Collect All Quests|r |cFFFF0000(Always Enabled)|r"; end,
+                desc = function() return "|cFF808080Disabled for now - All quest data will be collected while data collection is enabled.|r\n\nThis ensures maximum data quality by collecting all quests for validation and fixing corrupted entries."; end,
                 descStyle = "inline",
                 width = "full",
-                disabled = function() return not Questie.db.profile.enableDataCollection; end,
-                get = function() return Questie.db.profile.dataCollectionDevMode; end,
+                disabled = function() return true; end,  -- Always disabled
+                get = function() return true; end,  -- Always show as checked
                 set = function(_, value)
-                    Questie.db.profile.dataCollectionDevMode = value
-                    if value then
-                        DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[Questie] DEV MODE ENABLED - Collecting ALL quests (including known ones)|r", 1, 0, 0)
-                    else
-                        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie] Dev mode disabled - Only collecting missing quests|r", 0, 1, 0)
-                    end
+                    -- Do nothing - this option is permanently enabled
                 end,
             },
             dataCollectionInfo = {

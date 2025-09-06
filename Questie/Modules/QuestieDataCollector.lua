@@ -170,26 +170,9 @@ end
 
 -- Helper function to check if quest exists in database
 local function IsQuestInDatabase(questId)
-    -- If dev mode is enabled, pretend no quests are in database (collect everything)
-    if Questie.db.profile.dataCollectionDevMode then
-        DebugMessage("|cFFFF0000[DEV MODE]|r Quest " .. questId .. " - dev mode active, returning false (collect all data)", 1, 0, 0)
-        return false
-    end
-    
-    local questData = QuestieDB.GetQuest(questId)
-    local inDB = questData and questData.name and questData.name ~= "[EpochDB Missing] Quest " .. questId and questData.name ~= "[Epoch] Quest " .. questId
-    
-    -- Only debug log for genuinely missing quests or placeholders, not valid existing quests
-    if not inDB then
-        local questName = questData and questData.name or "nil"
-        if questName == "nil" then
-            DebugMessage("|cFFFFAA00[DEBUG]|r Quest " .. questId .. " - not in database", 1, 0.7, 0)
-        else
-            DebugMessage("|cFFFFAA00[DEBUG]|r Quest " .. questId .. " - placeholder entry (" .. questName .. ")", 1, 0.7, 0)
-        end
-    end
-    
-    return inDB
+    -- Always return false to collect ALL quests when data collection is enabled
+    -- This ensures we get complete data for validation and fixing corrupted entries
+    return false  -- Always collect everything for maximum data quality
 end
 
 -- Helper function to check for database mismatches
@@ -658,14 +641,9 @@ function QuestieDataCollector:OnEvent(event, ...)
             return
         end
         
-        -- Collect data for ALL quests (including existing ones) to validate/improve database
-        -- Only warn players about genuinely missing quests, not placeholder/corrupted ones
-        if not IsQuestInDatabase(questId) then
-            -- Only show warning for truly missing quests (not in any database)
-            local questTitle = GetQuestLogTitle(questIndex) or ("Quest " .. questId)
-            DebugMessage("|cFFFFFF00[DATA]|r Collecting data for missing quest " .. questId .. " (" .. questTitle .. ")", 1, 1, 0)
-        end
-        -- Silently collect data for existing quests (for validation/corruption detection)
+        -- Always collect data for ALL quests to validate/improve database
+        local questTitle = GetQuestLogTitle(questIndex) or ("Quest " .. questId)
+        DebugMessage("|cFFFFFF00[DATA]|r Collecting quest data: " .. questId .. " (" .. questTitle .. ")", 1, 1, 0)
         
         QuestieDataCollector:TrackQuestAccepted(questIndex, questId)
         
@@ -880,18 +858,55 @@ function QuestieDataCollector:TrackQuestAccepted(questIndex, questId)
     questData.acceptedTimestamp = time()
     questData.acceptedDate = date("%Y-%m-%d %H:%M:%S")
     
-    -- Track prerequisites - store what quests are already completed
-    local completedQuests = GetQuestsCompleted()
-    if completedQuests then
-        local prereqs = {}
-        for qId, _ in pairs(completedQuests) do
-            if qId < questId then  -- Only consider lower quest IDs as potential prerequisites
-                table.insert(prereqs, qId)
+    -- Look for potential quest chain relationships
+    -- Check for sequential quest IDs and similar names in our tracked data
+    local potentialChain = {}
+    
+    -- Check for sequential quest IDs (e.g., 27001, 27002, 27003)
+    for trackedId, trackedData in pairs(QuestieDataCollection.quests) do
+        if trackedData and trackedData.name then
+            -- Check if quest ID is sequential (within 5 of current)
+            if math.abs(trackedId - questId) <= 5 and trackedId ~= questId then
+                table.insert(potentialChain, {
+                    id = trackedId,
+                    name = trackedData.name,
+                    reason = "Sequential ID"
+                })
+            end
+            
+            -- Check for similar quest names (common patterns like "Part 1", "Part 2")
+            local currentName = questName:upper()
+            local trackedName = trackedData.name:upper()
+            
+            -- Remove common suffixes for comparison
+            local patterns = {"PART %d+", "CHAPTER %d+", "STEP %d+", "%(1%)", "%(2%)", "%(3%)", "I+$", "I+V$", "V?I+$"}
+            local currentBase = currentName
+            local trackedBase = trackedName
+            
+            for _, pattern in ipairs(patterns) do
+                currentBase = currentBase:gsub(pattern, "")
+                trackedBase = trackedBase:gsub(pattern, "")
+            end
+            
+            currentBase = currentBase:gsub("%s+$", ""):gsub("^%s+", "")
+            trackedBase = trackedBase:gsub("%s+$", ""):gsub("^%s+", "")
+            
+            -- If base names match, likely part of a chain
+            if currentBase == trackedBase and trackedId ~= questId then
+                table.insert(potentialChain, {
+                    id = trackedId,
+                    name = trackedData.name,
+                    reason = "Similar name"
+                })
             end
         end
-        if #prereqs > 0 then
-            questData.potentialPrerequisites = prereqs
-            DebugMessage("|cFF00FFFF[DATA]|r Quest has " .. #prereqs .. " potential prerequisites", 0, 1, 1)
+    end
+    
+    if #potentialChain > 0 then
+        questData.potentialChain = potentialChain
+        DebugMessage("|cFF00FFFF[DATA]|r Found " .. #potentialChain .. " potential chain quests", 0, 1, 1)
+        for _, chainQuest in ipairs(potentialChain) do
+            DebugMessage("|cFF00FFFF[DATA]|r   - " .. chainQuest.name .. " (" .. chainQuest.id .. ") - " .. chainQuest.reason, 0, 1, 1)
         end
     end
     
@@ -922,9 +937,18 @@ function QuestieDataCollector:TrackQuestAccepted(questIndex, questId)
     end
     
     -- Capture player's professions for ANY quest with skill requirements
-    if hasSkillRequirement then
-        questData.playerProfessions = QuestieDataCollector:GetPlayerProfessions()
-        DebugMessage("|cFF00FFFF[DATA]|r Tracking professions for skill-required quest", 0, 1, 1)
+    -- ALWAYS capture for commission quests to ensure we have the data
+    if hasSkillRequirement or questData.isCommission then
+        local profs = QuestieDataCollector:GetPlayerProfessions()
+        questData.playerProfessions = profs
+        if profs and #profs > 0 then
+            DebugMessage("|cFF00FF00[DATA]|r Captured " .. #profs .. " professions for quest", 0, 1, 0)
+            for _, prof in ipairs(profs) do
+                DebugMessage("|cFF00FFFF[DATA]|r   - " .. prof.name .. ": " .. prof.skillLevel .. "/" .. prof.maxSkillLevel, 0, 1, 1)
+            end
+        else
+            DebugMessage("|cFFFF0000[DATA]|r No professions captured - player may not have any!", 1, 0, 0)
+        end
     end
     
     -- Get quest level and objectives text
@@ -1270,8 +1294,33 @@ function QuestieDataCollector:TrackQuestTurnIn(questId)
         _pendingXPReward = nil -- Clear it after using
     end
     
+    -- CRITICAL: Capture turn-in NPC and available quests BEFORE detecting prerequisites
+    if _lastInteractedNPC then
+        questData.turnInNPC = {
+            id = _lastInteractedNPC.id,
+            name = _lastInteractedNPC.name,
+            coords = _lastInteractedNPC.coords,
+            zone = _lastInteractedNPC.zone
+        }
+        DebugMessage("|cFF00FF00[DATA]|r Turn-in NPC: " .. _lastInteractedNPC.name .. " (" .. _lastInteractedNPC.id .. ")", 0, 1, 0)
+    end
+    
     -- Detect prerequisites - check what new quests became available after this turn-in
-    QuestieDataCollector:DetectPrerequisites(questId)
+    local newQuests = QuestieDataCollector:DetectPrerequisites(questId)
+    
+    -- Store the quests that became available after turn-in
+    if newQuests and #newQuests > 0 then
+        questData.unlockedQuests = {}
+        for _, newQuest in ipairs(newQuests) do
+            table.insert(questData.unlockedQuests, {
+                name = newQuest.title,
+                level = newQuest.level,
+                npcId = _lastInteractedNPC and _lastInteractedNPC.id,
+                npcName = _lastInteractedNPC and _lastInteractedNPC.name
+            })
+        end
+        DebugMessage("|cFFFFFF00[DATA]|r Quest unlocked " .. #newQuests .. " new quest(s) at turn-in NPC", 1, 1, 0)
+    end
     
     -- Remove from active tracking
     _activeTracking[questId] = nil
@@ -1450,7 +1499,9 @@ function QuestieDataCollector:CaptureNPCInfo()
         id = npcId,
         name = npcName,
         timestamp = time(),
-        coords = coords
+        coords = coords,
+        zone = GetRealZoneText(),
+        subZone = GetSubZoneText()
     }
     
     DebugMessage("|cFF00FF00[DATA]|r Captured NPC: " .. npcName .. " (ID: " .. npcId .. ")", 0, 1, 0)
@@ -1583,6 +1634,14 @@ function QuestieDataCollector:GetPlayerProfessions()
         return professions -- Return empty table if module not available
     end
     
+    -- Initialize if not already done
+    if not QuestieProfessions.professionTable then
+        QuestieProfessions:Init()
+    end
+    
+    -- CRITICAL: Must call Update() first to populate the professions table!
+    QuestieProfessions:Update()
+    
     local playerProfessions = QuestieProfessions:GetPlayerProfessions()
     if not playerProfessions then
         DebugMessage("|cFFFFFF00[DATA]|r No profession data available", 1, 1, 0)
@@ -1623,12 +1682,21 @@ function QuestieDataCollector:GetPlayerProfessions()
         end
     end
     
+    if #professions > 0 then
+        DebugMessage("|cFF00FF00[DATA]|r Found " .. #professions .. " professions for player", 0, 1, 0)
+    else
+        DebugMessage("|cFFFFFF00[DATA]|r No professions found - player may not have any professions", 1, 1, 0)
+    end
+    
     return professions
 end
 
 -- Detect new quests that became available after turn-in (prerequisites)
 function QuestieDataCollector:DetectPrerequisites(questId)
-    if not _lastNPCWithQuests or not _lastNPCWithQuests.npcId then return end
+    if not _lastNPCWithQuests or not _lastNPCWithQuests.npcId then 
+        DebugMessage("|cFFFF0000[DATA]|r No NPC data for prerequisite detection", 1, 0, 0)
+        return {}
+    end
     
     local npcId = _lastNPCWithQuests.npcId
     local questsBeforeTurnIn = _availableQuestsBeforeTurnIn[npcId] or {}
@@ -1649,16 +1717,56 @@ function QuestieDataCollector:DetectPrerequisites(questId)
         
         if not wasAvailableBefore then
             table.insert(newQuests, afterQuest)
-            DebugMessage("|cFFFFFF00[DATA]|r NEW quest available after turn-in: " .. afterQuest.title .. " (requires quest " .. questId .. ")", 1, 1, 0)
+            DebugMessage("|cFFFFFF00[DATA]|r NEW quest available after turn-in: " .. afterQuest.title .. " (unlocked by completing quest " .. questId .. ")", 1, 1, 0)
             
-            -- Store this prerequisite relationship in the quest data
+            -- Store bidirectional relationship
+            -- 1. This quest unlocks the new quest
             if questId and QuestieDataCollection.quests[questId] then
                 if not QuestieDataCollection.quests[questId].unlocksQuests then
                     QuestieDataCollection.quests[questId].unlocksQuests = {}
                 end
-                table.insert(QuestieDataCollection.quests[questId].unlocksQuests, afterQuest.title)
+                table.insert(QuestieDataCollection.quests[questId].unlocksQuests, {
+                    name = afterQuest.title,
+                    level = afterQuest.level
+                })
+            end
+            
+            -- 2. Look for the new quest in our data and mark it as requiring this quest
+            for trackedId, trackedData in pairs(QuestieDataCollection.quests) do
+                if trackedData.name == afterQuest.title then
+                    if not trackedData.requiresQuest then
+                        trackedData.requiresQuest = {}
+                    end
+                    table.insert(trackedData.requiresQuest, {
+                        id = questId,
+                        name = QuestieDataCollection.quests[questId].name
+                    })
+                    DebugMessage("|cFF00FFFF[DATA]|r Linked prerequisite: Quest " .. trackedId .. " requires quest " .. questId, 0, 1, 1)
+                    break
+                end
             end
         end
+    end
+    
+    -- Also check if any quests that were available are now GONE (exclusive quests)
+    local removedQuests = {}
+    for _, beforeQuest in ipairs(questsBeforeTurnIn) do
+        local stillAvailable = false
+        for _, afterQuest in ipairs(questsAfterTurnIn) do
+            if beforeQuest.title == afterQuest.title then
+                stillAvailable = true
+                break
+            end
+        end
+        
+        if not stillAvailable then
+            table.insert(removedQuests, beforeQuest)
+            DebugMessage("|cFFFF8800[DATA]|r Quest no longer available after turn-in: " .. beforeQuest.title .. " (may be exclusive with quest " .. questId .. ")", 1, 0.5, 0)
+        end
+    end
+    
+    if #removedQuests > 0 and questId and QuestieDataCollection.quests[questId] then
+        QuestieDataCollection.quests[questId].removedQuests = removedQuests
     end
     
     -- Clear the before turn-in cache for this NPC
@@ -4065,6 +4173,58 @@ function QuestieDataCollector:ExportQuest(questId)
         if questData.turnInNpc.coords then
             export = export .. "  Location: " .. (questData.turnInNpc.coords.zone or "Unknown") .. "\n"
             export = export .. "  Coords: " .. QuestieDataCollector:SafeFormatCoords(questData.turnInNpc.coords) .. "\n"
+        end
+        export = export .. "\n"
+    elseif questData.turnInNPC then  -- Also check for turnInNPC (capital NPC)
+        export = export .. "> TURN-IN NPC:\n"
+        export = export .. "  NPC: " .. (questData.turnInNPC.name or "Unknown") .. " (ID: " .. (questData.turnInNPC.id or 0) .. ")\n"
+        if questData.turnInNPC.coords then
+            export = export .. "  Location: " .. (questData.turnInNPC.zone or "Unknown") .. "\n"
+            export = export .. "  Coords: " .. QuestieDataCollector:SafeFormatCoords(questData.turnInNPC.coords) .. "\n"
+        end
+        export = export .. "\n"
+    end
+    
+    -- Add quest chain and prerequisite information
+    if questData.potentialChain and #questData.potentialChain > 0 then
+        export = export .. "> POTENTIAL QUEST CHAIN:\n"
+        for _, chainQuest in ipairs(questData.potentialChain) do
+            export = export .. "  * " .. chainQuest.name .. " (ID: " .. chainQuest.id .. ") - " .. chainQuest.reason .. "\n"
+        end
+        export = export .. "\n"
+    end
+    
+    if questData.requiresQuest and #questData.requiresQuest > 0 then
+        export = export .. "> PREREQUISITE QUESTS:\n"
+        for _, prereq in ipairs(questData.requiresQuest) do
+            export = export .. "  * " .. prereq.name .. " (ID: " .. prereq.id .. ")\n"
+        end
+        export = export .. "\n"
+    end
+    
+    if questData.unlockedQuests and #questData.unlockedQuests > 0 then
+        export = export .. "> UNLOCKS QUESTS:\n"
+        for _, unlocked in ipairs(questData.unlockedQuests) do
+            export = export .. "  * " .. unlocked.name
+            if unlocked.level then
+                export = export .. " (Level " .. unlocked.level .. ")"
+            end
+            if unlocked.npcName then
+                export = export .. " from " .. unlocked.npcName
+            end
+            export = export .. "\n"
+        end
+        export = export .. "\n"
+    end
+    
+    if questData.removedQuests and #questData.removedQuests > 0 then
+        export = export .. "> EXCLUSIVE WITH (these quests disappear after accepting this):\n"
+        for _, removed in ipairs(questData.removedQuests) do
+            export = export .. "  * " .. removed.title
+            if removed.level then
+                export = export .. " (Level " .. removed.level .. ")"
+            end
+            export = export .. "\n"
         end
         export = export .. "\n"
     end

@@ -1296,6 +1296,12 @@ local function _GetIconScaleForAvailable()
     return Questie.db.profile.availableScale or 1.3
 end
 
+local function _GetIconScaleForComplete()
+    -- Complete quests should be 20% larger than available to ensure visibility
+    local baseScale = Questie.db.profile.availableScale or 1.3
+    return baseScale * 1.2
+end
+
 ---@param quest Quest
 function QuestieQuest:AddFinisher(quest)
     --We should never ever add the quest if IsQuestFlaggedComplete true.
@@ -1371,12 +1377,13 @@ function QuestieQuest:AddFinisher(quest)
                         local data = {
                             Id = questId,
                             Icon = Questie.ICON_TYPE_COMPLETE,
-                            GetIconScale = _GetIconScaleForAvailable,
-                            IconScale = _GetIconScaleForAvailable(),
+                            GetIconScale = _GetIconScaleForComplete,
+                            IconScale = _GetIconScaleForComplete(),
                             Type = "complete",
                             QuestData = quest,
                             Name = finisher.name,
                             IsObjectiveNote = false,
+                            Priority = 100,  -- Higher priority for complete quests
                         }
 
                         if QuestieDB.IsActiveEventQuest(quest.Id) then
@@ -1427,12 +1434,13 @@ function QuestieQuest:AddFinisher(quest)
                             local data = {
                                 Id = questId,
                                 Icon = Questie.ICON_TYPE_COMPLETE,
-                                GetIconScale = _GetIconScaleForAvailable,
-                                IconScale = _GetIconScaleForAvailable(),
+                                GetIconScale = _GetIconScaleForComplete,
+                                IconScale = _GetIconScaleForComplete(),
                                 Type = "complete",
                                 QuestData = quest,
                                 Name = finisher.name,
                                 IsObjectiveNote = false,
+                                Priority = 100,  -- Higher priority for complete quests
                             }
 
                             if QuestieDB.IsActiveEventQuest(quest.Id) then

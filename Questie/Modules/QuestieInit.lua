@@ -349,9 +349,38 @@ QuestieInit.Stages[3] = function() -- run as a coroutine
         Questie:Debug(Questie.DEBUG_CRITICAL, "[QuestieInit] dataCollectionPrompted = " .. tostring(Questie.db.profile.dataCollectionPrompted))
         Questie:Debug(Questie.DEBUG_CRITICAL, "[QuestieInit] enableDataCollection = " .. tostring(Questie.db.profile.enableDataCollection))
         
-        -- Check if this is first run for community contribution
-        -- TODO: Add contribution popup later if needed
-        -- For now, just check if data collection is enabled
+        -- Check if this is first run and show data collection prompt
+        if not Questie.db.profile.dataCollectionPrompted then
+            -- Mark as prompted immediately to prevent multiple popups
+            Questie.db.profile.dataCollectionPrompted = true
+            
+            -- Create the popup dialog
+            StaticPopupDialogs["QUESTIE_DATA_COLLECTION_PROMPT"] = {
+                text = "|cFFFFFF00Questie - Community Contribution|r\n\nWould you like to help improve Questie for Project Epoch?\n\nEnabling data collection will automatically capture quest information as you play, helping us fix missing and incorrect quest data.\n\n|cFF00FF00Your contributions help all Epoch players!|r\n\nYou can change this setting anytime in:\nQuestie Settings → Advanced → Developer Tools",
+                button1 = "Yes, I'll Help!",
+                button2 = "No Thanks",
+                OnAccept = function()
+                    Questie.db.profile.enableDataCollection = true
+                    QuestieDataCollector:Initialize()
+                    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie] Thank you for contributing! Quest data collection is now enabled.|r", 0, 1, 0)
+                    DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[Questie] Use /qdc commands to manage collected data. See Advanced settings for options.|r", 1, 1, 0)
+                end,
+                OnCancel = function()
+                    DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[Questie] Data collection disabled. You can enable it later in Advanced settings if you change your mind.|r", 1, 1, 0)
+                end,
+                timeout = 0,
+                whileDead = true,
+                hideOnEscape = false,
+                preferredIndex = 3,
+            }
+            
+            -- Show the popup after a short delay to ensure UI is ready
+            C_Timer.After(2, function()
+                StaticPopup_Show("QUESTIE_DATA_COLLECTION_PROMPT")
+            end)
+        end
+        
+        -- Initialize if already enabled
         if Questie.db.profile.enableDataCollection then
             Questie:Debug(Questie.DEBUG_CRITICAL, "[QuestieInit] Calling QuestieDataCollector:Initialize()")
             QuestieDataCollector:Initialize()
