@@ -2,6 +2,62 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Fixed Quest Icon Priority on Map** - Available quests now properly display over unavailable ones
+  - Gray (unavailable) quest icons now have lower draw layer priority than yellow (available) icons
+  - When multiple quest NPCs are at the same location, the available quest icon displays on top
+  - Quest objective clusters now select the highest priority icon to display
+  - Fixed incorrect gray icon logic - quests now only show gray if 6+ levels above player
+  - Orange/red difficulty quests now correctly show with yellow icons instead of gray
+  - Fixes issue where obtainable higher-level quests were incorrectly shown as unavailable
+  - CONFIRMED WORKING: Northshore Mine quest now correctly shows yellow icon for level 5 players
+
+- **Redesigned Quest Completeness Scoring System** - Fixed incorrect categorization of functional quests
+  - Quests without objectives (simple delivery/talk quests) now only need NPCs to be marked COMPLETE
+  - Quests with objectives require both NPCs and objectives for COMPLETE status
+  - Fixed quests being incorrectly marked as MINIMAL when they had sufficient data to function
+  - Resolves issues where functional quests showed "[EpochDB Minimal]" prefix unnecessarily
+
+- **Data Aggregator Zone Validation** - Added date-based validation for quest zone IDs
+  - Submissions before December 6, 2025 captured parent zone IDs instead of subzone IDs
+  - Aggregator now detects submission date and attempts NPC-based zone correction
+  - Prevents incorrect zone assignments from historical data submissions
+  - New submissions with proper subzone IDs are processed correctly
+
+- **Re-enabled Quest 26936 "Northshore Mine"** - Fixed tracking issue after database recompile
+  - Quest was disabled for data collection but is now properly configured
+  - Added exploration objective "Explore Northshore Mine" at coordinates [24.5, 49.5]
+  - Correctly configured to turn in to Jasper Greene (NPC 45885) in Tirisfal Glades
+  - Resolves issue where quest couldn't be tracked after database recompilation
+
+- **Fixed Quest Chain for 26187 "Parts From Afar"** - Added missing prerequisite quest link
+  - Quest 26187 now properly requires completion of quest 26186
+  - Fixes GitHub issue #389 where quest wasn't available despite being part 2 of chain
+  - Druid players at level 47 can now properly obtain the quest after completing part 1
+
+- **Removed Quest 25229 "A Few Good Gnomes"** - Deleted pre-Cataclysm event quest
+  - Quest was part of Operation: Gnomeregan event that doesn't exist on Project Epoch
+  - Removed from both database and blacklist as it's not available on WotLK 3.3.5 servers
+  - Fixes GitHub issue #863
+
+- **Data Collector Message Cleanup** - Removed outdated "missing quests" message
+  - Removed confusing "X missing quests being tracked" startup message
+  - Updated `/qdc show` command to say "quests being tracked" instead of "missing quests"
+  - Better reflects current behavior where all quests are collected by default
+
+- **Implemented Character-Based Slicing for GitHub Submissions** - Fixes issue #1257
+  - Added intelligent slicing based on GitHub's 65,536 character limit
+  - Automatically splits large submissions into multiple pages by character count
+  - Shows real-time character usage (e.g., "45.2k/59.0k chars") in export UI
+  - Uses 90% safety buffer (~59,000 chars) to ensure submissions never exceed limits
+  - Replaces arbitrary 20-quest limit with smart content-aware slicing
+  - Preserves quest boundaries - never splits a quest across pages
+
+- **Restored GitHub Issue Templates** - Fixed accidental deletion from commit 46af950
+  - Restored config.yml (disables blank issues, directs to Discord)
+  - Restored missing_quest.yml (template for quest data submissions)
+  - Restored feature_request.yml (template for feature requests)
+
 ### Changed
 - **Data Collection Now Always Captures All Quests** - Simplified data collection to always gather complete data
   - When data collection is enabled, ALL quests are tracked (not just missing ones)

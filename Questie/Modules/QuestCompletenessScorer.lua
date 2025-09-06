@@ -53,83 +53,89 @@ function QuestCompletenessScorer:AnalyzeQuestCompleteness(questId)
         }
     end
     
-    local score = 0
     local availableFields = {}
     local missingFields = {}
     
-    -- Check quest name
-    if quest.name and quest.name ~= "" and not string.find(quest.name, "Quest %d+$") then
-        score = score + COMPLETENESS_WEIGHTS.HAS_NAME
-        table.insert(availableFields, "name")
-    else
-        table.insert(missingFields, "name")
-    end
+    -- Check what data we have
+    local hasStartNPC = quest.startedBy and quest.startedBy[1] and #quest.startedBy[1] > 0
+    local hasEndNPC = quest.finishedBy and quest.finishedBy[1] and #quest.finishedBy[1] > 0
     
-    -- Check starter NPC
-    if quest.startedBy and quest.startedBy[1] and #quest.startedBy[1] > 0 then
-        score = score + COMPLETENESS_WEIGHTS.HAS_STARTER_NPC
-        table.insert(availableFields, "startedBy")
-        
-        -- Check starter spawns
-        local starterNpcId = quest.startedBy[1][1]
-        local npcData = QuestieDB.GetNPC(starterNpcId)
-        if npcData and npcData.spawns and next(npcData.spawns) then
-            score = score + COMPLETENESS_WEIGHTS.HAS_STARTER_SPAWNS
-            table.insert(availableFields, "starterSpawns")
-        else
-            table.insert(missingFields, "starterSpawns")
-        end
-    else
-        table.insert(missingFields, "startedBy")
-        table.insert(missingFields, "starterSpawns")
-    end
-    
-    -- Check finisher NPC
-    if quest.finishedBy and quest.finishedBy[1] and #quest.finishedBy[1] > 0 then
-        score = score + COMPLETENESS_WEIGHTS.HAS_FINISHER_NPC
-        table.insert(availableFields, "finishedBy")
-        
-        -- Check finisher spawns  
-        local finisherNpcId = quest.finishedBy[1][1]
-        local npcData = QuestieDB.GetNPC(finisherNpcId)
-        if npcData and npcData.spawns and next(npcData.spawns) then
-            score = score + COMPLETENESS_WEIGHTS.HAS_FINISHER_SPAWNS
-            table.insert(availableFields, "finisherSpawns")
-        else
-            table.insert(missingFields, "finisherSpawns")
-        end
-    else
-        table.insert(missingFields, "finishedBy")
-        table.insert(missingFields, "finisherSpawns")
-    end
-    
-    -- Check objectives
+    -- Check for objectives (kill/collect/interact) or exploration triggers
+    local hasObjectives = false
     if quest.Objectives and (
         (quest.Objectives[1] and #quest.Objectives[1] > 0) or  -- creatures
         (quest.Objectives[2] and #quest.Objectives[2] > 0) or  -- objects
         (quest.Objectives[3] and #quest.Objectives[3] > 0)     -- items
     ) then
-        score = score + COMPLETENESS_WEIGHTS.HAS_OBJECTIVES
+        hasObjectives = true
+    end
+    
+    -- Also check for exploration triggers (field 9)
+    if quest.triggerEnd and quest.triggerEnd[1] then
+        hasObjectives = true
+    end
+    
+    -- Track available/missing fields
+    if hasStartNPC then
+        table.insert(availableFields, "startedBy")
+    else
+        table.insert(missingFields, "startedBy")
+    end
+    
+    if hasEndNPC then
+        table.insert(availableFields, "finishedBy")
+    else
+        table.insert(missingFields, "finishedBy")
+    end
+    
+    if hasObjectives then
         table.insert(availableFields, "objectives")
     else
         table.insert(missingFields, "objectives")
     end
     
-    -- Check quest level appropriateness
-    if quest.Level and quest.Level > 0 and quest.Level <= 80 then
-        score = score + COMPLETENESS_WEIGHTS.HAS_PROPER_LEVEL
-        table.insert(availableFields, "level")
+    -- NEW LOGIC: Determine state based on quest type and available data
+    local state
+    
+    if not hasStartNPC and not hasEndNPC then
+        -- No NPCs at all = MISSING
+        state = self.COMPLETENESS_STATES.MISSING
+    elseif not hasObjectives then
+        -- Quest WITHOUT objectives (simple delivery/talk quests)
+        if hasStartNPC and hasEndNPC then
+            state = self.COMPLETENESS_STATES.COMPLETE  -- Has everything needed
+        elseif hasStartNPC or hasEndNPC then
+            state = self.COMPLETENESS_STATES.MINIMAL   -- Only one NPC
+        else
+            state = self.COMPLETENESS_STATES.MISSING   -- No NPCs
+        end
     else
-        table.insert(missingFields, "level")
+        -- Quest WITH objectives
+        if hasStartNPC and hasEndNPC then
+            if hasObjectives then
+                state = self.COMPLETENESS_STATES.COMPLETE  -- Has everything
+            else
+                state = self.COMPLETENESS_STATES.PARTIAL   -- NPCs but no objectives
+            end
+        elseif (hasStartNPC and hasObjectives) or (hasEndNPC and hasObjectives) then
+            state = self.COMPLETENESS_STATES.PARTIAL       -- Has NPC + objectives
+        elseif hasStartNPC or hasEndNPC then
+            state = self.COMPLETENESS_STATES.MINIMAL       -- Only one NPC
+        else
+            state = self.COMPLETENESS_STATES.MISSING       -- No NPCs
+        end
     end
     
-    -- Calculate percentage and determine state
-    local percentage = math.floor((score / MAX_COMPLETENESS_SCORE) * 100)
-    local state = self:_DetermineCompletenessState(percentage)
+    -- Calculate a percentage for backwards compatibility (but state is what matters)
+    local score = 0
+    if hasStartNPC then score = score + 35 end
+    if hasEndNPC then score = score + 35 end
+    if hasObjectives then score = score + 30 end
+    local percentage = score
     
     -- Determine functional capabilities
-    local canShowPins = self:_Contains(availableFields, "startedBy") and self:_Contains(availableFields, "starterSpawns")
-    local canTrackObjectives = self:_Contains(availableFields, "objectives")
+    local canShowPins = hasStartNPC or hasEndNPC  -- Can show pins if we have any NPC
+    local canTrackObjectives = hasObjectives
     
     return {
         score = score,

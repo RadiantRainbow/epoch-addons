@@ -345,7 +345,9 @@ _GetQuestIcon = function(quest)
     if QuestieDB.IsPvPQuest(quest.Id) then
         return Questie.ICON_TYPE_PVPQUEST
     end
-    if quest.requiredLevel > QuestiePlayer.GetPlayerLevel() then
+    -- Only show gray if quest is truly unavailable (more than 5 levels above player)
+    -- This allows orange/red quests to show as yellow icons
+    if quest.requiredLevel and quest.requiredLevel > (QuestiePlayer.GetPlayerLevel() + 5) then
         return Questie.ICON_TYPE_AVAILABLE_GRAY
     end
     if quest.IsRepeatable then

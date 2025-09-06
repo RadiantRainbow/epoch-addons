@@ -331,18 +331,9 @@ function QuestieDataCollector:Initialize()
         
         if Questie.db.profile.dataCollectionDevMode then
             DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[DEV MODE] Collecting ALL quests (including known ones)|r", 1, 0, 0)
-        else
-            DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00Now only tracking quests MISSING from database|r", 1, 1, 0)
         end
         
         DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00Mismatch detection enabled for improved accuracy|r", 1, 1, 0)
-        
-        if questCount > 0 then
-            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF" .. questCount .. " missing quests being tracked|r", 0, 1, 1)
-        end
-        if inDatabaseCount > 0 and not Questie.db.profile.dataCollectionDevMode then
-            DEFAULT_CHAT_FRAME:AddMessage("|cFFFFAA00Note: " .. inDatabaseCount .. " tracked quests are now in database and won't be collected|r", 1, 0.7, 0)
-        end
         DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00Type /qdc for commands|r", 1, 1, 0)
     end
     
@@ -3082,11 +3073,44 @@ function QuestieDataCollector:ShowExportWindow(questId)
             end
         end
         
-        local maxQuestsPerSubmission = 20  -- Conservative GitHub limit
+        -- GitHub issue body character limits
+        local GITHUB_MAX_CHARS = 65536
+        local GITHUB_SAFE_CHARS = math.floor(GITHUB_MAX_CHARS * 0.9)  -- 90% safety buffer = ~59,000 chars
         
-        if eligibleQuests > maxQuestsPerSubmission then
-            -- Large submission detected - use staged export window instead
-            self:ShowStagedExportWindow(eligibleQuests, maxQuestsPerSubmission)
+        -- Pre-calculate content to determine if we need slicing
+        local testExport = ""
+        local questCount = 0
+        
+        -- Build header for character counting
+        local headerText = "════════════════════════════════════════════════════════════════\n"
+        headerText = headerText .. "                  HOW TO SUBMIT YOUR REPORT                     \n" 
+        headerText = headerText .. "════════════════════════════════════════════════════════════════\n\n"
+        headerText = headerText .. "1. Copy all text below (Ctrl+C to copy)\n"
+        headerText = headerText .. "2. Go to: https://github.com/trav346/Questie/issues\n"
+        headerText = headerText .. "3. Click 'New Issue'\n"
+        headerText = headerText .. "4. Title: Missing Quest Data: [Brief Description]\n"
+        headerText = headerText .. "5. Paste the copied text and click 'Submit new issue'\n\n"
+        headerText = headerText .. "═══════════════════════════════════════════════════════════════\n"
+        headerText = headerText .. "                     COLLECTED QUEST DATA                        \n"
+        headerText = headerText .. "═══════════════════════════════════════════════════════════════\n\n"
+        
+        -- Calculate total content size
+        local totalChars = string.len(headerText)
+        
+        for questId, questData in pairs(QuestieDataCollection.quests) do
+            if not IsQuestInDatabase(questId) then
+                questCount = questCount + 1
+                local questExport = self:FormatQuestExport(questId, questData)
+                totalChars = totalChars + string.len(questExport)
+                if questCount > 1 then
+                    totalChars = totalChars + string.len("\n========================================================================\n\n")
+                end
+            end
+        end
+        
+        if totalChars > GITHUB_SAFE_CHARS then
+            -- Content too large - use character-based slicing
+            self:ShowStagedExportWindow(questCount, nil, totalChars, GITHUB_SAFE_CHARS)
             return
         else
             -- Normal single submission
@@ -3409,9 +3433,99 @@ function QuestieDataCollector:ShowExportWindow(questId)
     
     DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[QUESTIE]|r Export window opened. Follow the 3 steps to submit your data!", 0, 1, 0)
 end
+
+-- Calculate how to slice quest data based on character limits
+function QuestieDataCollector:CalculateCharacterSlices(totalChars, maxChars)
+    local headerText = "════════════════════════════════════════════════════════════════\n"
+    headerText = headerText .. "                  HOW TO SUBMIT YOUR REPORT                     \n" 
+    headerText = headerText .. "════════════════════════════════════════════════════════════════\n\n"
+    headerText = headerText .. "1. Copy all text below (Ctrl+C to copy)\n"
+    headerText = headerText .. "2. Go to: https://github.com/trav346/Questie/issues\n"
+    headerText = headerText .. "3. Click 'New Issue'\n"
+    headerText = headerText .. "4. Title: Missing Quest Data - Part X of Y\n"
+    headerText = headerText .. "5. Paste the copied text and click 'Submit new issue'\n\n"
+    headerText = headerText .. "═══════════════════════════════════════════════════════════════\n"
+    headerText = headerText .. "                     COLLECTED QUEST DATA                        \n"
+    headerText = headerText .. "═══════════════════════════════════════════════════════════════\n\n"
+    
+    local headerSize = string.len(headerText)
+    local availableChars = maxChars - headerSize - 100  -- Leave 100 chars buffer
+    
+    -- Get all eligible quests
+    local allQuests = {}
+    for questId, questData in pairs(QuestieDataCollection.quests) do
+        if not IsQuestInDatabase(questId) then
+            local questExport = self:FormatQuestExport(questId, questData)
+            table.insert(allQuests, {
+                id = questId,
+                data = questData,
+                export = questExport,
+                size = string.len(questExport)
+            })
+        end
+    end
+    
+    -- Sort by quest ID for consistent ordering
+    table.sort(allQuests, function(a, b) return a.id < b.id end)
+    
+    -- Slice into pages based on character limits
+    local slices = {}
+    local currentSlice = {}
+    local currentSize = 0
+    local separatorSize = string.len("\n========================================================================\n\n")
+    
+    for i, quest in ipairs(allQuests) do
+        local questSize = quest.size
+        local withSeparator = (currentSize > 0) and (questSize + separatorSize) or questSize
+        
+        if currentSize + withSeparator > availableChars and #currentSlice > 0 then
+            -- This quest would exceed limit, start a new slice
+            table.insert(slices, {
+                quests = currentSlice,
+                totalSize = currentSize + headerSize,
+                questCount = #currentSlice
+            })
+            currentSlice = { quest }
+            currentSize = questSize
+        else
+            -- Quest fits in current slice
+            table.insert(currentSlice, quest)
+            currentSize = currentSize + withSeparator
+        end
+    end
+    
+    -- Add the final slice if it has content
+    if #currentSlice > 0 then
+        table.insert(slices, {
+            quests = currentSlice,
+            totalSize = currentSize + headerSize,
+            questCount = #currentSlice
+        })
+    end
+    
+    return {
+        slices = slices,
+        totalQuests = #allQuests,
+        headerText = headerText,
+        maxChars = maxChars
+    }
+end
+
 -- Format a single quest for export
-function QuestieDataCollector:ShowStagedExportWindow(totalQuests, maxPerPage)
-    local totalPages = math.ceil(totalQuests / maxPerPage)
+function QuestieDataCollector:ShowStagedExportWindow(totalQuests, maxPerPage, totalChars, maxChars)
+    -- Determine slicing method: character-based (new) vs quest-based (legacy)
+    local useCharacterSlicing = (totalChars and maxChars)
+    local totalPages, sliceInfo
+    
+    if useCharacterSlicing then
+        -- Calculate pages based on character limits
+        sliceInfo = self:CalculateCharacterSlices(totalChars, maxChars)
+        totalPages = #sliceInfo.slices
+    else
+        -- Legacy quest-based slicing
+        maxPerPage = maxPerPage or 20
+        totalPages = math.ceil(totalQuests / maxPerPage)
+    end
     
     -- Create staged export frame if it doesn't exist
     if not QuestieStagedExportFrame then
@@ -3438,7 +3552,7 @@ function QuestieDataCollector:ShowStagedExportWindow(totalQuests, maxPerPage)
         -- Friendly message
         local notice = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         notice:SetPoint("TOP", 0, -45)
-        notice:SetText("|cFF66FF66You've been busy! GitHub has length limits for submissions, so let's do this in stages.|r")
+        notice:SetText("|cFF66FF66Large submission detected! GitHub limits issues to ~65k characters, so we've sliced this automatically.|r")
         f.notice = notice
         
         -- Current page indicator
@@ -3631,6 +3745,8 @@ function QuestieDataCollector:ShowStagedExportWindow(totalQuests, maxPerPage)
         f.totalPages = totalPages
         f.maxPerPage = maxPerPage
         f.totalQuests = totalQuests
+        f.useCharacterSlicing = useCharacterSlicing
+        f.sliceInfo = sliceInfo
     end
     
     local frame = QuestieStagedExportFrame
@@ -3638,6 +3754,8 @@ function QuestieDataCollector:ShowStagedExportWindow(totalQuests, maxPerPage)
     frame.totalPages = totalPages
     frame.maxPerPage = maxPerPage
     frame.totalQuests = totalQuests
+    frame.useCharacterSlicing = useCharacterSlicing
+    frame.sliceInfo = sliceInfo
     
     -- Set up navigation button handlers
     frame.prevButton:SetScript("OnClick", function()
@@ -3669,9 +3787,22 @@ function QuestieDataCollector:UpdateStagedExportPage()
     local startIndex = (currentPage - 1) * maxPerPage + 1
     local endIndex = math.min(currentPage * maxPerPage, frame.totalQuests)
     
-    -- Update page indicators
-    frame.pageInfo:SetText("|cFFAAFFAAPage " .. currentPage .. " of " .. totalPages .. " |cFFFFFFFF(" .. (endIndex - startIndex + 1) .. " quests)|r")
-    frame.navPageInfo:SetText("Page " .. currentPage .. " of " .. totalPages)
+    -- Update page indicators with character counting info
+    if frame.useCharacterSlicing and frame.sliceInfo then
+        local slice = frame.sliceInfo.slices[currentPage]
+        if slice then
+            local charInfo = string.format("%.1fk/%.1fk chars", slice.totalSize / 1000, frame.sliceInfo.maxChars / 1000)
+            frame.pageInfo:SetText("|cFFAAFFAAPage " .. currentPage .. " of " .. totalPages .. " |cFFFFFFFF(" .. slice.questCount .. " quests, " .. charInfo .. ")|r")
+            frame.navPageInfo:SetText("Page " .. currentPage .. " of " .. totalPages .. " (" .. charInfo .. ")")
+        else
+            frame.pageInfo:SetText("|cFFAAFFAAPage " .. currentPage .. " of " .. totalPages .. "|r")
+            frame.navPageInfo:SetText("Page " .. currentPage .. " of " .. totalPages)
+        end
+    else
+        -- Legacy quest-based display
+        frame.pageInfo:SetText("|cFFAAFFAAPage " .. currentPage .. " of " .. totalPages .. " |cFFFFFFFF(" .. (endIndex - startIndex + 1) .. " quests)|r")
+        frame.navPageInfo:SetText("Page " .. currentPage .. " of " .. totalPages)
+    end
     
     -- Update navigation buttons (WoW 3.3.5 compatible)
     if currentPage > 1 then
@@ -3703,14 +3834,43 @@ function QuestieDataCollector:UpdateStagedExportPage()
 end
 
 function QuestieDataCollector:GenerateStagedPageContent(pageNum, maxPerPage)
-    local startIndex = (pageNum - 1) * maxPerPage
-    local endIndex = startIndex + maxPerPage - 1
+    local frame = QuestieStagedExportFrame
     
-    -- Header
-    local exportText = "════════════════════════════════════════════════════════════════\n"
-    exportText = exportText .. "                    QUESTIE STAGED EXPORT                       \n" 
-    exportText = exportText .. "                      Page " .. pageNum .. " of " .. QuestieStagedExportFrame.totalPages .. "                           \n"
-    exportText = exportText .. "════════════════════════════════════════════════════════════════\n\n"
+    -- Check if using character-based slicing
+    if frame.useCharacterSlicing and frame.sliceInfo then
+        -- Use character-based slicing (new method)
+        local slice = frame.sliceInfo.slices[pageNum]
+        if not slice then
+            return "Error: No data for page " .. pageNum
+        end
+        
+        -- Use the pre-calculated header from sliceInfo
+        local exportText = frame.sliceInfo.headerText:gsub("Part X of Y", "Part " .. pageNum .. " of " .. frame.totalPages)
+        
+        -- Add character count info to title
+        local charInfo = string.format(" (%.1fk chars)", slice.totalSize / 1000)
+        exportText = exportText .. "Page " .. pageNum .. " of " .. frame.totalPages .. charInfo .. "\n\n"
+        
+        -- Add all quests in this slice
+        for i, quest in ipairs(slice.quests) do
+            exportText = exportText .. quest.export
+            if i < #slice.quests then
+                exportText = exportText .. "\n========================================================================\n\n"
+            end
+        end
+        
+        return exportText
+    else
+        -- Legacy quest-based slicing
+        local startIndex = (pageNum - 1) * maxPerPage
+        local endIndex = startIndex + maxPerPage - 1
+        
+        -- Header
+        local exportText = "════════════════════════════════════════════════════════════════\n"
+        exportText = exportText .. "                    QUESTIE STAGED EXPORT                       \n" 
+        exportText = exportText .. "                      Page " .. pageNum .. " of " .. QuestieStagedExportFrame.totalPages .. "                           \n"
+        exportText = exportText .. "════════════════════════════════════════════════════════════════\n\n"
+    end
     
     exportText = exportText .. "HOW TO SUBMIT THIS PAGE:\n"
     exportText = exportText .. "1. Select All Data (button below)\n"
@@ -4915,9 +5075,9 @@ function QuestieDataCollector:ShowTrackedQuests()
     end
     
     if count == 0 then
-        DEFAULT_CHAT_FRAME:AddMessage("No missing quests being tracked.", 1, 1, 1)
+        DEFAULT_CHAT_FRAME:AddMessage("No quests currently being tracked.", 1, 1, 1)
     else
-        DEFAULT_CHAT_FRAME:AddMessage("Total: " .. count .. " missing quests", 1, 1, 0)
+        DEFAULT_CHAT_FRAME:AddMessage("Total: " .. count .. " quests being tracked", 1, 1, 0)
     end
 end
 

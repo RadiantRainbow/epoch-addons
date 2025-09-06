@@ -274,7 +274,7 @@ function QuestieSlash.HandleCommands(input)
         
         if fixedCount > 0 then
             -- Refresh the map
-            QuestieQuest:UpdateQuests()
+            QuestieQuest:SmoothReset()
             DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie]|r Fixed " .. fixedCount .. " duplicate quest issues!", 0, 1, 0)
         else
             DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[Questie]|r No duplicate quest issues found.", 0, 1, 0)

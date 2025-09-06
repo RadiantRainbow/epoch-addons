@@ -42,6 +42,8 @@ function QuestieMap.utils:SetDrawOrder(frame)
     if frame.data then
         if frame.data.Icon == Questie.ICON_TYPE_AVAILABLE then
             frame.texture:SetDrawLayer("OVERLAY", 3)
+        elseif frame.data.Icon == Questie.ICON_TYPE_AVAILABLE_GRAY then
+            frame.texture:SetDrawLayer("OVERLAY", 1)  -- Lower priority for unavailable quests
         elseif frame.data.Icon == Questie.ICON_TYPE_REPEATABLE then
             frame.texture:SetDrawLayer("OVERLAY", 2)
         elseif frame.data.Icon == Questie.ICON_TYPE_EVENTQUEST then

@@ -47,7 +47,6 @@ QuestieCompat.RegisterBlacklist("hiddenQuests", function()
         -- "Operation: Gnomeregan" event quests
         [25199] = true, --* Basic Orders (https://www.wowhead.com/wotlk/quest=25199) (Retail Data)
         [25212] = true, --* Vent Horizon (https://www.wowhead.com/wotlk/quest=25212) (Retail Data)
-        [25229] = true, --* A Few Good Gnomes (https://www.wowhead.com/wotlk/quest=25229) (Retail Data)
         [25283] = true, --* Prepping the Speech (https://www.wowhead.com/wotlk/quest=25283) (Retail Data)
         [25285] = true, --* In and Out (https://www.wowhead.com/wotlk/quest=25285) (Retail Data)
         [25286] = true, --* Words for Delivery (https://www.wowhead.com/wotlk/quest=25286) (Retail Data)

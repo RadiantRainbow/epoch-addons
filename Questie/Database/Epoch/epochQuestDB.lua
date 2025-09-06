@@ -39,7 +39,7 @@ epochQuestData = {
 [26184] = {"Proof of Demise",{{1422}},{{1422}},nil,36,nil,nil,{"Kill Kurzen forces and collect ears"},nil,nil,nil,nil,nil,nil,nil,nil,33,nil,nil,nil,nil,nil,nil,0,nil,nil,nil,nil,nil,nil},
 [26185] = {"Lard's Lost Beads",{{14731}},{{14731}},nil,50,nil,nil,{"Find Lard's Lost Beads."},nil,nil,nil,nil,nil,nil,nil,nil,47,nil,nil,nil,nil,nil,2,0,nil,nil,nil,nil,nil,nil},
 [26186] = {"Parts From Afar",{{45019}},{{11145}},nil,46,nil,2,{"Bring the Basket of Treats to Myolor Sunderfury in Ironforge to exchange for Siege Engine Parts."},nil,nil,nil,nil,nil,nil,nil,nil,47,nil,nil,nil,nil,nil,2,0,nil,nil,nil,nil,nil,nil},
-[26187] = {"Parts From Afar",{{11145}},{{48251}},nil,46,nil,nil,{"Bring the Box of Siege Engine Parts back to Chief Engineer Urul in Aerie Peak."},nil,nil,nil,nil,nil,nil,nil,nil,47,nil,nil,nil,nil,nil,8,0,nil,nil,nil,nil,nil,nil},
+[26187] = {"Parts From Afar",{{11145}},{{48251}},nil,46,nil,nil,{"Bring the Box of Siege Engine Parts back to Chief Engineer Urul in Aerie Peak."},nil,nil,nil,nil,{26186},nil,nil,nil,47,nil,nil,nil,nil,nil,8,0,nil,nil,nil,nil,nil,nil},
 [26188] = {"Beneath The Scarlet Grounds",{{4223}},{{4223}},nil,40,nil,nil,{"Explore underground areas and defeat cultists"},nil,nil,nil,nil,nil,nil,nil,nil,139,nil,nil,nil,nil,nil,nil,0,nil,nil,nil,nil,nil,nil},
 [26190] = {"Gloomleaf Powder",{{45777}},{{45777}},nil,51,nil,nil,{"Collect 8 Gloomleaf Powder from Diseased Wolves"},nil,nil,nil,nil,nil,nil,nil,nil,50,nil,nil,nil,nil,nil,nil,0,nil,nil,nil,nil,nil,nil},
 [26195] = {"Delivery for Deke Grindel",{{45784}},{{45785}},nil,35,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,400,nil,nil,nil,nil,nil,nil,0,nil,nil,nil,nil,nil,nil},
@@ -176,7 +176,7 @@ epochQuestData = {
 [26532] = {"The Argus Wake",{{45528}},{{45528}},nil,44,nil,nil,{"Felicity Perenolde wants you to interrogate Zala'thria."},nil,{{{45530,"Zala'thria interrogated"}}},nil,nil,{26531},{26533},nil,nil,405,nil,nil,nil,nil,26533,8,0,26531,nil,nil,nil,nil,nil},
 [26533] = {"The End of the Argus Wake",{{45528}},{{45539}},nil,44,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,1519,nil,nil,nil,nil,nil,nil,0,nil,nil,nil,nil,nil,nil},
 [26537] = {"The Mordis Key",nil,{{2278}},nil,40,nil,nil,{"Deliver the Mordis Key to Melisara."},nil,nil,nil,nil,nil,nil,nil,nil,267,nil,nil,nil,nil,nil,8,0,nil,nil,nil,nil,nil,nil},
-[26538] = {"The Barony Mordis",{{2378}},nil,nil,40,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,267,nil,nil,nil,nil,nil,1,0,nil,nil,nil,nil,nil,nil},
+[26538] = {"The Barony Mordis",{{2378}},{{2378}},40,40,nil,nil,{"Baron Valimar Mordis slain"},nil,{{{45543,1,"Baron Valimar Mordis"}}},nil,nil,nil,nil,nil,nil,267,nil,nil,nil,nil,nil,nil,0,nil,nil,nil,nil,nil,nil},
 -- DISABLED FOR DATA COLLECTION - Missing starter AND finisher NPCs
 -- [26539] = {"The Barony Mordis",nil,nil,nil,40,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,36,nil,nil,nil,nil,nil,2,0,nil,nil,nil,nil,nil,nil},
 [26540] = {"Threats from Abroad",{{45546}},{{6579}},nil,32,nil,2,{"Slay 10 Murloc Lake Hunters and 8 Murloc Lake Oracles."},nil,{{{45544,10,"Murloc Lake Hunter slain"},{45545,8,"Murloc Lake Oracle slain"}}},nil,nil,nil,nil,nil,nil,36,nil,nil,nil,nil,nil,2,0,nil,nil,nil,nil,nil,nil},
@@ -419,7 +419,7 @@ epochQuestData = {
 [26924] = {"WANTED: Tamura",nil,{{1775}},nil,40,nil,1,{"Collect Head of Tamura."},nil,{nil,nil,{{62794,1,"Head of Tamura"}}},nil,nil,nil,nil,nil,nil,8,nil,nil,nil,nil,nil,1,0,nil,nil,nil,nil,nil,nil},
 -- DISABLED FOR DATA COLLECTION - Missing starter AND finisher NPCs
 -- [26925] = {"Message for the Historian",nil,nil,nil,1,nil,nil,{"[Needs data collection]"},nil,nil,nil,nil,nil,nil,nil,nil,1,nil,nil,nil,nil,nil,nil,0,nil,nil,nil,nil,nil,nil},
-[26926] = {"A Box of Relics",{{45887}},{{45887}},nil,9,nil,1,{"Explore Northshore Mine and collect Box of Collected Relics."},nil,{nil,nil,{{60445,1,"Box of Collected Relics"}}},nil,nil,nil,nil,nil,nil,85,nil,nil,nil,nil,nil,1,0,nil,nil,nil,nil,nil,nil},
+[26926] = {"A Box of Relics",{{45887}},{{45887}},nil,9,nil,nil,{"Collect Box of Collected Relics from Northshore Mine."},nil,{nil,nil,{{60445,1,"Box of Collected Relics"}}},nil,nil,nil,nil,nil,nil,159,nil,nil,nil,nil,nil,0,0,nil,nil,nil,nil,nil,nil},
 -- DISABLED FOR DATA COLLECTION - Missing starter AND finisher NPCs
 -- [26927] = {"A Box of Relics",nil,nil,nil,1,nil,nil,{"[Needs data collection]"},nil,nil,nil,nil,nil,nil,nil,nil,1,nil,nil,nil,nil,nil,nil,0,nil,nil,nil,nil,nil,nil},
 [26928] = {"Arugal Ambush",{{45888}},{{45888}},nil,11,nil,1,{"Collect Deathguard Orders."},nil,{nil,nil,{{62798,"Deathguard Orders"}}},nil,nil,nil,nil,nil,nil,130,nil,nil,nil,nil,nil,1,0,nil,nil,nil,nil,nil,nil},
@@ -430,8 +430,7 @@ epochQuestData = {
 [26933] = {"Etched Scroll",{{1569}},{{45894}},nil,1,nil,nil,{"Read the Etched Scroll and speak to your class trainer, Apolos Deathshot."},nil,nil,nil,nil,nil,nil,nil,nil,85,nil,nil,nil,nil,nil,2,0,nil,nil,nil,nil,nil,nil},
 -- DISABLED FOR DATA COLLECTION - Missing starter AND finisher NPCs
 -- [26934] = {"Filling the Armory",nil,nil,nil,9,nil,1,{"Collect 6 Case of Ore."},nil,{nil,nil,{{60446,6,"Case of Ore"}}},nil,nil,nil,nil,nil,nil,85,nil,nil,nil,nil,nil,1,0,nil,nil,nil,nil,nil,nil},
--- DISABLED FOR DATA COLLECTION - Missing starter AND finisher NPCs
--- [26936] = {"Northshore Mine",nil,nil,nil,1,nil,nil,{"[Needs data collection]"},nil,nil,nil,nil,nil,nil,nil,nil,1,nil,nil,nil,nil,nil,nil,0,nil,nil,nil,nil,nil,nil},
+[26936] = {"Northshore Mine",{{45887},nil},{{45885},nil},9,9,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,159,nil,nil,nil,nil,nil,0,0,nil,nil,nil,nil,nil,nil},
 [26937] = {"Missing Courier",{{1500}},{{38895}},nil,10,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,85,nil,nil,nil,nil,nil,nil,0,nil,nil,nil,nil,nil,nil},
 -- DISABLED FOR DATA COLLECTION - Missing starter AND finisher NPCs
 -- [26938] = {"[Epoch] Quest 26938",nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,0,nil,nil,nil,nil,nil,nil},
@@ -758,7 +757,7 @@ epochQuestData = {
 [27479] = {"Bloodfeather Eggs",{{3606}},{{3606}},nil,10,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,1519,nil,nil,nil,nil,nil,nil,0,nil,nil,nil,nil,nil,nil},
 [27480] = {"Corruption in Shadowglen",{{46257}},{{46257}},nil,5,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,1519,nil,nil,nil,nil,nil,nil,0,nil,nil,nil,nil,nil,nil},
 [27483] = {"Demons In Fel Rock",nil,{{3610}},nil,6,nil,nil,{"Investigate demon activity in Fel Rock."},nil,nil,nil,nil,nil,nil,nil,nil,141,nil,nil,nil,nil,nil,8,0,nil,nil,nil,nil,nil,nil},
-[27484] = {"Purifying the Essence",nil,{{3610}},nil,6,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,1519,nil,nil,nil,nil,nil,nil,0,nil,nil,nil,nil,nil,nil},
+[27484] = {"Purifying the Essence",nil,{{3610},nil},6,6,nil,nil,{"Collect 1 Purified Essence"},nil,{nil,nil,{{63354,1}},nil,nil,nil},nil,nil,nil,nil,nil,nil,141,nil,nil,nil,nil,nil,0,0,nil,nil,nil,nil,nil,nil},
 [27485] = {"Herbal Medicine",{{3604}},{{3604}},nil,8,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,1519,nil,nil,nil,nil,nil,nil,0,nil,nil,nil,nil,nil,nil},
 [27486] = {"Amber Memento",{{46260}},{{46261}},nil,35,nil,1,{"Solve the mystery of the amber memento."},nil,nil,nil,nil,nil,nil,nil,nil,400,nil,nil,nil,nil,nil,1,0,nil,nil,nil,nil,nil,nil},
 [27487] = {"Gathering Of Spirits",{{46261}},nil,nil,35,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,400,nil,nil,nil,nil,nil,1,0,nil,nil,nil,nil,nil,nil},

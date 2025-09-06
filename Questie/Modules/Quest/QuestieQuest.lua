@@ -1702,8 +1702,20 @@ _DrawObjectiveIcons = function(questId, iconsToDraw, objective, maxPerType)
             break;
         end
 
-        --Any icondata will do because they are all the same
-        icon = hotzone[1];
+        -- Select the icon with highest priority from the cluster
+        -- This ensures available quests (yellow) show over unavailable (gray)
+        icon = hotzone[1]
+        if #hotzone > 1 then
+            local bestPriority = icon.data and icon.data.Priority or 0
+            for j = 2, #hotzone do
+                local hotzoneIcon = hotzone[j]
+                local priority = hotzoneIcon.data and hotzoneIcon.data.Priority or 0
+                if priority > bestPriority then
+                    icon = hotzoneIcon
+                    bestPriority = priority
+                end
+            end
+        end
 
         local spawnsMapRefs = objective.AlreadySpawned[icon.AlreadySpawnedId].mapRefs
         local spawnsMinimapRefs = objective.AlreadySpawned[icon.AlreadySpawnedId].minimapRefs
