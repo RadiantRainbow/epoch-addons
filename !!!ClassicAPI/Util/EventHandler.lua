@@ -62,35 +62,18 @@ end
 	EventHandler: Method Hook(s)
 ]]
 
-local function Method_RegisterEvent(Self, Event)
-	local Archive = EVENT_ARCHIVE[Event]
-
-	if ( Archive ) then
-		local Registered = EVENT_OBJECT[Event]
-		local RegisteredTotal = 0
-
-		if ( Registered ) then
-			RegisteredTotal = #Registered
-			for i=1,RegisteredTotal do
-				if ( Registered[i] == Self ) then
-					return
-				end
-			end
-		else
-			local Trigger = ON_REG[Event]
-			if ( Trigger and Trigger("OnRegister", Event) == false ) then return end
-
-			Registered = {}
-			EVENT_OBJECT[Event] = Registered
-			EventHandler_Listener(Event, ___Register)
-		end
-
-		Registered[RegisteredTotal+1] = Self
-	end
-end
-
 local function Method_UnregisterEvent(Self, Event)
 	local Registered = EVENT_OBJECT[Event]
+
+	local Unit = Self.___UnitEventHandler
+	if ( Unit and Unit[Event] ) then
+		Unit[Event] = nil
+		if ( Registered ) then
+			Self = Unit
+		else
+			___Unregister(Unit, Event)
+		end
+	end
 
 	if ( Registered ) then
 		local RegisteredTotal, RegisteredIndex = 0
@@ -121,44 +104,74 @@ local function Method_UnregisterEvent(Self, Event)
 	end
 end
 
-local function Method_RegisterUnitEvent(Self, Event, Unit1, Unit2)
-	local UnitEventFrame = Self.___UnitEventHandler
+local function Method_RegisterEvent(Self, Event)
+	local Archive = EVENT_ARCHIVE[Event]
 
-	if ( not UnitEventFrame ) then
-		UnitEventFrame = CreateFrame("Frame")
-		Self.___UnitEventHandler = UnitEventFrame
+	local Unit = Self.___UnitEventHandler
+	if ( Unit and Unit[Event] ) then
+		Method_UnregisterEvent(Unit, Event)
+	end
 
-		UnitEventFrame:SetScript("OnEvent", function(_, Event, ...)
-			local Units = UnitEventFrame[Event]
-			if ( Units ) then
-				local Unit = ...
-				if ( Units[1] == Unit or Units[2] == Unit ) then
-					local OnEvent = Self:GetScript("OnEvent")
-					if ( OnEvent ) then
-						OnEvent(Self, Event, ...)
-					end
+	if ( Archive ) then
+		local Registered = EVENT_OBJECT[Event]
+		local RegisteredTotal = 0
+
+		if ( Registered ) then
+			RegisteredTotal = #Registered
+			for i=1,RegisteredTotal do
+				if ( Registered[i] == Self ) then
+					return
 				end
 			end
-		end)
+		else
+			local Trigger = ON_REG[Event]
+			if ( Trigger and Trigger("OnRegister", Event) == false ) then return end
 
-		HookSecureFunc(Self, "UnregisterEvent", function(_, Event)
-			if ( UnitEventFrame[Event] ) then
-				UnitEventFrame[Event] = nil
-				___Unregister(UnitEventFrame, Event) -- Avoid our hook, call directly.
-			end
-		end)
+			Registered = {}
+			EVENT_OBJECT[Event] = Registered
+			EventHandler_Listener(Event, ___Register)
+		end
+
+		Registered[RegisteredTotal+1] = Self
 	end
+end
 
-	local Units = UnitEventFrame[Event]
-	if ( not Units ) then
-		Units = {}
-		UnitEventFrame[Event] = Units
-		UnitEventFrame:RegisterEvent(Event)
-	end
+local function Method_RegisterUnitEvent(Self, Event, Unit1, Unit2)
+	if ( Unit1 or Unit2 ) then
+		local UnitEventFrame = Self.___UnitEventHandler
 
-	Units[1] = Unit1
-	if ( Unit2 ) then
-		Units[2] = Unit2
+		if ( not UnitEventFrame ) then
+			UnitEventFrame = CreateFrame("Frame")
+			Self.___UnitEventHandler = UnitEventFrame
+
+			UnitEventFrame:SetScript("OnEvent", function(_, Event, ...)
+				local Units = UnitEventFrame[Event]
+				if ( Units ) then
+					local Unit = ...
+					if ( Units[1] == Unit or Units[2] == Unit ) then
+						local OnEvent = Self:GetScript("OnEvent")
+						if ( OnEvent ) then
+							OnEvent(Self, Event, ...)
+						end
+					end
+				end
+			end)
+		end
+
+		local Units = UnitEventFrame[Event]
+		if ( not Units ) then
+			Self:UnregisterEvent(Event)
+			Units = {}
+			UnitEventFrame[Event] = Units
+			UnitEventFrame:RegisterEvent(Event)
+		end
+
+		Units[1] = Unit1
+		if ( Unit2 ) then
+			Units[2] = Unit2
+		end
+	else
+		Self:RegisterEvent(Event)
 	end
 end
 
