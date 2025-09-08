@@ -444,6 +444,10 @@ function QuestieInit:LoadDatabase(key)
     if QuestieDB[key] then
         coYield()
         QuestieDB[key] = loadstring(QuestieDB[key]) -- load the table from string (returns a function)
+        if not QuestieDB[key] then
+            Questie:Debug(Questie.DEBUG_DEVELOP, "Failed to load database (syntax error): ", key)
+            return
+        end
         coYield()
         QuestieDB[key] = QuestieDB[key]()           -- execute the function (returns the table)
     else

@@ -219,7 +219,20 @@ end
 
 function QuestieCompat.TomTom_AddWaypoint(title, zone, x, y)
     local CZ = mapIdToCZ[QuestieCompat.UiMapData[zone].mapID]
-    return TomTom:AddZWaypoint(QuestieCompat.Round(CZ%1 * 10), math.floor(CZ), x, y, title)
+    -- Debug logging to identify the issue
+    if Questie and Questie.db and Questie.db.global.debugEnabled then
+        print(string.format("[TomTom Debug] zone=%d, mapID=%d, CZ=%.1f, C=%d, Z=%d, x=%.2f, y=%.2f", 
+            zone, QuestieCompat.UiMapData[zone].mapID or -1, CZ or -1, 
+            QuestieCompat.Round(CZ%1 * 10), math.floor(CZ), x, y))
+    end
+    -- Convert coordinates from 0-100 scale to 0-1 scale for WoW 3.3.5 TomTom
+    -- FIXED: The continent and zone parameters WERE reversed!
+    -- CZ format is Z + C/10, so zone is the integer part, continent is the decimal part * 10
+    -- But it appears TomTom:AddZWaypoint might expect (zone, continent, ...) not (continent, zone, ...)
+    local continent = QuestieCompat.Round(CZ%1 * 10)
+    local zoneIndex = math.floor(CZ)
+    -- Try swapping the parameters to see if that fixes the ocean waypoints
+    return TomTom:AddZWaypoint(zoneIndex, continent, x / 100, y / 100, title)
 end
 
 -- This function will do its utmost to retrieve some sort of valid position

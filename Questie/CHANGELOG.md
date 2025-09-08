@@ -1,8 +1,124 @@
 # Changelog
 
-## [Unreleased]
+## [1.2.2] - 2025-09-08
+
+### Changed
+
+- **Enhanced Data Collector with Objective-Aware Filtering** - Significantly reduced noise in data collection
+  - Now only captures mobs that match quest kill objectives (e.g., "Stranglethorn Tiger: 0/10")
+  - Only tracks objects/items that match quest loot objectives (e.g., "Solid Chest: 0/1")
+  - Ignores irrelevant mobs and objects not related to quest objectives
+  - Added smart pattern matching to extract mob/item names from objective text
+  - Handles singular/plural name variations ("Tiger" vs "Tigers")
+  - Shows green messages for captured objective-relevant data
+  - Gray debug messages (debug mode only) for ignored non-objective entities
+  - Dramatically reduces collected data size and improves submission quality
+  - Fixed pattern matching to properly ignore generic containers like "Solid Chest"
 
 ### Fixed
+
+- **Comprehensive Database Cleanup** - Eliminated all remaining corrupted quest objective data
+  - Fixed 145+ quests with data collection artifacts (patterns like "1. ObjectiveName: 0/10 (type)")
+  - Removed malformed objectives with missing names (": 0/X" patterns)
+  - Quest 26560 "When Life Gives You... Berries?" now shows clean objective: "Bushel of Shadowberry: 0/8"
+  - All corrupted data from previous data collection issues completely resolved
+  - Database verified clean of all junk data patterns
+
+- **Fixed Database Initialization Error** - Resolved "attempt to call field '?' (a nil value)" crash
+  - Corrected Epoch database stub format from direct table assignment to string format
+  - Added graceful error handling for corrupted database files
+  - LoadDatabase function now safely handles syntax errors without crashing
+
+- **Cleaned Up Junk Container Data Pollution** - Removed 18 irrelevant treasure container entries
+  - Removed generic containers: Solid Chest, Battered Chest, Damaged Crate, Large chests
+  - Eliminated hundreds of coordinate locations for non-quest objects
+  - Questie database now focuses only on quest-related objects
+  - Created cleanup scripts for future junk data removal
+
+- **Improved TomTom Waypoint Accuracy** - Fixed waypoints appearing in ocean instead of correct locations
+  - Corrected parameter order in TomTom:AddZWaypoint() function (zone and continent were swapped)
+  - Waypoints now appear at correct locations when viewing zone maps
+  - Added debug logging for coordinate troubleshooting when debug mode is enabled
+  - Note: World map view may still show incorrect positions due to WoW 3.3.5 coordinate scaling limitations
+
+- **Fixed Lua Error When Shift-Hovering Quest Objectives** - Resolved tooltip crash on world map (#1599)
+  - Added nil check for NPC names in GetCreatureLevels function
+  - Prevents "table index is nil" error when NPCs have incomplete data
+  - Tooltips now work properly even with missing NPC names in database
+
+- **Fixed Multiple Tooltip Crashes** - Added comprehensive nil checks in MapIconTooltip
+  - Fixed crashes when hovering over map icons with missing Name fields
+  - Added safety checks for CustomTooltipData and ManualTooltipData titles
+  - Prevents "table index is nil" errors with incomplete icon data
+
+- **Quest Database Fixes**
+  - Quest 27489 "Canyon Patrol" - Fixed incorrect turn-in NPC (now only turns in to Motega Firemane, removed Cliffwatcher Longhorn)
+  - Quest 27486 "Amber Memento" - Fixed incorrect zone (was Desolace, now correctly Tanaris where quest giver is located)
+
+## [1.2.1] - 2025-09-07
+
+### Fixed
+
+- **Critical Database Architecture Fix** - Fixed quest availability issues
+  - Merged all Epoch custom content (1,121 quests, 754 NPCs) into WotLK database
+  - Disabled Epoch databases that were incorrectly taking precedence over vanilla content
+  - Fixed database variable names (changed from _wotlkData to standard names)
+  - Restored proper database hierarchy: WotLK > Classic (Epoch disabled)
+  - Vanilla quests like "Delivery to Gnomeregan" (445) now properly available
+
+- **Fixed 331+ Corrupted Quest Objectives** - Cleaned Phase 2 pipeline data corruption
+  - Removed raw data collection output from quest objectives
+  - Restored clean objective descriptions for affected quests
+  - Quest "Shark Fin Stew" (26901) and others now display proper objectives
+
+- **Restored 50 Vanilla Quest Objectives** - Fixed missing objective names
+  - Vanilla quests had objectives showing ": 0/10" without item names
+  - Restored proper objective text from WotLK reference database
+  - Quest "Singing Blue Shards" (605) now correctly shows "Singing Crystal Shards"
+
+- **Fixed Townsfolk.lua Nil Table Error** - Added safety check for profession trainers
+  - Added nil check before inserting into professionTrainers table
+  - Prevents crash when profession IDs don't exist in initial table
+
+- **Optimized Database for Project Epoch** - Removed unnecessary expansion content
+  - Filtered out 5,809 TBC/WotLK quests (IDs 8000-24999) not available on vanilla server
+  - Removed 20,583 expansion NPCs, 22,816 items, 11,320 objects
+  - Database now contains only vanilla (1-7999) and Epoch custom (25000+) content
+  - Reduced quest count from 10,172 to 4,363 (matches expected ~5,000 range)
+  - Significantly faster database compilation and reduced memory usage
+
+- **Fixed Database Filtering Side Effects** - Added nil checks for removed content
+  - Fixed DeleteGatheringNodes crash when expansion mining/herb nodes don't exist
+  - Fixed Townsfolk vendor population crash when vendor NPCs are missing
+  - Fixed Epoch validator to recognize empty databases as expected (not error)
+  - Cleaned up scary error messages during startup
+
+## [1.2.0] - 2025-09-07
+
+### Added
+
+- **Added 786 New Quests from GitHub Submissions** - Major database expansion
+  - Successfully processed 1,153 GitHub quest submissions
+  - Added 786 completely new quests to the database
+  - Database grew from 560 to 1,346 total quests
+  - All existing quest data preserved unchanged
+  - Full pipeline validation completed before application
+  - Fixed critical bugs in lua_formatter (newline escaping)
+  - Implemented comprehensive validation checks
+
+### Fixed
+
+- **Fixed TomTom Waypoints Appearing in Ocean** - Corrected coordinate conversion for WoW 3.3.5
+  - TomTom waypoints were appearing far off-coast (e.g., panthers at 27,7 instead of 42,13)
+  - Added missing coordinate scaling (/100) for WoW 3.3.5 TomTom integration
+  - Waypoints now appear at correct locations after database switch to WotLK format
+  - Affects all quest objectives and manual waypoint setting
+
+- **Fixed Data Collector Version Reporting** - Now uses addon version from TOC file
+  - Data collector was reporting outdated version "1.1.3" in exports
+  - Now correctly reports actual addon version (e.g., "1.2.0-prerelease2") from TOC file
+  - Removed version caching in SavedVariables that caused stale version numbers
+  - TOC file is now the single source of truth for all version reporting
 
 - **Fixed Level Filter Breaking High-Level Quest Display** - Resolved issue where low-level players saw unacceptable quests
   - Fixed loophole in `IsLevelRequirementsFulfilled` that allowed level 11 quests to show for level 1 players

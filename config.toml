@@ -93,3 +93,6 @@ url = "https://github.com/Bennylavaa/ElvUI-Epoch.git"
 
 [[addons]]
 url = "https://github.com/NoM0Re/WoW-3.3.5a-Addons/raw/refs/heads/main/src/Addons/Cartographer.zip"
+
+[[addons]]
+url = "https://github.com/Sattva-108/Mapster.git"

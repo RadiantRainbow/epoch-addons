@@ -133,12 +133,17 @@ function MapIconTooltip:Show()
             local dist = QuestieLib:Maxdist(icon.x, icon.y, self.x, self.y);
             if dist < maxDistCluster then
                 if iconData.Type == "available" or iconData.Type == "complete" then
-                    if not npcAndObjectOrder[iconData.Name] then
-                        npcAndObjectOrder[iconData.Name] = {};
-                    end
+                    -- Check that iconData.Name exists before using it as a table index
+                    if iconData.Name then
+                        if not npcAndObjectOrder[iconData.Name] then
+                            npcAndObjectOrder[iconData.Name] = {};
+                        end
 
-                    local tip = _MapIconTooltip:GetAvailableOrCompleteTooltip(icon)
-                    npcAndObjectOrder[iconData.Name][tip.title] = tip
+                        local tip = _MapIconTooltip:GetAvailableOrCompleteTooltip(icon)
+                        if tip and tip.title then
+                            npcAndObjectOrder[iconData.Name][tip.title] = tip
+                        end
+                    end
                 elseif iconData.ObjectiveData and iconData.ObjectiveData.Description then
                     local key = iconData.Id
                     if not questOrder[key] then
@@ -174,10 +179,18 @@ function MapIconTooltip:Show()
                         end
                     end
                 elseif iconData.CustomTooltipData then
-                    questOrder[iconData.CustomTooltipData.Title] = {}
-                    tinsert(questOrder[iconData.CustomTooltipData.Title], iconData.CustomTooltipData.Body);
+                    -- Check that Title exists before using it as a table index
+                    if iconData.CustomTooltipData.Title then
+                        questOrder[iconData.CustomTooltipData.Title] = {}
+                        if iconData.CustomTooltipData.Body then
+                            tinsert(questOrder[iconData.CustomTooltipData.Title], iconData.CustomTooltipData.Body);
+                        end
+                    end
                 elseif iconData.ManualTooltipData then
-                    manualOrder[iconData.ManualTooltipData.Title] = iconData.ManualTooltipData
+                    -- Check that Title exists before using it as a table index
+                    if iconData.ManualTooltipData.Title then
+                        manualOrder[iconData.ManualTooltipData.Title] = iconData.ManualTooltipData
+                    end
                 end
             end
         end

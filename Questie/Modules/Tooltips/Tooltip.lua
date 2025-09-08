@@ -66,12 +66,14 @@ function QuestieTooltips:RegisterQuestStartTooltip(questId, name, starterId, key
     if not QuestieTooltips.lookupKeysByQuestId[questId] then
         QuestieTooltips.lookupKeysByQuestId[questId] = {}
     end
+    -- Handle nil name (can happen with filtered database entries)
+    name = name or ("Quest " .. tostring(questId))
     local tooltip = {
         questId = questId,
         name = name,
         starterId = starterId,
     };
-    QuestieTooltips.lookupByKey[key][tostring(questId) .. " " .. name .. " " .. starterId] = tooltip
+    QuestieTooltips.lookupByKey[key][tostring(questId) .. " " .. tostring(name) .. " " .. tostring(starterId)] = tooltip
     tinsert(QuestieTooltips.lookupKeysByQuestId[questId], key)
 end
 

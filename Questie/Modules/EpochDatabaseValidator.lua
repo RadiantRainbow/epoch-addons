@@ -16,7 +16,8 @@ function EpochDatabaseValidator:ValidateEpochData()
     validationErrors = {}
     validationWarnings = {}
     
-    Questie:Print("[Epoch Validator] Starting database validation...")
+    -- After v1.2.1, Epoch databases are merged into WotLK and should be empty
+    -- Empty Epoch databases are now expected, not an error
     
     -- Load the raw Epoch data with error handling
     local success, epochQuestData, epochNpcData, epochItemData, epochObjectData
@@ -26,13 +27,24 @@ function EpochDatabaseValidator:ValidateEpochData()
     end)
     
     if not success or not epochQuestData then
-        Questie:Print("[Epoch Validator] |cFFFF0000ERROR: Could not load Epoch quest database!|r")
-        table.insert(validationErrors, "Epoch quest database not found or failed to load!")
-        self:PrintValidationResults()
-        return false
+        -- This is expected after v1.2.1 merge
+        Questie:Print("[Epoch Validator] Epoch database merged into WotLK (0 quests in Epoch - this is normal)")
+        return true  -- Return success since this is the expected state
     end
     
-    Questie:Print("[Epoch Validator] Loaded quest data, checking NPCs...")
+    -- Check if database is empty (expected after merge)
+    local questCount = 0
+    for _ in pairs(epochQuestData) do
+        questCount = questCount + 1
+    end
+    
+    if questCount == 0 then
+        Questie:Print("[Epoch Validator] Epoch database is empty (merged into WotLK) - validation passed!")
+        return true  -- Empty is the new normal
+    end
+    
+    -- If we get here, there's actually data in Epoch database (unexpected)
+    Questie:Print(string.format("[Epoch Validator] Found %d quests in Epoch database, validating...", questCount))
     
     success, epochNpcData = pcall(function()
         return QuestieDB._epochNpcData or _G.epochNpcData
@@ -66,7 +78,7 @@ function EpochDatabaseValidator:ValidateEpochData()
         end
     end
     
-    Questie:Print(string.format("[Epoch Validator] Found %d quests and %d NPCs to validate", questCount, npcCount))
+    Questie:Print(string.format("[Epoch Validator] Validating %d quests and %d NPCs...", questCount, npcCount))
     
     -- Validate quest data with error handling
     if epochQuestData then

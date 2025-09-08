@@ -2,7 +2,7 @@
 ## Title: Questie|cFF00FF00 Project Epoch|r
 ## Author: trav346 (fork of esurm/Questie)
 ## Notes: Quest helper for Project Epoch (WotLK client)
-## Version: 1.2.0-prerelease2
+## Version: 1.2.2
 ## RequiredDeps:
 ## OptionalDeps: Ace3, CallbackHandler-1.0, HereBeDragons, LibDataBroker-1.1, LibDBIcon-1.0, LibSharedMedia-3.0, LibStub, LibUIDropDownMenu
 ## SavedVariables: QuestieConfig
@@ -36,19 +36,19 @@ Database\Zones\zoneTables.lua
 Database\Zones\zoneDB.lua
 
 # Databases
-Database\Classic\classicItemDB.lua
-Database\Classic\classicNpcDB.lua
-Database\Classic\classicObjectDB.lua
-Database\Classic\classicQuestDB.lua
-#Database\Wotlk\wotlkItemDB.lua -- Disabled: Project Epoch is Vanilla only
-#Database\Wotlk\wotlkNpcDB.lua -- Disabled: Project Epoch is Vanilla only
-#Database\Wotlk\wotlkObjectDB.lua -- Disabled: Project Epoch is Vanilla only
-#Database\Wotlk\wotlkQuestDB.lua -- Disabled: Project Epoch is Vanilla only
+#Database\Classic\classicItemDB.lua -- Disabled: Using WotLK as primary
+#Database\Classic\classicNpcDB.lua -- Disabled: Using WotLK as primary
+#Database\Classic\classicObjectDB.lua -- Disabled: Using WotLK as primary
+#Database\Classic\classicQuestDB.lua -- Disabled: Using WotLK as primary
+Database\Wotlk\wotlkItemDB.lua
+Database\Wotlk\wotlkNpcDB.lua
+Database\Wotlk\wotlkObjectDB.lua
+Database\Wotlk\wotlkQuestDB.lua
 Database\QuestieDB.lua
-Database\Epoch\epochQuestDB.lua
-Database\Epoch\epochNpcDB.lua
-Database\Epoch\epochObjectDB.lua
-Database\Epoch\epochItemDB.lua
+Database\Epoch\epochQuestDB.lua -- Empty stub for compatibility
+Database\Epoch\epochNpcDB.lua -- Empty stub for compatibility
+Database\Epoch\epochObjectDB.lua -- Empty stub for compatibility
+Database\Epoch\epochItemDB.lua -- Empty stub for compatibility
 Database\questDB.lua
 Database\objectDB.lua
 Database\npcDB.lua

@@ -262,9 +262,7 @@ function QuestieDataCollector:Initialize()
     if not QuestieDataCollection.flightMasters then
         QuestieDataCollection.flightMasters = {}
     end
-    if not QuestieDataCollection.version then
-        QuestieDataCollection.version = CURRENT_VERSION
-    end
+    -- Version is always read from TOC, no need to store
     if not QuestieDataCollection.sessionStart then
         QuestieDataCollection.sessionStart = date("%Y-%m-%d %H:%M:%S")
     end
@@ -275,8 +273,7 @@ function QuestieDataCollector:Initialize()
     QuestieDataCollection.characterClass = UnitClass("player")
     QuestieDataCollection.characterRace = UnitRace("player")
     
-    -- Update version for existing data
-    QuestieDataCollection.version = CURRENT_VERSION
+    -- Version is always read from TOC at export time, not stored
     
     
     -- Count tracked quests (only missing ones)
@@ -1766,6 +1763,185 @@ function QuestieDataCollector:DetectPrerequisites(questId)
     return newQuests
 end
 
+-- Parse objective text to extract mob/item names for matching
+function QuestieDataCollector:ExtractObjectiveTarget(objectiveText, objectiveType)
+    if not objectiveText then return nil end
+    
+    local targetName = nil
+    
+    if objectiveType == "monster" then
+        -- Common patterns for kill objectives:
+        -- "Stranglethorn Tiger slain: 0/10"
+        -- "Kill Stranglethorn Tiger: 0/10"
+        -- "Defeat Shadow Panther: 0/5"
+        -- "0/10 Stranglethorn Tiger killed"
+        -- "Slay 10 Stranglethorn Tigers"
+        
+        -- Try pattern: "<name> slain/killed/defeated: X/Y"
+        local name = objectiveText:match("^(.+)%s+slain:%s*%d+/%d+")
+        if not name then
+            name = objectiveText:match("^(.+)%s+killed:%s*%d+/%d+")
+        end
+        if not name then
+            name = objectiveText:match("^(.+)%s+defeated:%s*%d+/%d+")
+        end
+        
+        -- Try pattern: "Kill/Defeat/Slay <name>: X/Y"
+        if not name then
+            name = objectiveText:match("^Kill%s+(.+):%s*%d+/%d+")
+        end
+        if not name then
+            name = objectiveText:match("^Defeat%s+(.+):%s*%d+/%d+")
+        end
+        if not name then
+            name = objectiveText:match("^Slay%s+(.+):%s*%d+/%d+")
+        end
+        
+        -- Try pattern: "X/Y <name> killed/slain"
+        if not name then
+            name = objectiveText:match("%d+/%d+%s+(.+)%s+killed$")
+        end
+        if not name then
+            name = objectiveText:match("%d+/%d+%s+(.+)%s+slain$")
+        end
+        
+        targetName = name
+        
+    elseif objectiveType == "item" then
+        -- Common patterns for item objectives:
+        -- "Solid Chest: 0/1"
+        -- "Collect Zhevra Hooves: 0/4"
+        -- "0/4 Zhevra Hooves"
+        
+        -- Try pattern: "<name>: X/Y"
+        local name = objectiveText:match("^(.+):%s*%d+/%d+")
+        
+        -- Try pattern: "Collect/Gather/Obtain <name>: X/Y"
+        if not name then
+            name = objectiveText:match("^Collect%s+(.+):%s*%d+/%d+")
+        end
+        if not name then
+            name = objectiveText:match("^Gather%s+(.+):%s*%d+/%d+")
+        end
+        if not name then
+            name = objectiveText:match("^Obtain%s+(.+):%s*%d+/%d+")
+        end
+        
+        -- Try pattern: "X/Y <name>"
+        if not name then
+            name = objectiveText:match("%d+/%d+%s+(.+)$")
+        end
+        
+        targetName = name
+        
+    elseif objectiveType == "object" then
+        -- Similar to items but for world objects
+        targetName = objectiveText:match("^(.+):%s*%d+/%d+")
+    end
+    
+    -- Clean up the extracted name
+    if targetName then
+        -- Remove trailing/leading spaces
+        targetName = targetName:gsub("^%s+", ""):gsub("%s+$", "")
+        -- Remove plural 's' at the end for better matching
+        -- This helps match "Stranglethorn Tigers" with "Stranglethorn Tiger"
+        if targetName:sub(-1) == "s" then
+            -- Store both singular and plural forms
+            return targetName, targetName:sub(1, -2)
+        end
+    end
+    
+    return targetName
+end
+
+-- Check if a mob name matches any quest objective
+function QuestieDataCollector:IsMobRelevantToObjectives(questId, mobName)
+    if not questId or not mobName then return false end
+    
+    local questData = QuestieDataCollection.quests[questId]
+    if not questData or not questData.objectives then return false end
+    
+    -- Normalize mob name for comparison
+    local normalizedMobName = mobName:lower()
+    
+    for _, objective in ipairs(questData.objectives) do
+        if objective.type == "monster" and objective.text then
+            local targetName, singularName = QuestieDataCollector:ExtractObjectiveTarget(objective.text, "monster")
+            
+            if targetName then
+                local normalizedTarget = targetName:lower()
+                if normalizedMobName == normalizedTarget then
+                    return true
+                end
+                
+                -- Check singular form if available
+                if singularName then
+                    local normalizedSingular = singularName:lower()
+                    if normalizedMobName == normalizedSingular then
+                        return true
+                    end
+                end
+                
+                -- Also check if mob name contains the target (for named mobs like "Elder Stranglethorn Tiger")
+                if normalizedMobName:find(normalizedTarget, 1, true) then
+                    return true
+                end
+            end
+        end
+    end
+    
+    return false
+end
+
+-- Check if an object/item name matches any quest objective
+function QuestieDataCollector:IsObjectRelevantToObjectives(questId, objectName)
+    if not questId or not objectName then return false end
+    
+    local questData = QuestieDataCollection.quests[questId]
+    if not questData or not questData.objectives then return false end
+    
+    -- Ignore generic containers that are just junk data
+    local lowerObjectName = objectName:lower()
+    local genericContainers = {
+        "solid chest", "battered chest", "worn chest", "small chest", "large chest",
+        "treasure chest", "wooden chest", "metal chest", "iron chest", "steel chest",
+        "barrel", "crate", "box", "sack", "bag", "container", "supply box",
+        "damaged crate", "supply chest", "footlocker", "strongbox"
+    }
+    
+    for _, generic in ipairs(genericContainers) do
+        if lowerObjectName:find(generic, 1, true) then
+            return false -- Ignore generic containers
+        end
+    end
+    
+    -- Normalize object name for comparison
+    local normalizedObjectName = lowerObjectName
+    
+    for _, objective in ipairs(questData.objectives) do
+        -- Check both item and object types
+        if (objective.type == "item" or objective.type == "object") and objective.text then
+            local targetName = QuestieDataCollector:ExtractObjectiveTarget(objective.text, objective.type)
+            
+            if targetName then
+                local normalizedTarget = targetName:lower()
+                -- Only match if there's a SPECIFIC named objective, not generic loot
+                if normalizedObjectName == normalizedTarget then
+                    return true
+                end
+                
+                -- More restrictive partial matching - object must contain specific target name
+                -- and the target name must be reasonably specific (> 4 characters)
+                if normalizedObjectName:find(normalizedTarget, 1, true) and string.len(normalizedTarget) > 4 then
+                    return true
+                end
+            end
+        end
+    end
+    
+    return false
+end
+
 function QuestieDataCollector:TrackTargetedMob()
     if not UnitExists("target") or UnitIsPlayer("target") or UnitIsFriend("player", "target") then
         return
@@ -1794,44 +1970,55 @@ function QuestieDataCollector:TrackTargetedMob()
         if not IsQuestInDatabase(questId) then
             local questData = QuestieDataCollection.quests[questId]
             if questData then
-                -- Ensure mobs table exists (defensive check for old save data)
-                if not questData.mobs then
-                    questData.mobs = {}
-                end
+                -- NEW: Check if this mob matches any quest objectives
+                local isRelevant = QuestieDataCollector:IsMobRelevantToObjectives(questId, npcName)
                 
-                -- Store mob info
-                if not questData.mobs[npcId] then
-                    questData.mobs[npcId] = {
-                        id = npcId,
-                        name = npcName,
-                        level = npcLevel,
-                        locations = {}
-                    }
-                end
-                
-                -- Add location if we have valid coords
-                if coords and coords.x and coords.y and coords.x > 0 and coords.y > 0 then
-                    -- Check if this location is not a duplicate (within 1 unit distance)
-                    local isDuplicate = false
-                    for _, existingLoc in ipairs(questData.mobs[npcId].locations) do
-                        if existingLoc and existingLoc.x and existingLoc.y then
-                            local distance = math.abs(coords.x - existingLoc.x) + math.abs(coords.y - existingLoc.y)
-                            if distance < 1 then
-                                isDuplicate = true
-                                break
-                            end
-                        end
+                if isRelevant then
+                    -- Ensure mobs table exists (defensive check for old save data)
+                    if not questData.mobs then
+                        questData.mobs = {}
                     end
                     
-                    if not isDuplicate then
-                        table.insert(questData.mobs[npcId].locations, coords)
+                    -- Store mob info
+                    if not questData.mobs[npcId] then
+                        questData.mobs[npcId] = {
+                            id = npcId,
+                            name = npcName,
+                            level = npcLevel,
+                            locations = {}
+                        }
+                    end
+                    
+                    -- Add location if we have valid coords
+                    if coords and coords.x and coords.y and coords.x > 0 and coords.y > 0 then
+                        -- Check if this location is not a duplicate (within 1 unit distance)
+                        local isDuplicate = false
+                        for _, existingLoc in ipairs(questData.mobs[npcId].locations) do
+                            if existingLoc and existingLoc.x and existingLoc.y then
+                                local distance = math.abs(coords.x - existingLoc.x) + math.abs(coords.y - existingLoc.y)
+                                if distance < 1 then
+                                    isDuplicate = true
+                                    break
+                                end
+                            end
+                        end
+                        
+                        if not isDuplicate then
+                            table.insert(questData.mobs[npcId].locations, coords)
+                            -- Show message when capturing relevant mob
+                            if QuestieDataCollector.enabled then
+                                DebugMessage("|cFF00FF00[DATA]|r Captured objective mob: " .. npcName .. " (ID: " .. npcId .. ") for quest " .. questId, 0, 1, 0)
+                            end
+                        end
+                    else
+                        DebugMessage("|cFFFF0000[DATA]|r Invalid coordinates for mob " .. npcName, 1, 0, 0)
                     end
                 else
-                    DebugMessage("|cFFFF0000[DATA]|r Invalid coordinates for mob " .. npcName, 1, 0, 0)
+                    -- Debug message for ignored mobs (only in debug mode)
+                    if _debugMode then
+                        DebugMessage("|cFF808080[DATA]|r Ignored non-objective mob: " .. npcName .. " for quest " .. questId, 0.5, 0.5, 0.5)
+                    end
                 end
-                
-                -- Disabled: Too spammy even for debug mode
-                -- DebugMessage("|cFFAA8833[DATA]|r Tracked quest mob: " .. npcName .. " (ID: " .. npcId .. ") for quest " .. questId, 0.67, 0.53, 0.2)
             end
         end
     end
@@ -2154,40 +2341,57 @@ function QuestieDataCollector:HandleLootOpened()
         timestamp = time()
     }
     
-    -- CRITICAL: Track this object/container for ALL active quests
-    -- This is how v1.0.68 builds the extensive GROUND OBJECTS list
-    if lootSourceName and lootSourceType == "object" then
+    -- Track objects ONLY if they match quest objectives to reduce noise
+    if lootSourceName and lootSourceType == "object" and lootSourceName ~= "Ground Object" then
+        local isRelevantToAnyQuest = false
+        
         for questId in pairs(_activeTracking) do
-            local questData = QuestieDataCollection.quests[questId]
-            if questData then
-                questData.objects = questData.objects or {}
-                
-                -- Use object name as key for grouping locations
-                if not questData.objects[lootSourceName] then
-                    questData.objects[lootSourceName] = {
-                        name = lootSourceName,
-                        id = lootSourceId,
-                        locations = {}
-                    }
-                end
-                
-                -- Add this location if we have coordinates
-                if coords and coords.x and coords.y then
-                    -- Use rounded coordinates as key to prevent duplicates
-                    local locKey = string.format("%.1f,%.1f", coords.x, coords.y)
-                    if not questData.objects[lootSourceName].locations[locKey] then
-                        questData.objects[lootSourceName].locations[locKey] = {
-                            x = coords.x,
-                            y = coords.y,
-                            zone = zone,
-                            subZone = subZone,
-                            timestamp = time()
-                        }
-                        DebugMessage("|cFF00FFFF[DATA]|r Tracked object '" .. lootSourceName .. 
-                            "' at [" .. string.format("%.1f, %.1f", coords.x, coords.y) .. "] in " .. zone, 0, 1, 1)
+            -- Skip if quest is now in database
+            if not IsQuestInDatabase(questId) then
+                local questData = QuestieDataCollection.quests[questId]
+                if questData then
+                    -- Check if this object matches any quest objectives
+                    if QuestieDataCollector:IsObjectRelevantToObjectives(questId, lootSourceName) then
+                        isRelevantToAnyQuest = true
+                        
+                        questData.objects = questData.objects or {}
+                        
+                        -- Use object name as key for grouping locations
+                        if not questData.objects[lootSourceName] then
+                            questData.objects[lootSourceName] = {
+                                name = lootSourceName,
+                                id = lootSourceId,
+                                locations = {}
+                            }
+                        end
+                        
+                        -- Add this location if we have coordinates
+                        if coords and coords.x and coords.y then
+                            -- Use rounded coordinates as key to prevent duplicates
+                            local locKey = string.format("%.1f,%.1f", coords.x, coords.y)
+                            if not questData.objects[lootSourceName].locations[locKey] then
+                                questData.objects[lootSourceName].locations[locKey] = {
+                                    x = coords.x,
+                                    y = coords.y,
+                                    zone = zone,
+                                    subZone = subZone,
+                                    timestamp = time()
+                                }
+                                -- Show message for relevant objects
+                                if QuestieDataCollector.enabled then
+                                    DebugMessage("|cFF00FF00[DATA]|r Captured objective object '" .. lootSourceName .. 
+                                        "' at [" .. string.format("%.1f, %.1f", coords.x, coords.y) .. "] for quest " .. questId, 0, 1, 0)
+                                end
+                            end
+                        end
                     end
                 end
             end
+        end
+        
+        -- Debug message for ignored objects (only in debug mode)
+        if not isRelevantToAnyQuest and _debugMode then
+            DebugMessage("|cFF808080[DATA]|r Ignored non-objective object: " .. lootSourceName, 0.5, 0.5, 0.5)
         end
     end
     
@@ -3585,7 +3789,7 @@ function QuestieDataCollector:GenerateStagedPageContent(pageNum, maxPerPage)
     exportText = exportText .. "7. Use Next button for remaining pages\n\n"
     
     -- Export metadata
-    exportText = exportText .. "Version: " .. (QuestieDataCollection.version or CURRENT_VERSION) .. "\n"
+    exportText = exportText .. "Version: " .. CURRENT_VERSION .. "\n"
     exportText = exportText .. "Date: " .. date("%Y-%m-%d %H:%M:%S") .. "\n"
     
     local playerClass = UnitClass("player")
@@ -4000,7 +4204,7 @@ function QuestieDataCollector:ExportQuest(questId)
         export = export .. "Required Skill: " .. (questData.requiredSkill[1] or "Unknown") .. " (" .. (questData.requiredSkill[2] or "0") .. ")\n"
     end
     
-    export = export .. "Version: " .. (QuestieDataCollection.version or "Unknown") .. "\n"
+    export = export .. "Version: " .. CURRENT_VERSION .. "\n"
     export = export .. "────────────────────────────────────────────────────────────────\n\n"
     
     if questData.wasAlreadyAccepted then
@@ -4316,7 +4520,7 @@ function QuestieDataCollector:GenerateDatabaseEntries(questId, questData)
     output = output .. "================\n\n"
     
     -- Generate quest entry with EXACT field order and format
-    output = output .. "-- Add to epochQuestDB.lua:\n"
+    output = output .. "-- Add to Database/Wotlk/wotlkQuestDB.lua:\n"
     
     -- Add zone information comment if we have subzone data
     if questData.acceptAreaId and questData.acceptParentZoneId and questData.acceptAreaId ~= questData.acceptParentZoneId then
@@ -4644,7 +4848,7 @@ function QuestieDataCollector:GenerateDatabaseEntries(questId, questData)
     
     -- Output NPC entries (sorted for consistency)
     if next(npcEntries) then
-        output = output .. "-- Add to epochNpcDB.lua:\n"
+        output = output .. "-- Add to Database/Wotlk/wotlkNpcDB.lua:\n"
         output = output .. "-- Note: NPC flags are automatically calculated based on detected services\n"
         
         -- Add zone information for NPCs if we have subzone data
@@ -5039,7 +5243,7 @@ function QuestieDataCollector:ExportBatchPart(partNumber)
     exportText = exportText .. "════════════════════════════════════════════════════════════════\n"
     exportText = exportText .. "         QUESTIE DATA COLLECTION EXPORT - PART " .. partNumber .. " of " .. totalParts .. "         \n"
     exportText = exportText .. "════════════════════════════════════════════════════════════════\n\n"
-    exportText = exportText .. "Version: " .. (QuestieDataCollection.version or CURRENT_VERSION) .. "\n"
+    exportText = exportText .. "Version: " .. CURRENT_VERSION .. "\n"
     exportText = exportText .. "Date: " .. date("%Y-%m-%d %H:%M:%S") .. "\n"
     exportText = exportText .. "Part: " .. partNumber .. " of " .. totalParts .. " (" .. questsInThisPart .. " quests in this part)\n"
     exportText = exportText .. "Total Quests: " .. questCount .. " across all parts\n\n"
@@ -5092,7 +5296,7 @@ function QuestieDataCollector:ExportAreaData(zoneName)
     end
     
     local export = "=== AREA DATA EXPORT ===\n"
-    export = export .. "Version: " .. (QuestieDataCollection.version or "Unknown") .. "\n"
+    export = export .. "Version: " .. CURRENT_VERSION .. "\n"
     export = export .. "Zone: " .. zoneName .. "\n"
     export = export .. "Export Date: " .. date("%Y-%m-%d %H:%M:%S") .. "\n\n"
     
