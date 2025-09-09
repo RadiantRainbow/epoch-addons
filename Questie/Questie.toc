@@ -7,7 +7,7 @@
 ## OptionalDeps: Ace3, CallbackHandler-1.0, HereBeDragons, LibDataBroker-1.1, LibDBIcon-1.0, LibSharedMedia-3.0, LibStub, LibUIDropDownMenu
 ## SavedVariables: QuestieConfig
 ## SavedVariablesPerCharacter: QuestieConfigCharacter, QuestieDataCollection
-## X-WOW_PROJECT_ID: 2
+## X-WOW_PROJECT_ID: 11
 
 # Loader module
 Modules\Libs\QuestieLoader.lua
@@ -78,6 +78,10 @@ Database\Corrections\classicObjectFixes.lua
 #Database\Corrections\epochStormwindFixes.lua -- Disabled: causing issues with seasonal NPCs and incorrect positions
 Database\Corrections\epochStormwindObjectFixes.lua
 Database\Corrections\epochElwynnFixes.lua
+
+# Automated Overlays (Epoch)
+Database\Corrections\Automated\npc_overlay.lua
+Database\Corrections\Automated\quest_overlay.lua
 
 # Compiler
 Database\compiler.lua

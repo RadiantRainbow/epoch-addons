@@ -100,7 +100,7 @@ function me:ParseMapXYDist(text)
   --	if y then y=y/100 end
   --	if dist then dist=dist/100 or 0.2 end
   if not dist then
-    dist = 0.2
+    dist = 0.5
   end
   if map and #map < 5 then
     map = nil
@@ -327,10 +327,7 @@ ZGV.ConditionEnv = {
     for i = 1, count do
       local id = select(i, ...)
       if tonumber(id) then
-        local q = ZGV.questsbyid[id]
-        if q and q.inlog then
-          return true
-        end
+        return ZGV.Retrofit.C_QuestLog.IsQuestInLog(id)
       else
         for _, qid in ipairs(ParseRanges(id)) do
           local q = ZGV.questsbyid[qid]

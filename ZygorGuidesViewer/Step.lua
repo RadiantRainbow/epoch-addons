@@ -61,7 +61,7 @@ function Step:IsComplete()
 
   for i, goal in ipairs(self.goals) do
     status = goal.status
-    if status ~= 'hidden' and status ~= 'passive' then
+    if status ~= 'hidden' and status ~= 'passive' and goal.action ~= 'goto' then
       completeable = true
       local done, possible
       if

@@ -2734,6 +2734,7 @@ function me:UpdateFrameCurrent()
         elseif status == 'complete' then
           if not self.recentlyCompletedGoals[goal] then
             self.recentlyCompletedGoals[goal] = true
+            self:SetWaypoint()
             if
               self.db.profile.goalcompletionflash
               or self.db.profile.goalupdateflash and self.frameNeedsResizing == 0

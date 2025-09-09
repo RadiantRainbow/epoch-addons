@@ -217,22 +217,62 @@ for C in ipairs({GetMapContinents()}) do
     end
 end
 
-function QuestieCompat.TomTom_AddWaypoint(title, zone, x, y)
-    local CZ = mapIdToCZ[QuestieCompat.UiMapData[zone].mapID]
-    -- Debug logging to identify the issue
-    if Questie and Questie.db and Questie.db.global.debugEnabled then
-        print(string.format("[TomTom Debug] zone=%d, mapID=%d, CZ=%.1f, C=%d, Z=%d, x=%.2f, y=%.2f", 
-            zone, QuestieCompat.UiMapData[zone].mapID or -1, CZ or -1, 
-            QuestieCompat.Round(CZ%1 * 10), math.floor(CZ), x, y))
+local function _FindCZByZoneName(zoneName)
+    if not zoneName then return end
+    -- iterate continents and find matching zone name (localized compare)
+    local continents = { GetMapContinents() }
+    for cIdx in ipairs(continents) do
+        local zones = { GetMapZones(cIdx) }
+        for zIdx, zName in ipairs(zones) do
+            if zName == zoneName then
+                return cIdx, zIdx
+            end
+        end
     end
-    -- Convert coordinates from 0-100 scale to 0-1 scale for WoW 3.3.5 TomTom
-    -- FIXED: The continent and zone parameters WERE reversed!
-    -- CZ format is Z + C/10, so zone is the integer part, continent is the decimal part * 10
-    -- But it appears TomTom:AddZWaypoint might expect (zone, continent, ...) not (continent, zone, ...)
-    local continent = QuestieCompat.Round(CZ%1 * 10)
-    local zoneIndex = math.floor(CZ)
-    -- Try swapping the parameters to see if that fixes the ocean waypoints
-    return TomTom:AddZWaypoint(zoneIndex, continent, x / 100, y / 100, title)
+end
+
+function QuestieCompat.TomTom_AddWaypoint(title, uiMapID, x, y)
+    -- For 3.3.5 clients, TomTom most reliably accepts continent/zone via AddZWaypoint.
+    if not TomTom then return end
+
+    local mapData = QuestieCompat.UiMapData[uiMapID]
+    local xN, yN = (x or 0) / 100, (y or 0) / 100
+
+    -- Strategy: prefer explicit C/Z via zone name lookup to avoid mismatches
+    local zoneName = nil
+    if mapData then zoneName = mapData.name end
+    local cIdx, zIdx = _FindCZByZoneName(zoneName)
+
+    -- If name lookup failed, fall back to our prebuilt mapIdToCZ table
+    if (not cIdx or not zIdx) and mapData and mapData.mapID then
+        local CZ = mapIdToCZ[mapData.mapID]
+        if CZ then
+            cIdx = QuestieCompat.Round((CZ % 1) * 10)
+            zIdx = math.floor(CZ)
+        end
+    end
+
+    Questie:Debug(Questie.DEBUG_DEVELOP, string.format("[TomTom Debug] uiMapID=%s, mapID=%s, name='%s', C=%s, Z=%s, x=%.2f, y=%.2f",
+        tostring(uiMapID), mapData and tostring(mapData.mapID) or "nil", tostring(zoneName), tostring(cIdx), tostring(zIdx), xN, yN))
+
+    -- Use AddZWaypoint when possible (3.3.5 expects 0-100 coords for Z-waypoints)
+    if TomTom.AddZWaypoint and cIdx and zIdx then
+        local wp = TomTom:AddZWaypoint(cIdx, zIdx, (x or 0), (y or 0), title)
+        -- Ensure the arrow actually points to the new waypoint on 3.3.5
+        if TomTom.SetCrazyArrow and wp then
+            TomTom:SetCrazyArrow(wp, 1, title)
+        end
+        return wp
+    end
+
+    -- Fallback: try AddWaypoint with uiMapID token (less reliable on 3.3.5)
+    if TomTom.AddWaypoint then
+        local wp = TomTom:AddWaypoint(uiMapID, xN, yN, tostring(title or ""))
+        if TomTom.SetCrazyArrow and wp then
+            TomTom:SetCrazyArrow(wp, 1, title)
+        end
+        return wp
+    end
 end
 
 -- This function will do its utmost to retrieve some sort of valid position

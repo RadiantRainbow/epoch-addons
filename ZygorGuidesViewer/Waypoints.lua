@@ -295,7 +295,11 @@ me.WaypointFunctions['internal'] = {
         return
       end
       if goalnumORx then
-        goals = { self.CurrentStep.goals[goalnumORx] }
+        for i = goalnumORx, #self.CurrentStep.goals do
+          if self.CurrentStep.goals[i].x then
+            tinsert(goals, self.CurrentStep.goals[i])
+          end
+        end
       else
         for i = 1, #self.CurrentStep.goals do
           if self.CurrentStep.goals[i].x then
@@ -304,7 +308,7 @@ me.WaypointFunctions['internal'] = {
         end
       end
       for k, goal in ipairs(goals) do
-        if not goal.force_noway then
+        if not goal.force_noway and (not goal:IsComplete() or goalnumORx) then
           local way = self.Pointer:SetWaypoint(nil, goal.map, goal.x, goal.y, {
             title = title
               or self.CurrentStep:GetTitle()

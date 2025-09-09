@@ -159,6 +159,7 @@ function Goal:IsCompleteable()
     or self.action == 'trash'
     or self.action == 'bank'
     or self.action == 'ding'
+    or self.action == 'goto'
   then
     return true
   end

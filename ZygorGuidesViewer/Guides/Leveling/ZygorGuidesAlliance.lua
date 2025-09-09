@@ -8288,7 +8288,7 @@ The Next Step is Optional
 Click to Continue |confirm |q 973
 |only if hardcore
 step
-Leave the Ruins of Stardust |goto Ashenvale 36.12,61.82 < 40 |only if walking and subzone("The Ruins of Stardust")
+Leave the Ruins of Stardust |goto Ashenvale 36.12,61.82 < 40 |only if walking
 Follow the path |goto Ashenvale 28.39,60.88 < 40 |only if walking
 Follow the path up |goto Ashenvale 25.86,63.07 < 15 |only if walking
 kill Ilkrud Magthrull##3664
