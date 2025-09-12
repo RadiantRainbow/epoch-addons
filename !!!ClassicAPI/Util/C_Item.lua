@@ -74,6 +74,7 @@ end
 
 C_Item.GetItemInfo = GetItemInfo
 C_Item.GetItemIconByID = GetItemIcon
+C_Item.GetItemCount = GetItemCount
 
 -- ITEMLOCATIONMIXIN RELIANT
 function C_Item.GetItemName(ItemLocation)
