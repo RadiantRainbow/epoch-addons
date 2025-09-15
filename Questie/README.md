@@ -1,4 +1,4 @@
-### THIS REPO WILL BE ON HIATUS UNTIL WE FIND OUT IF THE SERVER WILL PERSIST.
+
 
 ### ☕ Support Development
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Support%20Development-orange?style=for-the-badge&logo=buy-me-a-coffee)](https://buymeacoffee.com/trav346)
@@ -130,5 +130,6 @@ If you find this version of Questie with data collection helpful, consider [buyi
 
 
 If you find this enhanced version of Questie helpful, consider [buying me a coffee](https://buymeacoffee.com/trav346) to support continued development and maintenance!
+
 
 
