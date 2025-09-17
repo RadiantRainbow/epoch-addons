@@ -1060,7 +1060,8 @@ LFGComms:SetScript("OnEvent", function()
                                 if dpsFilled then
                                     if LFG.isLeader then
                                         if arg4 ~= me then
-                                            if LFG.LFMGroup.damage1 ~= '' and LFG.LFMGroup.damage2 ~= '' and LFG.LFMGroup.damage3 ~= '' then
+                                            -- Only prevent 4th DPS, not the 3rd one completing the group
+                                            if LFG.LFMGroup.damage1 ~= '' and LFG.LFMGroup.damage2 ~= '' and LFG.LFMGroup.damage3 ~= '' and arg4 ~= LFG.LFMGroup.damage1 and arg4 ~= LFG.LFMGroup.damage2 and arg4 ~= LFG.LFMGroup.damage3 then
                                                 lfprint(LFG.classColors[LFG.playerClass(arg4)].c .. arg4 .. COLOR_WHITE .. ' has chosen ' .. COLOR_DAMAGE .. 'Damage' .. COLOR_WHITE
                                                         .. ' but the group already has ' .. COLOR_DAMAGE .. '3' .. COLOR_WHITE .. ' confirmed ' .. COLOR_DAMAGE .. 'Damage' .. COLOR_WHITE .. ' members.')
                                                 lfprint('Queueing aborted.')
@@ -1069,7 +1070,8 @@ LFGComms:SetScript("OnEvent", function()
                                             end
                                         end
                                     else
-                                        if LFG.LFMGroup.damage1 ~= '' and LFG.LFMGroup.damage2 ~= '' and LFG.LFMGroup.damage3 ~= '' then
+                                        -- Only prevent 4th DPS, not the 3rd one completing the group
+                                        if LFG.LFMGroup.damage1 ~= '' and LFG.LFMGroup.damage2 ~= '' and LFG.LFMGroup.damage3 ~= '' and arg4 ~= LFG.LFMGroup.damage1 and arg4 ~= LFG.LFMGroup.damage2 and arg4 ~= LFG.LFMGroup.damage3 then
                                             lfprint(COLOR_DAMAGE .. 'Damage ' .. COLOR_WHITE .. 'role has already been filled by ' .. COLOR_DAMAGE .. '3' .. COLOR_WHITE .. ' members. Please select a different role to rejoin the queue.')
                                             return false
                                         end
@@ -2208,8 +2210,15 @@ function LFG.joinLFGChannelSafely()
         if self.elapsed >= 1 then
             local lfgIndex = GetChannelName(LFG.channel)
             if lfgIndex == 1 then
-                lfprint('ERROR: LFG channel took channel 1! Fixing immediately...')
-                LFG.fixChannelConflict()
+                -- Only fix if General channel is not in slot 1, otherwise it might be fine
+                local generalIndex = GetChannelName("General")
+                if generalIndex ~= 1 then
+                    lfprint('ERROR: LFG channel took channel 1! Fixing immediately...')
+                    LFG.fixChannelConflict()
+                else
+                    lfdebug('LFG channel in slot 1 but General is also in slot 1, accepting this state')
+                    LFG.channelIndex = lfgIndex
+                end
             else
                 LFG.channelIndex = lfgIndex
                 lfdebug('LFG channel safely joined at index: ' .. LFG.channelIndex)
@@ -2239,9 +2248,13 @@ function LFG.fixChannelConflict()
                 lfdebug('General restored to channel 1, rejoining LFG')
                 LFG.joinLFGChannelSafely()
                 self:SetScript("OnUpdate", nil)
-            elseif self.attempts >= 10 then
-                lfprint('Unable to restore proper channel order. Please /reload if issues persist.')
-                self:SetScript("OnUpdate", nil)
+            elseif self.attempts >= 5 then
+                -- Reduced attempts from 10 to 5 and made it less aggressive
+                lfdebug('Channel order restoration taking longer than expected, but continuing...')
+                if self.attempts >= 8 then
+                    lfprint('Channel order may be affected. If you experience issues, please /reload.')
+                    self:SetScript("OnUpdate", nil)
+                end
             else
                 lfdebug('General still not in channel 1, attempt: ' .. self.attempts)
             end
@@ -5077,8 +5090,15 @@ channelMonitorFrame:SetScript("OnEvent", function()
         if arg1 == "YOU_JOINED" and arg9 == LFG.channel then
             local channelIndex = arg8
             if channelIndex == 1 then
-                lfprint('LFG joined in channel 1! Auto-fixing...')
-                LFG.fixChannelConflict()
+                -- Only fix if General channel is not in slot 1
+                local generalIndex = GetChannelName("General")
+                if generalIndex ~= 1 then
+                    lfprint('LFG joined in channel 1! Auto-fixing...')
+                    LFG.fixChannelConflict()
+                else
+                    lfdebug('LFG joined in slot 1 but General is also in slot 1, accepting this state')
+                    LFG.channelIndex = channelIndex
+                end
             else
                 LFG.channelIndex = channelIndex
                 lfdebug('LFG properly joined in channel: ' .. channelIndex)
@@ -5093,8 +5113,15 @@ channelMonitorFrame:SetScript("OnEvent", function()
                 if self.elapsed >= 0.5 then
                     local currentIndex = GetChannelName(LFG.channel)
                     if currentIndex == 1 and LFG.channelIndex ~= 1 then
-                        lfprint('Channel conflict detected! Fixing...')
-                        LFG.fixChannelConflict()
+                        -- Only fix if General channel is not in slot 1
+                        local generalIndex = GetChannelName("General")
+                        if generalIndex ~= 1 then
+                            lfprint('Channel conflict detected! Fixing...')
+                            LFG.fixChannelConflict()
+                        else
+                            lfdebug('LFG moved to slot 1 but General is also in slot 1, accepting this state')
+                            LFG.channelIndex = currentIndex
+                        end
                     end
                     self:SetScript("OnUpdate", nil)
                 end
