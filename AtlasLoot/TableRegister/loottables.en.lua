@@ -477,6 +477,10 @@ end
 	AtlasLoot_TableNames["Tabards1"] = { AL["Tabards"], "AtlasLootOriginalWoW" };
   -- Cosmetics
 	AtlasLoot_TableNames["ShopCosmetics"] = { BabbleEpoch["Shop Cosmetics"], "AtlasLootOriginalWoW" };
+	AtlasLoot_TableNames["ShopCosmetics1"] = { BabbleEpoch["Shop Cosmetics"], "AtlasLootOriginalWoW" };
+	AtlasLoot_TableNames["ShopCosmetics2"] = { BabbleEpoch["Shop Cosmetics"], "AtlasLootOriginalWoW" };
+	AtlasLoot_TableNames["ShopCosmetics3"] = { BabbleEpoch["Shop Cosmetics"], "AtlasLootOriginalWoW" };
+	AtlasLoot_TableNames["ShopCosmetics4"] = { BabbleEpoch["Shop Cosmetics"], "AtlasLootOriginalWoW" };
   -- Challenges
 	AtlasLoot_TableNames["EpochChallenges"] = { BabbleEpoch["Epoch Challenge Rewards"], "AtlasLootOriginalWoW" };
   -- Toys
@@ -566,8 +570,8 @@ end
   -- Sepulcher
 	AtlasLoot_TableNames["Sepulcher"] = { BabbleEpoch["Sepulcher"], "AtlasLootOriginalWoW" };
   -- Valors Expedition
-	AtlasLoot_TableNames["Valorsexp"] = { BabbleFaction["Valor´s Expedition"], "AtlasLootOriginalWoW" };
-	AtlasLoot_TableNames["Valorsexp2"] = { BabbleFaction["Valor´s Expedition"], "AtlasLootOriginalWoW" };
+	AtlasLoot_TableNames["Valorsexp"] = { BabbleEpoch["Valor´s Expedition"], "AtlasLootOriginalWoW" };
+	AtlasLoot_TableNames["Valorsexp2"] = { BabbleEpoch["Valor´s Expedition"], "AtlasLootOriginalWoW" };
 
 --------------
 --- Trades ---
