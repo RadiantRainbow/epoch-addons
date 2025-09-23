@@ -63,7 +63,7 @@
     </Scripts>
     <NormalTexture file="Interface\TargetingFrame\UI-RaidTargetingIcons" />
   </Button>
-  <Frame name="CompactRaidFrameManager" inherits="SecureHandlerStateTemplate" enableMouse="true" frameStrata="LOW" hidden="true" parent="UIParent">
+  <Frame name="CompactRaidFrameManager" inherits="SecureHandlerStateTemplate" enableMouse="true" frameStrata="LOW" frameLevel="5" hidden="true" parent="UIParent">
     <Size x="200" y="140" />
     <Anchors>
       <Anchor point="TOPLEFT" relativeTo="UIParent" relativePoint="TOPLEFT" x="7" y="-140" />
@@ -239,7 +239,7 @@
           </Button>
         </Frames>
       </Frame>
-      <Button name="$parentToggleButton" frameLevel="3" inherits="SecureHandlerClickTemplate" parentKey="toggleButton">
+      <Button name="$parentToggleButton" frameLevel="9" inherits="SecureHandlerClickTemplate" parentKey="toggleButton">
         <Size x="16" y="64" />
         <Anchors>
           <Anchor point="RIGHT" x="-9" y="0" />

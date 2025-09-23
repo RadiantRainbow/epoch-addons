@@ -138,7 +138,7 @@
           </Layer>
         </Layers>
       </Frame>
-      <Frame name="$parentIgnoreAlphaTexture" parentKey="ignoreParentAlpha" frameLevel="5">
+      <Frame name="$parentIgnoreAlphaTexture" parentKey="ignoreParentAlpha" frameLevel="8">
         <Layers>
           <Layer level="OVERLAY">
             <Texture name="$parentSelectionHighlight" parentKey="selectionHighlight" />

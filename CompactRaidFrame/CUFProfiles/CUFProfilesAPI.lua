@@ -66,7 +66,7 @@ ProfileAPI:SetScript("OnEvent", function(self, event, addon)
 				end
 			end
 		else
-			DB = {};
+			DB = {useCompactPartyFrames = "1"};
 			_G[ID] = DB;
 		end
 

@@ -1544,7 +1544,7 @@ function DefaultCompactUnitFrameSetup(frame)
         end
         frame.buffFrames[i]:SetSize(buffSize, buffSize);
         frame.buffFrames[i]:SetParent(frame.healthBar);
-        frame.buffFrames[i]:SetFrameLevel(6);
+        frame.buffFrames[i]:SetFrameLevel(9);
     end
 
     local debuffPos, debuffRelativePoint, debuffOffset = "BOTTOMLEFT", "BOTTOMRIGHT", CUF_AURA_BOTTOM_OFFSET + powerBarUsedHeight;
@@ -1559,7 +1559,7 @@ function DefaultCompactUnitFrameSetup(frame)
         frame.debuffFrames[i].maxHeight = options.height - powerBarUsedHeight - CUF_AURA_BOTTOM_OFFSET - CUF_NAME_SECTION_SIZE;
         frame.debuffFrames[i]:SetSize(11, 11);
         frame.debuffFrames[i]:SetParent(frame.healthBar);
-        frame.debuffFrames[i]:SetFrameLevel(6);
+        frame.debuffFrames[i]:SetFrameLevel(9);
     end
 
     frame.dispelDebuffFrames[1]:SetPoint("TOPRIGHT", -3, -2);

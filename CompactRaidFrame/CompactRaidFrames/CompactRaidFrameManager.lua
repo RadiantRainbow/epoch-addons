@@ -72,6 +72,7 @@ function CompactRaidFrameManager_OnEvent(self, event, ...)
     if ( event == "PLAYER_REGEN_ENABLED" ) then
         if ( PLAYER_REGEN_ENABLED_AWAIT ) then
             PLAYER_REGEN_ENABLED_AWAIT = nil;
+            RaidOptionsFrame_UpdatePartyFrames();
             CompactRaidFrameManager_OnEvent(self, "PLAYER_ENTERING_WORLD");
         end
     elseif ( event == "RAID_TARGET_UPDATE" or event == "PLAYER_TARGET_CHANGED" ) then

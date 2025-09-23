@@ -8,6 +8,34 @@ local select = select;
 local pairs = pairs;
 local _G = getfenv(0);
 
+-- ============================================================================
+-- PETBAR MODULE FOR DRAGONUI
+-- ============================================================================
+
+-- Module state tracking
+local PetbarModule = {
+    initialized = false,
+    applied = false,
+    originalStates = {},     -- Store original states for restoration
+    registeredEvents = {},   -- Track registered events
+    hooks = {},             -- Track hooked functions
+    stateDrivers = {},      -- Track state drivers
+    frames = {}             -- Track created frames
+}
+
+-- ============================================================================
+-- CONFIGURATION FUNCTIONS
+-- ============================================================================
+
+local function GetModuleConfig()
+    return addon.db and addon.db.profile and addon.db.profile.modules and addon.db.profile.modules.petbar
+end
+
+local function IsModuleEnabled()
+    local cfg = GetModuleConfig()
+    return cfg and cfg.enabled
+end
+
 -- const
 local GetPetActionInfo = GetPetActionInfo;
 local RegisterStateDriver = RegisterStateDriver;
@@ -15,152 +43,64 @@ local CreateFrame = CreateFrame;
 local UIParent = UIParent;
 local hooksecurefunc = hooksecurefunc;
 
--- @param: config number - these will be read dynamically
--- local offsetX = config.additional.pet.x_position;
--- local nobar = config.additional.y_position;
--- local exOffs = config.additional.leftbar_offset;
--- local exOffs2 = config.additional.rightbar_offset;
--- local leftOffset, rightOffset = nobar + exOffs, nobar + exOffs2;
+--  MIGRACIÓN A SISTEMA DE WIDGETS - CreateUIFrame como RetailUI
+local petbarFrame = CreateUIFrame(326, 30, "Petbar")
 
-local anchor = CreateFrame('Frame', 'pUiPetBarHolder', UIParent)
--- Set initial position - will be updated by petbar_update when config is ready
-anchor:SetPoint('TOPLEFT', UIParent, 'BOTTOM', -134, 100) -- Fallback position using current database default
-anchor:SetSize(37, 37)
 
--- method update position using relative anchoring
-function anchor:petbar_update()
-	if not InCombatLockdown() and not UnitAffectingCombat('player') then
-		-- Read config values dynamically each time
-		local offsetX = config.additional.pet.x_position;
-		local offsetY = config.additional.pet.y_offset or 0;  -- Additional Y offset for fine-tuning
-		
-		-- Check if pretty_actionbar addon is loaded and use its positioning system
-		if IsAddOnLoaded('pretty_actionbar') and _G.pUiMainBar then
-			-- Use pretty_actionbar's exact logic (replicated from working port)
-			local mainBar = _G.pUiMainBar;
-			local leftbar = MultiBarBottomLeft:IsShown();
-			local rightbar = MultiBarBottomRight:IsShown();
-			
-			-- Values from configuration (compatible with pretty_actionbar)
-			local nobar = 52;          -- Hardcoded optimal position for pretty_actionbar compatibility
-			local leftbarOffset = config.additional.leftbar_offset or 90;  -- Offset when bottom left is shown  
-			local rightbarOffset = config.additional.rightbar_offset or 40; -- Offset when bottom right is shown
-			local leftOffset = nobar + leftbarOffset;   -- 142
-			local rightOffset = nobar + rightbarOffset; -- 92
-			
-			self:ClearAllPoints();
-			
-			if leftbar and rightbar then
-				-- Both bars shown, use leftOffset (positions above bottom right which is highest)
-				self:SetPoint('TOPLEFT', mainBar, 'TOPLEFT', offsetX, leftOffset + offsetY);
-			elseif leftbar then
-				-- Only left bar shown, use rightOffset (lower position)
-				self:SetPoint('TOPLEFT', mainBar, 'TOPLEFT', offsetX, rightOffset + offsetY);
-			elseif rightbar then
-				-- Only right bar shown, use leftOffset (higher position)
-				self:SetPoint('TOPLEFT', mainBar, 'TOPLEFT', offsetX, leftOffset + offsetY);
-			else
-				-- No extra bars, use default position
-				self:SetPoint('TOPLEFT', mainBar, 'TOPLEFT', offsetX, nobar + offsetY);
-			end
-		else
-			-- Fallback to standard Blizzard frames (relative anchoring)
-			local leftbar = MultiBarBottomLeft:IsShown();
-			local rightbar = MultiBarBottomRight:IsShown();
-			local anchorFrame, anchorPoint, relativePoint, yOffset;
-			
-			if leftbar or rightbar then
-				-- If extra bars are shown, anchor above the highest one
-				if leftbar and rightbar then
-					-- Both bars shown, bottom right is higher, so anchor to it
-					anchorFrame = MultiBarBottomRight;
-				elseif leftbar then
-					anchorFrame = MultiBarBottomLeft;
-				else
-					anchorFrame = MultiBarBottomRight;
-				end
-				anchorPoint = 'TOP';
-				relativePoint = 'BOTTOM';
-				yOffset = 5 + offsetY; -- Add custom Y offset
-			else
-				-- No extra bars, anchor above main bar
-				anchorFrame = pUiMainBar or MainMenuBar;
-				anchorPoint = 'TOP';
-				relativePoint = 'BOTTOM';
-				yOffset = 5 + offsetY; -- Add custom Y offset
-			end
-			
-			self:ClearAllPoints();
-			self:SetPoint(relativePoint, anchorFrame, anchorPoint, offsetX, yOffset);
-		end
-	end
-end
+--  OBJETO EDITOR PARA INTEGRACIÓN CON SISTEMA CENTRALIZADO
+local PetbarEditor = {
+    ShowPetbarTest = function()
+        --  EN EDITOR MODE: Siempre mostrar para permitir edición
+        --  El sistema centralizado ya maneja la visibilidad con hasTarget
+        HideUIFrame(petbarFrame, {})
+        
+    end,
+    
+    HidePetbarTest = function(refresh)
+        --  EN EDITOR MODE: Siempre guardar posición 
+        SaveUIFramePosition(petbarFrame, "widgets", "petbar") --  CORREGIDO: Usar formato de 2 parámetros
+        ShowUIFrame(petbarFrame)
+        
+        if refresh and addon.RefreshPetbar then
+            addon.RefreshPetbar()
+        end
+        
+    end
+}
 
--- Force pet bar initialization regardless of conditions
-local function ForcePetBarInitialization()
-    if config and config.additional then
-        -- Force anchor update
-        if anchor and anchor.petbar_update then
-            anchor:petbar_update()
+--  APLICAR POSICIÓN DESDE WIDGETS AL INICIALIZAR
+local function ApplyPetbarPosition()
+    -- RetailUI pattern: Apply position from database
+    if addon.db and addon.db.profile.widgets and addon.db.profile.widgets.petbar then
+        local config = addon.db.profile.widgets.petbar
+        if config.anchor and config.posX and config.posY then
+            petbarFrame:ClearAllPoints()
+            petbarFrame:SetPoint(config.anchor, UIParent, config.anchor, config.posX, config.posY)
         end
-        --[[ -- REMOVED to prevent ADDON_ACTION_BLOCKED errors
-        -- Show the pet bar frame if it exists
-        if _G.pUiPetBar then
-            _G.pUiPetBar:Show()
-        end
-        -- Show anchor frame
-        if anchor then
-            anchor:Show()
-        end
-        --]]
     end
 end
 
--- Delayed initialization to ensure everything is loaded
-local function DelayedPetInit()
-	local delayFrame = CreateFrame("Frame")
-	local elapsed = 0
-	local attempts = 0
-	local maxAttempts = 20 -- Try for up to 10 seconds
-	
-	delayFrame:SetScript("OnUpdate", function(self, dt)
-		elapsed = elapsed + dt
-		if elapsed >= 0.5 then -- Every 0.5 seconds
-			elapsed = 0
-			attempts = attempts + 1
-			
-			-- Try to initialize
-			ForcePetBarInitialization()
-			
-			-- Stop after max attempts
-			if attempts >= maxAttempts then
-				delayFrame:SetScript("OnUpdate", nil)
-			end
-		end
-	end)
-end
 
--- Set initial position when DragonUI is fully initialized
-addon.core.RegisterMessage(addon, "DRAGONUI_READY", ForcePetBarInitialization);
 
-local MultiBarBottomLeft = _G["MultiBarBottomLeft"]
-local MultiBarBottomRight = _G["MultiBarBottomRight"]
+--  INICIALIZACIÓN DIRECTA ESTILO RETAILUI - SIN DELAYS
+-- Usar event handler directo como mainbars.lua
 
-for _,bar in pairs({MultiBarBottomLeft,MultiBarBottomRight}) do
-	if bar then
-		bar:HookScript('OnShow',function()
-			anchor:petbar_update();
-		end);
-		bar:HookScript('OnHide',function()
-			anchor:petbar_update();
-		end);
-	end
-end;
+--  INICIALIZACIÓN DIRECTA - NO USAR DRAGONUI_READY QUE CAUSA DELAYS
 
-local petbar = CreateFrame('Frame', 'pUiPetBar', UIParent, 'SecureHandlerStateTemplate')
-petbar:SetAllPoints(anchor)
+--  ELIMINAMOS LOS HOOKS DEL SISTEMA LEGACY - YA NO NECESITAMOS POSICIONAMIENTO MANUAL
+-- El sistema de widgets maneja la posición directamente
+
+local petbar = CreateFrame('Frame', 'pUiPetBar', petbarFrame, 'SecureHandlerStateTemplate') --  CHILD del petbarFrame
+petbar:SetAllPoints(petbarFrame) --  ANCHOR AL NUEVO FRAME DE WIDGETS
+petbar:SetFrameStrata("MEDIUM") --  DEBAJO del overlay verde que está en FULLSCREEN
+
+-- Track created frames
+PetbarModule.frames.petbarFrame = petbarFrame
+PetbarModule.frames.petbar = petbar
 
 local function petbutton_updatestate(self, event)
+    if not IsModuleEnabled() then return end
+    
 	local petActionButton, petActionIcon, petAutoCastableTexture, petAutoCastShine
 	for index=1, NUM_PET_ACTION_SLOTS, 1 do
 		local buttonName = 'PetActionButton'..index
@@ -228,42 +168,102 @@ local function petbutton_updatestate(self, event)
 end
 
 local function petbutton_position()
-	if InCombatLockdown() then return end
+    if not IsModuleEnabled() then return end
+    
+	-- RetailUI pattern: No combat check during addon load
+	
+	--  USAR NUEVO FRAME DE WIDGETS
+	if not pUiPetBar or not petbarFrame then
+		
+		return
+	end
+	
 	-- Read config values dynamically
 	local btnsize = config.additional.size;
 	local space = config.additional.spacing;
 	
+	-- Initialize all pet action buttons
 	local button
-	for index=1, 10 do
+	for index=1, NUM_PET_ACTION_SLOTS do
 		button = _G['PetActionButton'..index];
-		button:ClearAllPoints();
-		button:SetParent(pUiPetBar);
-		button:SetSize(btnsize, btnsize);
-		if index == 1 then
-			button:SetPoint('BOTTOMLEFT', 0, 0);
+		if button then
+			button:ClearAllPoints();
+			button:SetParent(pUiPetBar);
+			button:SetSize(btnsize, btnsize);
+			if index == 1 then
+				button:SetPoint('BOTTOMLEFT', 0, 0);
+			else
+				local prevButton = _G['PetActionButton'..(index-1)];
+				if prevButton then
+					button:SetPoint('LEFT', prevButton, 'RIGHT', space, 0);
+				end
+			end
+			-- Use SetAlpha instead of Show() to prevent taint
+			button:SetAlpha(1);
+			petbar:SetAttribute('addchild', button);
 		else
-			button:SetPoint('LEFT', _G['PetActionButton'..index-1], 'RIGHT', space, 0);
+			
 		end
-		button:Show();
-		petbar:SetAttribute('addchild', button);
 	end
-	-- FIXED: Don't force showgrid = 1, let our grid configuration control this
-	-- PetActionBarFrame.showgrid = 1;
+	
+	-- Set up visibility driver
 	RegisterStateDriver(petbar, 'visibility', '[pet,novehicleui,nobonusbar:5] show; hide');
-	hooksecurefunc('PetActionBar_Update', petbutton_updatestate);
+	
+	-- Hook the update function only once
+	if not petbar.updateHooked then
+		hooksecurefunc('PetActionBar_Update', petbutton_updatestate);
+		petbar.updateHooked = true
+	end
+end
+
+--  INICIALIZACIÓN USANDO SISTEMA DE WIDGETS - SIMPLIFICADA ESTILO RETAILUI
+local function InitializePetbar()
+    if not IsModuleEnabled() then return end
+    
+    -- RetailUI pattern: Initialize immediately, no combat checks during addon load
+    if config and config.additional then
+        -- Apply position from widgets config immediately
+        ApplyPetbarPosition()
+        
+        -- Show petbar frame
+        if petbarFrame then
+            petbarFrame:SetAlpha(1)
+        end
+        
+        -- Initialize pet buttons immediately
+        if not petBarInitialized then
+            petbutton_position()
+            petBarInitialized = true
+        end
+    end
 end
 
 local function OnEvent(self,event,...)
+    if not IsModuleEnabled() then return end
+    
 	-- if not UnitIsVisible('pet') then return; end
 	local arg1 = ...;
 	if event == 'PLAYER_LOGIN' then
-		petbutton_position();
+		if not petBarInitialized then
+			petbutton_position();
+			petBarInitialized = true
+		end
 		-- FIXED: Apply grid configuration after initial positioning
 		if addon.RefreshPetbar then
 			addon.RefreshPetbar();
 		end
-	elseif event == 'PET_BAR_UPDATE'
-	or event == 'UNIT_PET' and arg1 == 'player'
+	elseif event == 'PET_BAR_UPDATE' then
+		-- RetailUI-style petbar initialization on first PET_BAR_UPDATE
+		if not petBarInitialized then
+			if config and config.debug then
+				
+			end
+			petbutton_position();
+			petBarInitialized = true
+		end
+		-- Always update button states when pet bar updates
+		petbutton_updatestate();
+	elseif event == 'UNIT_PET' and arg1 == 'player'
 	or event == 'PLAYER_CONTROL_LOST'
 	or event == 'PLAYER_CONTROL_GAINED'
 	or event == 'PLAYER_FARSIGHT_FOCUS_CHANGED'
@@ -277,43 +277,149 @@ local function OnEvent(self,event,...)
 	end
 end
 
-petbar:RegisterEvent('PET_BAR_HIDE');
-petbar:RegisterEvent('PET_BAR_UPDATE');
-petbar:RegisterEvent('PET_BAR_UPDATE_COOLDOWN');
-petbar:RegisterEvent('PET_BAR_UPDATE_USABLE');
-petbar:RegisterEvent('PLAYER_CONTROL_GAINED');
-petbar:RegisterEvent('PLAYER_CONTROL_LOST');
-petbar:RegisterEvent('PLAYER_FARSIGHT_FOCUS_CHANGED');
-petbar:RegisterEvent('PLAYER_LOGIN');
-petbar:RegisterEvent('UNIT_AURA');
-petbar:RegisterEvent('UNIT_FLAGS');
-petbar:RegisterEvent('UNIT_PET');
-petbar:SetScript('OnEvent',OnEvent);
+-- Note: Event registration now handled by ApplyPetbarSystem()
 
--- Additional late initialization when player is fully loaded (moved here so petbutton_position is defined)
-event:RegisterEvents(function()
-	-- Force initialization after a short delay when player enters world
-	local initFrame = CreateFrame("Frame")
-	local elapsed = 0
-	initFrame:SetScript("OnUpdate", function(self, dt)
-		elapsed = elapsed + dt
-		if elapsed >= 1.0 then -- Wait 1 second after entering world
-			self:SetScript("OnUpdate", nil)
-			-- Force button positioning explicitly (now petbutton_position is defined)
-			if _G.pUiPetBar then
-				petbutton_position()
-			end
-			ForcePetBarInitialization()
-			DelayedPetInit() -- Start the delayed retry system
+-- Initialization tracking similar to RetailUI
+local petBarInitialized = false
+
+-- ============================================================================
+-- APPLY/RESTORE FUNCTIONS
+-- ============================================================================
+
+local function ApplyPetbarSystem()
+    if PetbarModule.applied or not IsModuleEnabled() then return end
+    
+    -- Create frames if they don't exist
+    if not petbar or not petbarFrame then return end
+    
+    -- Register events
+    local events = {
+        'PET_BAR_HIDE',
+        'PET_BAR_UPDATE',
+        'PET_BAR_UPDATE_COOLDOWN',
+        'PET_BAR_UPDATE_USABLE',
+        'PLAYER_CONTROL_GAINED',
+        'PLAYER_CONTROL_LOST',
+        'PLAYER_FARSIGHT_FOCUS_CHANGED',
+        'PLAYER_LOGIN',
+        'UNIT_AURA',
+        'UNIT_FLAGS',
+        'UNIT_PET'
+    }
+    
+    for _, eventName in ipairs(events) do
+        petbar:RegisterEvent(eventName)
+        PetbarModule.registeredEvents[eventName] = petbar
+    end
+    petbar:SetScript('OnEvent', OnEvent)
+    
+    -- Register state driver
+    RegisterStateDriver(petbar, 'visibility', '[pet,novehicleui,nobonusbar:5] show; hide')
+    PetbarModule.stateDrivers.visibility = {frame = petbar, state = 'visibility', condition = '[pet,novehicleui,nobonusbar:5] show; hide'}
+    
+    -- Track hook for cleanup
+    if not PetbarModule.hooks.PetActionBar_Update then
+        PetbarModule.hooks.PetActionBar_Update = true
+        hooksecurefunc('PetActionBar_Update', function()
+            if IsModuleEnabled() then
+                petbutton_updatestate()
+            end
+        end)
+    end
+    
+    -- Initialize petbar if module is enabled
+    InitializePetbar()
+    
+    PetbarModule.applied = true
+end
+
+local function RestorePetbarSystem()
+    if not PetbarModule.applied then return end
+    
+    -- Unregister all events
+    for eventName, frame in pairs(PetbarModule.registeredEvents) do
+        if frame and frame.UnregisterEvent then
+            frame:UnregisterEvent(eventName)
+        end
+    end
+    PetbarModule.registeredEvents = {}
+    
+    -- Unregister all state drivers
+    for name, data in pairs(PetbarModule.stateDrivers) do
+        if data.frame then
+            UnregisterStateDriver(data.frame, data.state)
+        end
+    end
+    PetbarModule.stateDrivers = {}
+    
+    -- Hide custom frames
+    if petbarFrame then petbarFrame:Hide() end
+    if petbar then petbar:Hide() end
+    
+    -- Reset pet button parents to default (Blizzard PetActionBarFrame)
+    for index=1, NUM_PET_ACTION_SLOTS do
+        local button = _G['PetActionButton'..index]
+        if button then
+            button:SetParent(PetActionBarFrame or UIParent)
+            button:ClearAllPoints()
+            -- Don't reset positions here - let Blizzard handle it
+        end
+    end
+    
+    -- Clear global reference
+    _G.pUiPetBar = nil
+    
+    -- Reset variables
+    petBarInitialized = false
+    
+    PetbarModule.applied = false
+end
+
+--  EVENT HANDLER DIRECTO ESTILO RETAILUI
+local petInitFrame = CreateFrame("Frame")
+petInitFrame:RegisterEvent("ADDON_LOADED")
+petInitFrame:RegisterEvent("PLAYER_LOGIN")
+petInitFrame:SetScript("OnEvent", function(self, event, addonName)
+	if event == "ADDON_LOADED" and addonName == "DragonUI" then
+		-- Just mark as loaded, don't initialize yet
+		self.addonLoaded = true
+	elseif event == "PLAYER_LOGIN" and self.addonLoaded then
+		-- Only apply if module is enabled
+		if IsModuleEnabled() then
+			ApplyPetbarSystem()
 		end
-	end)
-end, 'PLAYER_ENTERING_WORLD');
+		self:UnregisterAllEvents()
+	end
+end)
 
--- Refresh function for pet bar configuration changes
+-- ============================================================================
+-- PUBLIC API
+-- ============================================================================
+
+-- Enhanced refresh function with module control
+function addon.RefreshPetbarSystem()
+    if IsModuleEnabled() then
+        ApplyPetbarSystem()
+        -- Call original refresh for settings
+        if addon.RefreshPetbar then
+            addon.RefreshPetbar()
+        end
+    else
+        RestorePetbarSystem()
+    end
+end
+
+--  REFRESH FUNCTION USANDO SISTEMA DE WIDGETS
 function addon.RefreshPetbar()
-
+    if not IsModuleEnabled() then return end
+    
 	if InCombatLockdown() then return end
-	if not pUiPetBar then return end
+	if not pUiPetBar or not petbarFrame then return end
+	
+	--  APLICAR POSICIÓN DESDE WIDGETS (solo evitar en editor mode si está activo)
+	if not (addon.EditorMode and addon.EditorMode:IsActive()) then
+		ApplyPetbarPosition()
+	end
 	
 	-- Update button size and spacing
 	local btnsize = config.additional.size;
@@ -323,11 +429,15 @@ function addon.RefreshPetbar()
 	for i = 1, NUM_PET_ACTION_SLOTS do
 		local button = _G["PetActionButton"..i];
 		if button then
+			button:ClearAllPoints()
 			button:SetSize(btnsize, btnsize);
 			if i == 1 then
 				button:SetPoint('BOTTOMLEFT', 0, 0);
 			else
-				button:SetPoint('LEFT', _G["PetActionButton"..(i-1)], 'RIGHT', space, 0);
+				local prevButton = _G["PetActionButton"..(i-1)]
+				if prevButton then
+					button:SetPoint('LEFT', prevButton, 'RIGHT', space, 0);
+				end
 			end
 		end
 	end
@@ -360,9 +470,56 @@ function addon.RefreshPetbar()
 			end
 		end
 	end
+end
+
+-- Reset petbar initialization (for debugging or force re-init)
+function addon.ResetPetbar()
 	
-	-- Update position using relative anchoring (no more absolute Y coordinates)
-	if anchor then
-		anchor:petbar_update();
+	petBarInitialized = false
+	if not InCombatLockdown() and pUiPetBar then
+		petbutton_position()
+		petBarInitialized = true
+		
+	else
+		
 	end
 end
+
+-- Debug function to check petbar status
+function addon.GetPetbarStatus()
+    if not IsModuleEnabled() then
+        
+        return {enabled = false}
+    end
+    
+	return {
+		initialized = petBarInitialized,
+		frameExists = pUiPetBar ~= nil,
+		widgetFrameExists = petbarFrame ~= nil,
+		inCombat = InCombatLockdown(),
+		hasPet = UnitExists("pet"),
+		updateHooked = petbar.updateHooked or false,
+		moduleApplied = PetbarModule.applied,
+		registeredEvents = PetbarModule.registeredEvents,
+		stateDrivers = PetbarModule.stateDrivers
+	}
+end
+
+--  REGISTRO EN SISTEMA CENTRALIZADO - INTEGRACIÓN COMPLETA
+local function RegisterPetbarEditor()
+    if addon.RegisterEditableFrame and petbarFrame then
+        addon:RegisterEditableFrame({
+            name = "Petbar",
+            frame = petbarFrame,
+            configPath = {"widgets", "petbar"}, --  CORREGIDO: Array como otros frames
+            showTest = PetbarEditor.ShowPetbarTest, 
+            hideTest = PetbarEditor.HidePetbarTest  
+        })
+        
+    else
+        
+    end
+end
+
+--  REGISTRAR INMEDIATAMENTE COMO CASTBAR - NO ESPERAR EVENTOS
+RegisterPetbarEditor()

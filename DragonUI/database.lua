@@ -1,33 +1,120 @@
 local addon = select(2, ...);
 
--- Default values for new profiles (only used when creating new profiles)
+-- Default values for new profiles (only used         bagsbar = { anchor = "BOTTOMRIGHT", posX = 1, posY = 41 },hen creating new profiles)
 local defaults = {
     profile = {
-        -- ACTIONBAR SETTINGS
-       mainbars = {
-            -- ✅ Cada barra ahora tiene su propia configuración de posición y override.
-            player = {
-                override = false,
-                y_position_offset = 25, -- Offset vertical para el modo automático.
-                x = 0,
-                y = 0,
+        -- Widgets
+        widgets = {
+            minimap = {
+                anchor = "TOPRIGHT",
+                posX = 14,
+                posY = 14
             },
+            player = {
+                anchor = "TOPLEFT",
+                posX = 10,
+                posY = -9
+            },
+            target = {
+                anchor = "TOPLEFT",
+                posX = 230,
+                posY = -9
+            },
+            focus = {
+                anchor = "TOPLEFT",
+                posX = 250,
+                posY = -170
+            },
+            party = {
+                anchor = "TOPLEFT",
+                posX = 10,
+                posY = -200
+            },
+            buffs = {
+                anchor = "TOPRIGHT",
+                posX = -260,
+                posY = -20
+            },
+            pet = {
+                anchor = "TOPLEFT",
+                posX = 63,
+                posY = -80
+            },
+            petbar = {
+                anchor = "BOTTOM",
+                posX = 1,
+                posY = 148
+            },
+            playerCastbar = {
+                anchor = "BOTTOM",
+                posX = 0,
+                posY = 200
+            },
+
+            mainbar = {
+                anchor = "BOTTOM",
+                posX = 0,
+                posY = 22
+            },
+            rightbar = {
+                anchor = "RIGHT",
+                posX = -5,
+                posY = -70
+            },
+            leftbar = {
+                anchor = "RIGHT",
+                posX = -45,
+                posY = -70
+            },
+            bottombarleft = {
+                anchor = "BOTTOM",
+                posX = -10,
+                posY = 64
+            },
+            bottombarright = {
+                anchor = "BOTTOM",
+                posX = -10,
+                posY = 105
+            },
+            micromenu = {
+                anchor = "BOTTOMRIGHT",
+                posX = -3,
+                posY = 3
+            },
+            bagsbar = {
+                anchor = "BOTTOMRIGHT",
+                posX = -3,
+                posY = 45
+            },
+            repexpbar = {
+                anchor = "BOTTOM",
+                posX = 1,
+                posY = 7
+            }
+        },
+        -- Quest Tracker
+        questtracker = {
+            anchor = "TOPRIGHT",
+            x = -140,
+            y = -255,
+            show_header = false
+        },
+        -- ACTIONBAR SETTINGS
+        mainbars = {
+            --  Only keep orientation and scale settings - position handled by centralized system
             left = {
-                override = false,
-                x = 0,
-                y = 0,
+                horizontal = false
             },
             right = {
-                override = false,
-                x = 0,
-                y = 0,
+                horizontal = false
             },
-            
-            -- La escala sigue siendo global para las barras.
+
             scale_actionbar = 0.9,
             scale_rightbar = 0.9,
             scale_leftbar = 0.9,
-            scale_vehicle = 1,
+            scale_bottomleft = 0.9,
+            scale_bottomright = 0.9,
+            scale_vehicle = 1
         },
 
         micromenu = {
@@ -64,12 +151,16 @@ local defaults = {
             singlebar_offset = 24,
             nobar_offset = 18,
             repbar_abovexp_offset = 16,
-            repbar_offset = 2
+            repbar_offset = 2,
+            -- Escalas configurables para las barras
+            expbar_scale = 0.9,
+            repbar_scale = 0.9
         },
 
         style = {
             gryphons = 'new',
-            xpbar = 'new'
+            xpbar = 'new',
+            exhaustion_tick = true -- Show exhaustion tick (false to hide like RetailUI)
         },
 
         buttons = {
@@ -94,10 +185,10 @@ local defaults = {
                 font = {"Fonts\\ARIALN.TTF", 12, "OUTLINE"}
             },
             cooldown = {
-                show = false,
-                color = {.67, .80, .93, 1},
+                color = {1, 1, 1, 1},
                 min_duration = 3,
-                font = {"Fonts\\ARIALN.TTF", 14, "OUTLINE"},
+                font = {"Fonts\\ARIALN.TTF", 16, "OUTLINE"},
+                font_size = 16,
                 position = {'CENTER', 0, 1}
             },
             border_color = {1, 1, 1, 1}
@@ -106,16 +197,12 @@ local defaults = {
         additional = {
             size = 27,
             spacing = 6,
-            -- Pretty actionbar compatibility values (hardcoded for optimal positioning)
-            leftbar_offset = 90, -- Offset when bottom left is shown (for pretty_actionbar)
-            rightbar_offset = 40, -- Offset when bottom right is shown (for pretty_actionbar)
             stance = {
-                x_position = 82,
-                y_offset = -44 -- Additional Y offset for fine-tuning position
+                x_position = -230,
+                y_offset = 0 -- Additional Y offset for fine-tuning position
             },
             pet = {
-                x_position = -134,
-                y_offset = 0, -- Additional Y offset for fine-tuning position
+
                 grid = false -- Disable grid by default (matches original Dragonflight port)
             },
             vehicle = {
@@ -129,43 +216,33 @@ local defaults = {
         },
 
         -- MINIMAP SETTINGS
-        map = {
-            scale = 1,
+        minimap = {
+            scale = 0.9,
             border_alpha = 1,
-            blip_skin = true,
+            tracking_icons = true,
+            zoom_buttons = true,
+            calendar = true,
+            clock = true,
+            clock_font_size = 12,
             player_arrow_size = 40,
-            tracking_icons = false,
-            skin_button = true,
-            fade_button = false,
             zonetext_font_size = 12,
-            zoom_in_out = false,
-            quest_tracker_x = -115,
-            quest_tracker_y = -250,
-            auras = {
-                x_offset = -70, -- Default horizontal position for minimap auras
-                y_offset = 23 -- Default vertical position for minimap auras
-            },
-            -- MAIL ICON SETTINGS
             mail_icon_x = -4,
-            mail_icon_y = -5
+            mail_icon_y = -5,
+            addon_button_skin = true,
+            addon_button_fade = false
         },
 
-        times = {
-            clock = true,
-            calendar = true,
-            clock_font_size = 11
+        --  BUFFS SETTINGS (NUEVO)
+        buffs = {
+            enabled = true,
+            show_toggle_button = true
         },
 
         -- CASTBAR SETTINGS
         castbar = {
             enabled = true,
             scale = 1,
-            anchorFrame = "UIParent",      -- Anclar al frame principal de la UI
-            anchor = "BOTTOM",             -- Usar el punto de anclaje inferior central de la barra
-            anchorParent = "BOTTOM",       -- Anclarlo al punto inferior central de la pantalla
-            x_position = 0,                -- Desplazamiento horizontal (0 para centrado)
-            y_position = 230,              -- Desplazamiento vertical hacia arriba
-            text_mode = "simple", -- "simple" (centered spell name only) or "detailed" (name + time)
+            text_mode = "simple",
             precision_time = 1,
             precision_max = 1,
             sizeX = 256,
@@ -180,7 +257,7 @@ local defaults = {
                 enabled = true,
                 scale = 1,
                 x_position = -20,
-                y_position = -20,
+                y_position = -10,
                 text_mode = "simple", -- "simple" (centered spell name only) or "detailed" (name + time)
                 precision_time = 1,
                 precision_max = 1,
@@ -203,7 +280,7 @@ local defaults = {
                 enabled = true,
                 scale = 1,
                 x_position = -20,
-                y_position = -20,
+                y_position = 0,
                 text_mode = "simple", -- "simple" (centered spell name only) or "detailed" (name + time)
                 precision_time = 1,
                 precision_max = 1,
@@ -234,47 +311,32 @@ local defaults = {
 
         -- UNIT FRAMES SETTINGS
         unitframe = {
-            scale = 1,
             player = {
-                classcolor = false,
-                breakUpLargeNumbers = true, -- Changed to false - no commas by default
-                textFormat = 'both', -- Changed to 'both' - Current Value + Percentage
-                showHealthTextAlways = false, -- true = always visible, false = only on hover
-                showManaTextAlways = false, -- true = always visible, false = only on hover
+                enabled = true,
+                breakUpLargeNumbers = true,
                 scale = 1.0,
-                override = false,
-                anchor = 'TOPLEFT',
-                anchorParent = 'TOPLEFT',
-                x = -19,
-                y = -4
+                classcolor = false,
+                healthFormat = "both",
+                manaFormat = "both",
+                dragon_decoration = "none"
             },
             target = {
                 classcolor = false,
-                breakUpLargeNumbers = true, -- Changed to false - no commas by default
-                textFormat = 'both', -- Changed to 'both' - Current Value + Percentage
-                showHealthTextAlways = false, -- true = always visible, false = only on hover
-                showManaTextAlways = false, -- true = always visible, false = only on hover
+                breakUpLargeNumbers = true,
+                textFormat = 'both',
+                showHealthTextAlways = false,
+                showManaTextAlways = false,
                 enableNumericThreat = true,
                 enableThreatGlow = true,
-                scale = 1.0,
-                override = false,
-                anchor = 'TOPLEFT',
-                anchorParent = 'TOPLEFT',
-                x = 250,
-                y = -4
+                scale = 1.0
             },
             focus = {
                 classcolor = false,
-                breakUpLargeNumbers = false, -- Changed to false - no commas by default
+                breakUpLargeNumbers = true, -- Changed to false - no commas by default
                 textFormat = 'both', -- Changed to 'numeric' - Current Value Only by default
                 showHealthTextAlways = false, -- true = always visible, false = only on hover
                 showManaTextAlways = false, -- true = always visible, false = only on hover
-                scale = 0.9,
-                override = false,
-                anchor = 'TOPLEFT',
-                anchorParent = 'TOPLEFT',
-                x = 250,
-                y = -170
+                scale = 0.9
             },
             pet = {
                 breakUpLargeNumbers = true,
@@ -283,13 +345,11 @@ local defaults = {
                 showManaTextAlways = false,
                 enableThreatGlow = false,
                 scale = 1.0,
-                override = false,
-                anchor = 'TOPRIGHT',
-                anchorParent = 'BOTTOMRIGHT',
-                x = -1259,
-                y = 752
+                override = true
+
             },
             party = {
+                enabled = true,
                 classcolor = false,
                 textFormat = 'both',
                 breakUpLargeNumbers = true,
@@ -297,18 +357,14 @@ local defaults = {
                 showManaTextAlways = false,
                 orientation = 'vertical',
                 padding = 10,
-                scale = 1.0,
-                override = false,
-                anchor = 'TOPLEFT',
-                anchorParent = 'TOPLEFT',
-                x = 10,
-                y = 720
+                scale = 1.0
+
             },
             tot = {
                 classcolor = false,
                 scale = 1.0,
-                x = -8,
-                y = -15,
+                x = -30,
+                y = -20,
                 textFormat = 'numeric',
                 breakUpLargeNumbers = false,
                 showHealthTextAlways = false,
@@ -321,8 +377,8 @@ local defaults = {
             fot = {
                 classcolor = false,
                 scale = 1.0,
-                x = -8,
-                y = -15,
+                x = -20,
+                y = -20,
                 textFormat = 'numeric',
                 breakUpLargeNumbers = false,
                 showHealthTextAlways = false,
@@ -331,6 +387,40 @@ local defaults = {
                 anchor = 'BOTTOMRIGHT',
                 anchorParent = 'BOTTOMRIGHT',
                 anchorFrame = 'FocusFrame'
+            }
+        },
+
+        -- MODULES SETTINGS
+        modules = {
+            noop = {
+                enabled = true -- Hide default Blizzard UI elements to allow DragonUI replacements
+            },
+            cooldowns = {
+                enabled = true -- Show cooldown timers on action buttons
+            },
+            buttons = {
+                enabled = true -- Apply DragonUI button styling and enhancements
+            },
+            vehicle = {
+                enabled = true -- Apply DragonUI vehicle interface enhancements
+            },
+            stance = {
+                enabled = true -- Apply DragonUI stance/shapeshift bar positioning and styling
+            },
+            petbar = {
+                enabled = true -- Apply DragonUI pet bar positioning and styling
+            },
+            multicast = {
+                enabled = true -- Apply DragonUI multicast (totem/possess) bar positioning and styling
+            },
+            micromenu = {
+                enabled = true -- Apply DragonUI micro menu and bags system styling and positioning
+            },
+            mainbars = {
+                enabled = true -- Apply DragonUI main action bars, status bars (XP/Rep), scaling, and positioning system
+            },
+            minimap = {
+                enabled = true -- Apply DragonUI minimap enhancements including custom styling, positioning, tracking icons, and calendar
             }
         }
     }
@@ -347,13 +437,11 @@ local function deepCopy(source, target)
     for key, value in pairs(source) do
         if type(value) == "table" then
             if not target[key] then
-                target[key] = {};
+                target[key] = {}
             end
-            deepCopy(value, target[key]);
+            deepCopy(value, target[key])
         else
-            if target[key] == nil then
-                target[key] = value;
-            end
+            target[key] = value
         end
     end
 end
