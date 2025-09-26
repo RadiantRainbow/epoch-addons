@@ -259,26 +259,30 @@ local function SetupBarHooks()
                 return
             end
 
-            local now = GetTime()
-            if now - updateCache.lastPowerUpdate < 0.05 then
-                return
-            end
-            updateCache.lastPowerUpdate = now
+            -- ELIMINAR THROTTLING: Actualización inmediata para formas de druida
+            -- local now = GetTime()
+            -- if now - updateCache.lastPowerUpdate < 0.05 then
+            --     return
+            -- end
+            -- updateCache.lastPowerUpdate = now
 
             local texture = self:GetStatusBarTexture()
             if not texture then
                 return
             end
 
-            -- Update texture path based on power type
+            -- Update texture path based on power type - INMEDIATO
             local powerType = UnitPowerType("target")
             local powerName = POWER_MAP[powerType] or "Mana"
             local texturePath = TEXTURES.BAR_PREFIX .. powerName
 
-            if texture:GetTexture() ~= texturePath then
-                texture:SetTexture(texturePath)
-                texture:SetDrawLayer("ARTWORK", 1)
-            end
+            -- FORZAR TEXTURA INMEDIATAMENTE (como en focus.lua)
+            texture:SetTexture(texturePath)
+            texture:SetDrawLayer("ARTWORK", 1)
+            
+            -- FORZAR COLOR INMEDIATAMENTE
+            texture:SetVertexColor(1,1,1)
+            TargetFrameManaBar:SetStatusBarColor(1,1,1)
 
             -- Update texture coords
             local min, max = self:GetMinMaxValues()
@@ -408,8 +412,18 @@ local function UpdateNameBackground()
         return
     end
 
-    local r, g, b = UnitSelectionColor("target")
-    TargetFrameNameBackground:SetVertexColor(r or 0.5, g or 0.5, b or 0.5, 0.8)
+    local r, g, b
+    
+    -- LÓGICA CORRECTA: Verificar tap-denied PRIMERO
+    if UnitIsTapped("target") and not UnitIsTappedByPlayer("target") then
+        -- Target está tapped por otro jugador/grupo = GRIS
+        r, g, b = 0.5, 0.5, 0.5
+    else
+        -- Target no está tap-denied = usar color normal de facción
+        r, g, b = UnitSelectionColor("target")
+    end
+    
+    TargetFrameNameBackground:SetVertexColor(r, g, b)
     TargetFrameNameBackground:Show()
 end
 
@@ -505,7 +519,6 @@ local function InitializeFrame()
         TargetFrameNameBackground:SetTexture(TEXTURES.NAME_BACKGROUND)
         TargetFrameNameBackground:SetDrawLayer("BORDER", 1)
         TargetFrameNameBackground:SetBlendMode("ADD")
-        TargetFrameNameBackground:SetAlpha(0.9)
     end
 
     -- Configure portrait ONCE
@@ -529,13 +542,13 @@ local function InitializeFrame()
     -- Configure text elements ONCE
     if TargetFrameTextureFrameName then
         TargetFrameTextureFrameName:ClearAllPoints()
-        TargetFrameTextureFrameName:SetPoint("BOTTOM", TargetFrameHealthBar, "TOP", 10, 1)
+        TargetFrameTextureFrameName:SetPoint("BOTTOM", TargetFrameHealthBar, "TOP", 10, 3)
         TargetFrameTextureFrameName:SetDrawLayer("OVERLAY", 2)
     end
 
     if TargetFrameTextureFrameLevelText then
         TargetFrameTextureFrameLevelText:ClearAllPoints()
-        TargetFrameTextureFrameLevelText:SetPoint("BOTTOMRIGHT", TargetFrameHealthBar, "TOPLEFT", 16, 1)
+        TargetFrameTextureFrameLevelText:SetPoint("BOTTOMRIGHT", TargetFrameHealthBar, "TOPLEFT", 18, 3)
         TargetFrameTextureFrameLevelText:SetDrawLayer("OVERLAY", 2)
     end
 
@@ -636,7 +649,7 @@ local function InitializeFrame()
             --  BACKGROUND CON COLOR DEL PLAYER Y NUESTRA TEXTURA
             if TargetFrameNameBackground then
                 local r, g, b = UnitSelectionColor("player")
-                TargetFrameNameBackground:SetVertexColor(r, g, b, 0.8)
+                TargetFrameNameBackground:SetVertexColor(r, g, b)
                 TargetFrameNameBackground:Show()
             end
             

@@ -87,6 +87,173 @@ behaviors.ConflictWarning = function(addonName, addonInfo)
     StaticPopup_Show(popupName)
 end
 
+-- Behavior: CompactRaidFrame taint mitigation
+behaviors.CompactRaidFrameFix = function(addonName, addonInfo)
+    
+    -- Simple state tracking
+    local inCombat = false
+    local needsRefresh = false
+    local lastPartySize = GetNumPartyMembers()
+    local partySizeWhenCombatStarted = 0
+    
+    -- Simple cleanup system for party frames
+    local function CleanPartyFrames()
+        -- Only cleanup - don't try to recreate
+        for i = 1, 4 do
+            local frameName = 'PartyMemberFrame' .. i
+            local frame = _G[frameName]
+            
+            if frame then
+                -- Hide and clear all events
+                frame:Hide()
+                frame:UnregisterAllEvents()
+                
+                -- Clear unit assignment
+                frame.unit = nil
+                frame.id = nil
+                
+                -- Reset health bar
+                local healthBar = _G[frameName .. 'HealthBar']
+                if healthBar then
+                    healthBar:UnregisterAllEvents()
+                    healthBar:SetMinMaxValues(0, 100)
+                    healthBar:SetValue(0)
+                end
+                
+                -- Reset mana bar  
+                local manaBar = _G[frameName .. 'ManaBar']
+                if manaBar then
+                    manaBar:UnregisterAllEvents()
+                    manaBar:SetMinMaxValues(0, 100)
+                    manaBar:SetValue(0)
+                end
+                
+                -- Clear portrait
+                local portrait = _G[frameName .. 'Portrait']
+                if portrait then
+                    portrait:SetTexture(nil)
+                end
+                
+                -- Reset name text
+                local nameText = _G[frameName .. 'Name']
+                if nameText then
+                    nameText:SetText("")
+                end
+                
+                -- Clear all DragonUI custom elements
+                if frame.DragonUI_CustomTexts then
+                    frame.DragonUI_CustomTexts = nil
+                end
+                if frame.DragonUI_HealthText then
+                    frame.DragonUI_HealthText:Hide()
+                    frame.DragonUI_HealthText = nil
+                end
+                if frame.DragonUI_ManaText then
+                    frame.DragonUI_ManaText:Hide()
+                    frame.DragonUI_ManaText = nil
+                end
+                if frame.DragonUI_TextFrame then
+                    frame.DragonUI_TextFrame:Hide()
+                    frame.DragonUI_TextFrame = nil
+                end
+            end
+        end
+        
+        -- Simple refresh of party system
+        DelayedCall(function()
+            if _G.PartyMemberFrame_UpdateParty then
+                _G.PartyMemberFrame_UpdateParty()
+            end
+            
+            -- Apply DragonUI refresh if available
+            if addon and addon.RefreshPartyFrames then
+                addon.RefreshPartyFrames()
+            end
+        end, 0.2)
+    end
+    
+    -- Show reload dialog for party frame creation issues
+    local function ShowPartyReloadDialog()
+        StaticPopupDialogs["DRAGONUI_PARTY_RELOAD"] = {
+            text = "|cFFFFFF00DragonUI - Party Frame Issue|r\n\n" ..
+                   "You joined a party while in combat. Due to CompactRaidFrame taint issues, " ..
+                   "party frames may not display correctly.\n\n" ..
+                   "|cFFFF9999Reload the UI to fix party frame display?|r",
+            button1 = "Reload UI",
+            button2 = "Skip",
+            OnAccept = function()
+                ReloadUI()
+            end,
+            OnCancel = function() end,
+            timeout = 15, -- Auto-dismiss after 15 seconds
+            whileDead = true,
+            hideOnEscape = true,
+            preferredIndex = 3
+        }
+        
+        StaticPopup_Show("DRAGONUI_PARTY_RELOAD")
+    end
+    
+
+    
+    -- Create a frame for simple polling system (more reliable than events)
+    local pollingFrame = CreateFrame("Frame")
+    local checkInterval = 0
+    
+    pollingFrame:SetScript("OnUpdate", function(self, elapsed)
+        checkInterval = checkInterval + elapsed
+        
+        if checkInterval >= 0.5 then -- Check every 0.5 seconds
+            checkInterval = 0
+            
+            local currentlyInCombat = InCombatLockdown()
+            local currentPartySize = GetNumPartyMembers()
+            
+
+            
+            -- Detect combat state change
+            if inCombat and not currentlyInCombat then
+                -- Just exited combat
+                if needsRefresh then
+                    -- Check what type of party change happened during combat
+                    if currentPartySize == 0 and partySizeWhenCombatStarted > 0 then
+                        -- LEFT party during combat - AUTO-CLEAN
+                        CleanPartyFrames()
+                    elseif currentPartySize > 0 and partySizeWhenCombatStarted == 0 then
+                        -- JOINED party during combat - show reload dialog
+                        ShowPartyReloadDialog()
+                    elseif currentPartySize > 0 and partySizeWhenCombatStarted > 0 then
+                        -- Party composition changed but still in party - clean and refresh
+                        CleanPartyFrames()
+                    end
+                    needsRefresh = false
+                end
+                
+                -- Update tracking variables for next cycle
+                lastPartySize = currentPartySize
+                partySizeWhenCombatStarted = 0
+            elseif not inCombat and currentlyInCombat then
+                -- Just entered combat - save the party size when combat started
+                partySizeWhenCombatStarted = currentPartySize
+                lastPartySize = currentPartySize
+            end
+            
+            -- Detect party change during combat
+            if currentlyInCombat and (currentPartySize ~= lastPartySize) then
+                needsRefresh = true
+                -- Don't update lastPartySize here - we need original value for comparison
+            end
+            
+            -- Update combat state
+            inCombat = currentlyInCombat
+        end
+    end)
+    
+
+    
+    print("|cFFFFFF00DragonUI:|r CompactRaidFrame compatibility system ready!")
+end
+
 
 -- ============================================================================
 -- ADDON REGISTRY
@@ -98,6 +265,13 @@ local ADDON_REGISTRY = {
         reason = "Conflicts with DragonUI's custom unit frame textures and power bar system.",
         behavior = behaviors.ConflictWarning,
         checkOnce = true
+    },
+    ["compactraidframe"] = {
+        name = "CompactRaidFrame",
+        reason = "Known taint issues when manipulating party frames during combat. DragonUI provides automatic fixes.",
+        behavior = behaviors.CompactRaidFrameFix,
+        checkOnce = true,
+        listenToRaidEvents = true -- Enable raid event monitoring
     },
 }
 

@@ -109,7 +109,9 @@ local function InitializeMainbars()
     -- constants
     local faction = UnitFactionGroup('player');
     local MainMenuBarMixin = {};
+    addon.MainMenuBarMixin = MainMenuBarMixin;  -- Store globally for access
     local pUiMainBar = CreateFrame('Frame', 'pUiMainBar', UIParent, 'MainMenuBarUiTemplate');
+    addon.pUiMainBar = pUiMainBar;  -- Store globally for access
 
     local pUiMainBarArt = CreateFrame('Frame', 'pUiMainBarArt', pUiMainBar);
 
@@ -128,54 +130,15 @@ local function InitializeMainbars()
     pUiMainBarArt:SetFrameStrata('HIGH');
     pUiMainBarArt:SetFrameLevel(pUiMainBar:GetFrameLevel() + 4);
     pUiMainBarArt:SetAllPoints(pUiMainBar);
+    -- CRÍTICO: Desactivar mouse para evitar zona muerta en iconos
+    pUiMainBarArt:EnableMouse(false);
 
     -- ============================================================================
     -- ALL THE MAINBARS FUNCTIONS (ONLY WHEN ENABLED)
     -- ============================================================================
 
-    local function UpdateGryphonStyle()
-        if not MainMenuBarLeftEndCap or not MainMenuBarRightEndCap then
-            return
-        end
-
-        local db_style = addon.db and addon.db.profile and addon.db.profile.style
-        if not db_style then
-            db_style = config.style
-        end
-
-        local faction = UnitFactionGroup('player')
-
-        if db_style.gryphons == 'old' then
-            MainMenuBarLeftEndCap:SetClearPoint('BOTTOMLEFT', -85, -22)
-            MainMenuBarRightEndCap:SetClearPoint('BOTTOMRIGHT', 84, -22)
-            MainMenuBarLeftEndCap:set_atlas('ui-hud-actionbar-gryphon-left', true)
-            MainMenuBarRightEndCap:set_atlas('ui-hud-actionbar-gryphon-right', true)
-            MainMenuBarLeftEndCap:Show()
-            MainMenuBarRightEndCap:Show()
-        elseif db_style.gryphons == 'new' then
-            MainMenuBarLeftEndCap:SetClearPoint('BOTTOMLEFT', -94, -23)
-            MainMenuBarRightEndCap:SetClearPoint('BOTTOMRIGHT', 95, -23)
-            if faction == 'Alliance' then
-                MainMenuBarLeftEndCap:set_atlas('ui-hud-actionbar-gryphon-thick-left', true)
-                MainMenuBarRightEndCap:set_atlas('ui-hud-actionbar-gryphon-thick-right', true)
-            else
-                MainMenuBarLeftEndCap:set_atlas('ui-hud-actionbar-wyvern-thick-left', true)
-                MainMenuBarRightEndCap:set_atlas('ui-hud-actionbar-wyvern-thick-right', true)
-            end
-            MainMenuBarLeftEndCap:Show()
-            MainMenuBarRightEndCap:Show()
-        elseif db_style.gryphons == 'flying' then
-            MainMenuBarLeftEndCap:SetClearPoint('BOTTOMLEFT', -80, -21)
-            MainMenuBarRightEndCap:SetClearPoint('BOTTOMRIGHT', 80, -21)
-            MainMenuBarLeftEndCap:set_atlas('ui-hud-actionbar-gryphon-flying-left', true)
-            MainMenuBarRightEndCap:set_atlas('ui-hud-actionbar-gryphon-flying-right', true)
-            MainMenuBarLeftEndCap:Show()
-            MainMenuBarRightEndCap:Show()
-        else
-            MainMenuBarLeftEndCap:Hide()
-            MainMenuBarRightEndCap:Hide()
-        end
-    end
+    -- Use the global UpdateGryphonStyle function
+    local UpdateGryphonStyle = addon.UpdateGryphonStyle
 
     -- ============================================================================
     -- ORIGINAL STATE STORAGE
@@ -336,11 +299,13 @@ local function InitializeMainbars()
 end
 
     function MainMenuBarMixin:actionbar_art_setup()
-        -- setup art frames
-        MainMenuBarArtFrame:SetParent(pUiMainBar)
+        -- setup art frames - CORREGIDO
+        MainMenuBarArtFrame:SetParent(pUiMainBarArt)  -- ✅ Va al contenedor de arte
+        
+        -- CRÍTICO: Los grifones deben ir a pUiMainBarArt, NO a pUiMainBar
         for _, art in pairs({MainMenuBarLeftEndCap, MainMenuBarRightEndCap}) do
-            art:SetParent(pUiMainBarArt)
-            art:SetDrawLayer('ARTWORK')
+            art:SetParent(pUiMainBarArt)  -- ✅ Al contenedor de arte correcto
+            art:SetDrawLayer('OVERLAY', 7)  -- ✅ Layer más alto que ARTWORK
         end
 
         -- apply background settings
@@ -672,7 +637,21 @@ end
             end
         end
     end
+   -- Función específica para deshabilitar MainMenuBarMaxLevelBar
+    local function DisableMaxLevelBar()
+        if MainMenuBarMaxLevelBar then
+            MainMenuBarMaxLevelBar:Hide()
+            MainMenuBarMaxLevelBar:EnableMouse(false)
+            MainMenuBarMaxLevelBar:SetAlpha(0)
+            -- Asegurar que nunca interfiera
+            MainMenuBarMaxLevelBar:SetFrameLevel(0)
+        end
+    end
+
     local function RemoveBlizzardFrames()
+        -- Deshabilitar MainMenuBarMaxLevelBar inmediatamente
+        DisableMaxLevelBar()
+        
         local blizzFrames = {MainMenuBarPerformanceBar, MainMenuBarTexture0, MainMenuBarTexture1, MainMenuBarTexture2,
                              MainMenuBarTexture3, MainMenuBarMaxLevelBar, ReputationXPBarTexture1,
                              ReputationXPBarTexture2, ReputationXPBarTexture3, ReputationWatchBarTexture1,
@@ -685,23 +664,12 @@ end
         for _, frame in pairs(blizzFrames) do
             if frame then
                 frame:SetAlpha(0)
+                if frame == MainMenuBarMaxLevelBar then
+                    frame:EnableMouse(false)
+                    frame:Hide()
+                    frame:SetFrameLevel(0)
+                end
             end
-        end
-
-        if MainMenuBar then
-            MainMenuBar:EnableMouse(false)
-        end
-        if ShapeshiftBarFrame then
-            ShapeshiftBarFrame:EnableMouse(false)
-        end
-        if PossessBarFrame then
-            PossessBarFrame:EnableMouse(false)
-        end
-        if PetActionBarFrame then
-            PetActionBarFrame:EnableMouse(false)
-        end
-        if MultiCastActionBarFrame then
-            MultiCastActionBarFrame:EnableMouse(false)
         end
     end
 
@@ -778,14 +746,18 @@ end
 
     -- Apply saved positions from database (RetailUI pattern)
     local function ApplyActionBarPositions()
-        -- Safe containers can be positioned anytime - no combat check needed
+        -- CRÍTICO: No tocar frames durante combate para evitar taint
+        if InCombatLockdown() then
+            return
+        end
+
         if not addon.db or not addon.db.profile or not addon.db.profile.widgets then
             return
         end
 
         local widgets = addon.db.profile.widgets
 
-        -- Apply mainbar container position (safe to do anytime)
+        -- Apply mainbar container position
         if widgets.mainbar and addon.ActionBarFrames.mainbar then
             local config = widgets.mainbar
             if config.anchor then
@@ -888,10 +860,8 @@ end
             -- Exclude bars that don't need repositioning after drag
             if frame and name ~= "mainbar" then
                 frame:HookScript("OnDragStop", function(self)
-                    addon.core:ScheduleTimer(function()
-                        -- RetailUI Pattern: Only reposition if not in combat
-                        PositionActionBarsToContainers()
-                    end, 0.1)
+                    -- RetailUI Pattern: Only reposition if not in combat
+                    PositionActionBarsToContainers()
                 end)
             end
         end
@@ -922,6 +892,14 @@ end
             return
         end
 
+        -- CRÍTICO: Deshabilitar MainMenuBarMaxLevelBar INMEDIATAMENTE
+        if MainMenuBarMaxLevelBar then
+            MainMenuBarMaxLevelBar:Hide()
+            MainMenuBarMaxLevelBar:EnableMouse(false)
+            MainMenuBarMaxLevelBar:SetAlpha(0)
+            MainMenuBarMaxLevelBar:SetFrameLevel(0)
+        end
+
         MainMenuBarMixin:initialize()
         addon.pUiMainBar = pUiMainBar
 
@@ -929,22 +907,7 @@ end
         ApplyActionBarPositions()
         RegisterActionBarFrames()
 
-        -- ENSURE GRYPHONS ARE ABOVE ALL ACTION BARS
-        addon.core:ScheduleTimer(function()
-            if pUiMainBarArt then
-                -- Get the highest frame level from action bars
-                local maxLevel = 1
-                local bars = {MultiBarBottomLeft, MultiBarBottomRight, MultiBarLeft, MultiBarRight}
-                for _, bar in pairs(bars) do
-                    if bar then
-                        maxLevel = math.max(maxLevel, bar:GetFrameLevel())
-                    end
-                end
-
-                -- Set gryphon art frame level higher than all bars
-                pUiMainBarArt:SetFrameLevel(maxLevel + 10)
-            end
-        end, 0.1)
+        -- Note: Gryphon frame levels will be set after all positioning is complete
 
         -- Set up hooks for XP/Rep bars - RESTORED FUNCTIONALITY
         -- Connect bars to editor system first
@@ -993,10 +956,43 @@ end
         -- Position action bars immediately
         PositionActionBarsToContainers_Initial()
 
-        -- Set up drag handlers
-        addon.core:ScheduleTimer(function()
-            SetupActionBarDragHandlers()
-        end, 0.2)
+        -- Set up drag handlers - Execute immediately
+        SetupActionBarDragHandlers()
+
+        -- CRITICAL: Ensure gryphons are above all action bars after everything is positioned
+        local function EnsureGryphonsOnTop()
+            if pUiMainBarArt then
+                -- Get the highest frame level from all action bars including containers
+                local maxLevel = 1
+                local bars = {MultiBarBottomLeft, MultiBarBottomRight, MultiBarLeft, MultiBarRight, pUiMainBar}
+                for _, bar in pairs(bars) do
+                    if bar then
+                        maxLevel = math.max(maxLevel, bar:GetFrameLevel())
+                    end
+                end
+                
+                -- Check container frame levels too
+                for _, frame in pairs(addon.ActionBarFrames) do
+                    if frame and frame.GetFrameLevel then
+                        maxLevel = math.max(maxLevel, frame:GetFrameLevel())
+                    end
+                end
+
+                -- Set gryphon art frame level significantly higher than all bars
+                pUiMainBarArt:SetFrameLevel(maxLevel + 15)
+                
+                -- Also ensure individual gryphons have high draw layers
+                if MainMenuBarLeftEndCap then
+                    MainMenuBarLeftEndCap:SetDrawLayer('OVERLAY', 7)
+                end
+                if MainMenuBarRightEndCap then
+                    MainMenuBarRightEndCap:SetDrawLayer('OVERLAY', 7)
+                end
+            end
+        end
+        
+        -- Execute immediately to ensure gryphons are on top
+        EnsureGryphonsOnTop()
 
         -- Store module state
         MainbarsModule.frames.pUiMainBar = pUiMainBar
@@ -1004,6 +1000,10 @@ end
         MainbarsModule.actionBarFrames = addon.ActionBarFrames
         MainbarsModule.applied = true
     end
+
+    -- Store functions globally for RefreshMainbarsSystem access
+    addon.ApplyActionBarPositions = ApplyActionBarPositions
+    addon.PositionActionBarsToContainers = PositionActionBarsToContainers
 
     -- Initialize immediately since we're already enabled
     ApplyMainbarsSystem()
@@ -1112,14 +1112,12 @@ end
     eventFrame:RegisterEvent("UPDATE_EXHAUSTION")
     eventFrame:SetScript("OnEvent", function(self, event)
         if event == "PLAYER_ENTERING_WORLD" then
-            -- Apply initial styling setup
-            addon.core:ScheduleTimer(function()
-                ApplyDragonUIExpRepBarStyling()
-                ApplyModernExpBarVisual()
-                ForceReputationTextConfiguration()
-            end, 0.2)
+            -- Apply initial styling setup - Execute immediately
+            ApplyDragonUIExpRepBarStyling()
+            ApplyModernExpBarVisual()
+            ForceReputationTextConfiguration()
         elseif event == "UPDATE_EXHAUSTION" then
-            -- Update exhaustion state only
+            -- Update exhaustion state immediately - no timer needed
             ApplyModernExpBarVisual()
             ForceReputationTextConfiguration()
         end
@@ -1133,106 +1131,110 @@ end
             end
 
         elseif event == "PLAYER_ENTERING_WORLD" then
-            -- Apply XP/Rep bar styling and connect to editor
-            addon.core:ScheduleTimer(function()
-                if IsModuleEnabled() then
-                    -- Remove interfering Blizzard textures FIRST
-                    RemoveBlizzardFrames()
+            -- Apply XP/Rep bar styling and connect to editor - Execute immediately
+            if IsModuleEnabled() then
+                -- Remove interfering Blizzard textures FIRST
+                RemoveBlizzardFrames()
 
-                    -- Connect bars to editor system
-                    ConnectBarsToEditor()
+                -- Connect bars to editor system
+                ConnectBarsToEditor()
 
-                    -- Apply DragonUI styling system (from OLD)
-                    ApplyDragonUIExpRepBarStyling()
+                -- Apply DragonUI styling system (from OLD)
+                ApplyDragonUIExpRepBarStyling()
 
-                    -- Apply modern exhaustion system
-                    ApplyModernExpBarVisual()
+                -- Apply modern exhaustion system
+                ApplyModernExpBarVisual()
 
-                    -- Force reputation text configuration
-                    ForceReputationTextConfiguration()
+                -- Force reputation text configuration
+                ForceReputationTextConfiguration()
 
-                    -- Update positions
-                    UpdateBarPositions()
+                -- Update positions
+                UpdateBarPositions()
 
-                    -- Hide text by default
-                    if MainMenuBarExpText then
-                        MainMenuBarExpText:Hide()
-                    end
-                    if ReputationWatchBarText then
-                        ReputationWatchBarText:Hide()
-                    end
+                -- Hide text by default
+                if MainMenuBarExpText then
+                    MainMenuBarExpText:Hide()
                 end
-            end, 0.1)
-
-            -- Initialize pet bar visibility
-            addon.core:ScheduleTimer(function()
-                if IsModuleEnabled() then
-                    addon.UpdatePetBarVisibility()
+                if ReputationWatchBarText then
+                    ReputationWatchBarText:Hide()
                 end
-            end, 1.0)
+                
+                -- Ensure gryphons are on top after all setup is complete
+                if pUiMainBarArt then
+                    local maxLevel = 1
+                    local bars = {MultiBarBottomLeft, MultiBarBottomRight, MultiBarLeft, MultiBarRight, pUiMainBar}
+                    for _, bar in pairs(bars) do
+                        if bar then
+                            maxLevel = math.max(maxLevel, bar:GetFrameLevel())
+                        end
+                    end
+                    
+                    for _, frame in pairs(addon.ActionBarFrames) do
+                        if frame and frame.GetFrameLevel then
+                            maxLevel = math.max(maxLevel, frame:GetFrameLevel())
+                        end
+                    end
+
+                    pUiMainBarArt:SetFrameLevel(maxLevel + 15)
+                end
+            end
+
+            -- Initialize pet bar visibility - Execute immediately
+            if IsModuleEnabled() then
+                addon.UpdatePetBarVisibility()
+            end
 
             self:UnregisterEvent("PLAYER_ENTERING_WORLD")
 
         elseif event == "PLAYER_LOGIN" then
-            -- Set up profile callbacks
-            addon.core:ScheduleTimer(function()
+            -- Set up profile callbacks - Execute immediately
+            do
                 if addon.db then
                     addon.db.RegisterCallback(addon, "OnProfileChanged", function()
-                        addon.core:ScheduleTimer(function()
-                            addon.RefreshMainbarsSystem()
-                        end, 0.1)
+                        -- Execute immediately - no timer needed
+                        addon.RefreshMainbarsSystem()
                     end)
                     addon.db.RegisterCallback(addon, "OnProfileCopied", function()
-                        addon.core:ScheduleTimer(function()
-                            addon.RefreshMainbarsSystem()
-                        end, 0.1)
+                        -- Execute immediately - no timer needed  
+                        addon.RefreshMainbarsSystem()
                     end)
                     addon.db.RegisterCallback(addon, "OnProfileReset", function()
-                        addon.core:ScheduleTimer(function()
-                            addon.RefreshMainbarsSystem()
-                        end, 0.1)
+                        -- Execute immediately - no timer needed
+                        addon.RefreshMainbarsSystem()
                     end)
 
                     -- Initial refresh
                     addon.RefreshMainbarsSystem()
                 end
-            end, 2)
+            end
 
             self:UnregisterEvent("PLAYER_LOGIN")
 
         elseif event == "PLAYER_REGEN_ENABLED" then
-            -- Reposition when combat ends
+            -- Reposition when combat ends - Execute immediately
             if IsModuleEnabled() then
-                addon.core:ScheduleTimer(function()
-                    ApplyActionBarPositions()
-                    PositionActionBarsToContainers()
-                end, 0.1)
+                ApplyActionBarPositions()
+                PositionActionBarsToContainers()
             end
 
         elseif event == "UPDATE_FACTION" then
-            -- Update reputation bar when watched faction changes
+            -- Update reputation bar when watched faction changes - Execute immediately
             if IsModuleEnabled() then
-                addon.core:ScheduleTimer(function()
-                    ApplyDragonUIExpRepBarStyling()
-                    ForceReputationTextConfiguration()
-                    UpdateBarPositions()
-                end, 0.1)
+                ApplyDragonUIExpRepBarStyling()
+                ForceReputationTextConfiguration()
+                UpdateBarPositions()
             end
 
         elseif event == "PET_BAR_UPDATE" or event == "PET_BAR_UPDATE_COOLDOWN" or event == "UNIT_PET" then
-            -- Handle pet bar visibility and updates
+            -- Handle pet bar visibility and updates - Execute immediately
             if IsModuleEnabled() and (arg1 == "player" or not arg1) then
-                addon.core:ScheduleTimer(function()
-                    addon.UpdatePetBarVisibility()
-                end, 0.1)
+                addon.UpdatePetBarVisibility()
             end
 
         elseif event == "UNIT_ENTERED_VEHICLE" or event == "UNIT_EXITED_VEHICLE" then
-            -- Handle vehicle events that affect pet bar
+            -- Handle vehicle events that affect pet bar - Execute immediately
             if IsModuleEnabled() and arg1 == "player" then
-                addon.core:ScheduleTimer(function()
-                    addon.UpdatePetBarVisibility()
-                end, 0.2)
+                addon.UpdatePetBarVisibility()
             end
         end
     end)
@@ -1259,7 +1261,112 @@ initFrame:SetScript("OnEvent", function(self, event, addonName)
     end
 end)
 
+-- Global UpdateGryphonStyle function (accessible from RefreshMainbarsSystem)
+function addon.UpdateGryphonStyle()
+    if not MainMenuBarLeftEndCap or not MainMenuBarRightEndCap then
+        return
+    end
+
+    local db_style = addon.db and addon.db.profile and addon.db.profile.style
+    if not db_style then
+        db_style = config.style
+    end
+
+    local faction = UnitFactionGroup('player')
+
+    if db_style.gryphons == 'old' then
+        MainMenuBarLeftEndCap:SetClearPoint('BOTTOMLEFT', -85, -22)
+        MainMenuBarRightEndCap:SetClearPoint('BOTTOMRIGHT', 84, -22)
+        MainMenuBarLeftEndCap:set_atlas('ui-hud-actionbar-gryphon-left', true)
+        MainMenuBarRightEndCap:set_atlas('ui-hud-actionbar-gryphon-right', true)
+        MainMenuBarLeftEndCap:Show()
+        MainMenuBarRightEndCap:Show()
+    elseif db_style.gryphons == 'new' then
+        MainMenuBarLeftEndCap:SetClearPoint('BOTTOMLEFT', -94, -23)
+        MainMenuBarRightEndCap:SetClearPoint('BOTTOMRIGHT', 95, -23)
+        if faction == 'Alliance' then
+            MainMenuBarLeftEndCap:set_atlas('ui-hud-actionbar-gryphon-thick-left', true)
+            MainMenuBarRightEndCap:set_atlas('ui-hud-actionbar-gryphon-thick-right', true)
+        else
+            MainMenuBarLeftEndCap:set_atlas('ui-hud-actionbar-wyvern-thick-left', true)
+            MainMenuBarRightEndCap:set_atlas('ui-hud-actionbar-wyvern-thick-right', true)
+        end
+        MainMenuBarLeftEndCap:Show()
+        MainMenuBarRightEndCap:Show()
+    elseif db_style.gryphons == 'flying' then
+        MainMenuBarLeftEndCap:SetClearPoint('BOTTOMLEFT', -80, -21)
+        MainMenuBarRightEndCap:SetClearPoint('BOTTOMRIGHT', 80, -21)
+        MainMenuBarLeftEndCap:set_atlas('ui-hud-actionbar-gryphon-flying-left', true)
+        MainMenuBarRightEndCap:set_atlas('ui-hud-actionbar-gryphon-flying-right', true)
+        MainMenuBarLeftEndCap:Show()
+        MainMenuBarRightEndCap:Show()
+    else
+        MainMenuBarLeftEndCap:Hide()
+        MainMenuBarRightEndCap:Hide()
+    end
+end
+
 -- Public API for options
 function addon.RefreshMainbarsSystem()
+    if not IsModuleEnabled() then
+        return
+    end
 
+    -- CRÍTICO: No tocar frames protegidos durante combate
+    if InCombatLockdown() then
+        -- Solo actualizar cosas seguras (no frames)
+        addon.UpdateGryphonStyle()
+        if addon.MainMenuBarMixin and addon.MainMenuBarMixin.update_main_bar_background then
+            addon.MainMenuBarMixin:update_main_bar_background()
+        end
+        return
+    end
+
+    -- Apply scales to all action bars (SOLO FUERA DE COMBATE)
+    local db = addon.db and addon.db.profile and addon.db.profile.mainbars
+    if not db then
+        return
+    end
+
+    -- Apply main bar scale
+    if addon.pUiMainBar and db.scale_actionbar then
+        addon.pUiMainBar:SetScale(db.scale_actionbar)
+    end
+
+    -- Apply scales to other bars
+    if MultiBarRight and db.scale_rightbar then
+        MultiBarRight:SetScale(db.scale_rightbar)
+    end
+
+    if MultiBarLeft and db.scale_leftbar then
+        MultiBarLeft:SetScale(db.scale_leftbar)
+    end
+
+    if MultiBarBottomLeft and db.scale_bottomleft then
+        MultiBarBottomLeft:SetScale(db.scale_bottomleft)
+    end
+
+    if MultiBarBottomRight and db.scale_bottomright then
+        MultiBarBottomRight:SetScale(db.scale_bottomright)
+    end
+
+    -- Update gryphon style and background
+    addon.UpdateGryphonStyle()
+    if addon.MainMenuBarMixin and addon.MainMenuBarMixin.update_main_bar_background then
+        addon.MainMenuBarMixin:update_main_bar_background()
+    end
+
+    -- Update positioning (safe check inside)
+    addon.PositionActionBars()
+
+    -- Update widget positions if available
+    if addon.ActionBarFrames and addon.ApplyActionBarPositions then
+        addon.ApplyActionBarPositions()
+        if addon.PositionActionBarsToContainers then
+            addon.PositionActionBarsToContainers()
+        end
+    end
 end
+
+-- Alias for compatibility
+addon.RefreshMainbars = addon.RefreshMainbarsSystem

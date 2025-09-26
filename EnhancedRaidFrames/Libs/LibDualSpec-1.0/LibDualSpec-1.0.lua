@@ -32,7 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --]]
 
 -- Don't load unless we are Retail or Wrath Classic
-if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE and WOW_PROJECT_ID ~= WOW_PROJECT_WRATH_CLASSIC then return end
+if WOW_PROJECT_ID_RCE ~= WOW_PROJECT_MAINLINE and WOW_PROJECT_ID_RCE ~= WOW_PROJECT_WRATH_CLASSIC then return end
 
 local MAJOR, MINOR = "LibDualSpec-1.0", 22
 assert(LibStub, MAJOR.." requires LibStub")
@@ -72,7 +72,7 @@ local AceDB3 = LibStub('AceDB-3.0', true)
 local AceDBOptions3 = LibStub('AceDBOptions-3.0', true)
 local AceConfigRegistry3 = LibStub('AceConfigRegistry-3.0', true)
 
-local isRetail = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
+local isRetail = WOW_PROJECT_ID_RCE == WOW_PROJECT_MAINLINE
 local numSpecs = 2
 local specNames = {TALENT_SPEC_PRIMARY, TALENT_SPEC_SECONDARY}
 if isRetail then

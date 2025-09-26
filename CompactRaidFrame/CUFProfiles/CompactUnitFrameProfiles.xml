@@ -184,7 +184,7 @@
           <OnShow function="CompactUnitFrameProfilesProfileSelector_SetUp" />
         </Scripts>
       </Frame>
-      <Button name="$parentSaveButton" inherits="UIPanelButtonTemplate" text="SAVE">
+      <Button name="$parentSaveButton" inherits="UIPanelButtonTemplate2" text="SAVE">
         <Size x="115" y="21" />
         <Anchors>
           <Anchor point="TOPLEFT" relativeTo="$parentProfileSelector" relativePoint="BOTTOMLEFT" x="18" y="5" />
@@ -196,7 +196,7 @@
           </OnClick>
         </Scripts>
       </Button>
-      <Button name="$parentDeleteButton" inherits="UIPanelButtonTemplate" text="DELETE">
+      <Button name="$parentDeleteButton" inherits="UIPanelButtonTemplate2" text="DELETE">
         <Anchors>
           <Anchor point="TOPRIGHT" relativeTo="$parentProfileSelector" relativePoint="BOTTOMRIGHT" x="-15" y="5" />
           <Anchor point="BOTTOMLEFT" relativeTo="$parentSaveButton" relativePoint="BOTTOMRIGHT" x="3" y="0" />
@@ -329,7 +329,7 @@
               <OnShow function="CompactUnitFrameProfilesNewProfileDialogBaseProfileSelector_SetUp" />
             </Scripts>
           </Frame>
-          <Button name="$parentCreateButton" frameLevel="15" inherits="UIPanelButtonTemplate" text="CREATE_COMPACT_UNIT_FRAME_PROFILE" parentKey="createButton">
+          <Button name="$parentCreateButton" frameLevel="15" inherits="UIPanelButtonTemplate2" text="CREATE_COMPACT_UNIT_FRAME_PROFILE" parentKey="createButton">
             <Size x="115" y="21" />
             <Anchors>
               <Anchor point="BOTTOMRIGHT" relativePoint="BOTTOM" x="-5" y="15" />
@@ -343,7 +343,7 @@
               </OnClick>
             </Scripts>
           </Button>
-          <Button name="$parentCancelButton" frameLevel="15" inherits="UIPanelButtonTemplate" text="CANCEL">
+          <Button name="$parentCancelButton" frameLevel="15" inherits="UIPanelButtonTemplate2" text="CANCEL">
             <Size x="115" y="21" />
             <Anchors>
               <Anchor point="BOTTOMLEFT" relativePoint="BOTTOM" x="5" y="15" />
@@ -370,7 +370,7 @@
           </Layer>
         </Layers>
         <Frames>
-          <Button name="$parentDeleteButton" inherits="UIPanelButtonTemplate" text="DELETE">
+          <Button name="$parentDeleteButton" inherits="UIPanelButtonTemplate2" text="DELETE">
             <Size x="115" y="21" />
             <Anchors>
               <Anchor point="BOTTOMRIGHT" relativePoint="BOTTOM" x="-5" y="15" />
@@ -389,7 +389,7 @@
               </OnClick>
             </Scripts>
           </Button>
-          <Button name="$parentCancelButton" inherits="UIPanelButtonTemplate" text="CANCEL">
+          <Button name="$parentCancelButton" inherits="UIPanelButtonTemplate2" text="CANCEL">
             <Size x="115" y="21" />
             <Anchors>
               <Anchor point="BOTTOMLEFT" relativePoint="BOTTOM" x="5" y="15" />
@@ -416,7 +416,7 @@
           </Layer>
         </Layers>
         <Frames>
-          <Button name="$parentDontSaveButton" inherits="UIPanelButtonTemplate" text="DONT_SAVE">
+          <Button name="$parentDontSaveButton" inherits="UIPanelButtonTemplate2" text="DONT_SAVE">
             <Size x="115" y="21" />
             <Anchors>
               <Anchor point="BOTTOM" relativePoint="BOTTOM" x="0" y="15" />
@@ -430,7 +430,7 @@
               </OnClick>
             </Scripts>
           </Button>
-          <Button name="$parentSaveButton" inherits="UIPanelButtonTemplate" text="SAVE">
+          <Button name="$parentSaveButton" inherits="UIPanelButtonTemplate2" text="SAVE">
             <Size x="115" y="21" />
             <Anchors>
               <Anchor point="BOTTOMRIGHT" relativeTo="$parentDontSaveButton" relativePoint="BOTTOMLEFT" x="-5" y="0" />
@@ -444,7 +444,7 @@
               </OnClick>
             </Scripts>
           </Button>
-          <Button name="$parentCancelButton" inherits="UIPanelButtonTemplate" text="CANCEL">
+          <Button name="$parentCancelButton" inherits="UIPanelButtonTemplate2" text="CANCEL">
             <Size x="115" y="21" />
             <Anchors>
               <Anchor point="BOTTOMLEFT" relativeTo="$parentDontSaveButton" relativePoint="BOTTOMRIGHT" x="5" y="0" />
@@ -748,7 +748,7 @@
             </Scripts>
           </CheckButton>
 
-          <Button name="$parentResetPositionButton" inherits="UIPanelButtonTemplate" text="RESET_POSITION">
+          <Button name="$parentResetPositionButton" inherits="UIPanelButtonTemplate2" text="RESET_POSITION">
             <Size x="160" y="21" />
             <Anchors>
               <Anchor point="BOTTOMRIGHT" x="-5" y="5" />

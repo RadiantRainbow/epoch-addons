@@ -52,6 +52,36 @@ function addon:CreateOptionsTable()
                 disabled = false,
                 order = 0 -- El orden más bajo para que aparezca primero
             },
+            
+            -- ✅ KEYBINDING MODE BUTTON
+            toggle_keybind_mode = {
+                type = 'execute',
+                name = function()
+                    if LibStub and LibStub("LibKeyBound-1.0", true) and LibStub("LibKeyBound-1.0"):IsShown() then
+                        return "|cffFF6347KeyBind Mode Active|r"
+                    else
+                        return "|cff00FF00KeyBind Mode|r"
+                    end
+                end,
+                desc = "Toggle keybinding mode. Hover over action buttons and press keys to bind them instantly. Press ESC to clear bindings.",
+                func = function()
+                    GameTooltip:Hide()
+                    -- Close DragonUI options window
+                    LibStub("AceConfigDialog-3.0"):Close("DragonUI")
+                    
+                    if addon.KeyBindingModule and LibStub and LibStub("LibKeyBound-1.0", true) then
+                        local LibKeyBound = LibStub("LibKeyBound-1.0")
+                        LibKeyBound:Toggle()
+                    else
+                        print("|cFFFF0000[DragonUI]|r KeyBinding module not available")
+                    end
+                end,
+                disabled = function()
+                    return not (addon.KeyBindingModule and addon.KeyBindingModule.enabled)
+                end,
+                order = 0.3
+            },
+            
             --  SEPARADOR VISUAL
             editor_separator = {
                 type = 'header',
@@ -247,7 +277,34 @@ function addon:CreateOptionsTable()
                             StaticPopup_Show("DRAGONUI_RELOAD_UI")
                         end,
                         order = 24
-                    }
+                    },
+
+                    -- BUFF FRAME SYSTEM
+                    buffs_enabled = {
+                        type = 'toggle',
+                        name = "Buff Frame System",
+                        desc = "Enable DragonUI buff frame with custom styling, positioning, and toggle button functionality. When disabled, uses default Blizzard buff frame appearance and positioning.",
+                        get = function()
+                            return addon.db.profile.modules and addon.db.profile.modules.buffs and
+                                       addon.db.profile.modules.buffs.enabled
+                        end,
+                        set = function(info, val)
+                            if not addon.db.profile.modules then
+                                addon.db.profile.modules = {}
+                            end
+                            if not addon.db.profile.modules.buffs then
+                                addon.db.profile.modules.buffs = {}
+                            end
+                            addon.db.profile.modules.buffs.enabled = val
+                            if addon.BuffFrameModule then
+                                addon.BuffFrameModule:Toggle(val)
+                            end
+                            StaticPopup_Show("DRAGONUI_RELOAD_UI")
+                        end,
+                        order = 25
+                    },
+
+
                 }
             },
             actionbars = {
@@ -255,42 +312,12 @@ function addon:CreateOptionsTable()
                 name = "Action Bars",
                 order = 1,
                 args = {
-                    mainbars = {
+                    scales = {
                         type = 'group',
-                        name = "Main Bars",
+                        name = "Action Bar Scales",
                         inline = true,
                         order = 1,
                         args = {
-                            left_horizontal = {
-                                type = 'toggle',
-                                name = "Left Bar Horizontal",
-                                desc = "Make the left secondary bar horizontal instead of vertical",
-                                get = function()
-                                    return addon.db.profile.mainbars.left.horizontal
-                                end,
-                                set = function(_, value)
-                                    addon.db.profile.mainbars.left.horizontal = value
-                                    if addon.RefreshMainbars then
-                                        addon.RefreshMainbars()
-                                    end
-                                end,
-                                order = 25
-                            },
-                            right_horizontal = {
-                                type = 'toggle',
-                                name = "Right Bar Horizontal",
-                                desc = "Make the right secondary bar horizontal instead of vertical",
-                                get = function()
-                                    return addon.db.profile.mainbars.right.horizontal
-                                end,
-                                set = function(_, value)
-                                    addon.db.profile.mainbars.right.horizontal = value
-                                    if addon.RefreshMainbars then
-                                        addon.RefreshMainbars()
-                                    end
-                                end,
-                                order = 26
-                            },
                             scale_actionbar = {
                                 type = 'range',
                                 name = "Main Bar Scale",
@@ -309,100 +336,144 @@ function addon:CreateOptionsTable()
                                 end,
                                 order = 1
                             },
-                            -- AÑADIR CONFIGURACIONES DE POSICIÓN
-                            header_position = {
-                                type = 'header',
-                                name = "Action Bar Positions",
-                                order = 4.5
+                            scale_rightbar = {
+                                type = 'range',
+                                name = "Right Bar Scale",
+                                desc = "Scale for right action bar (MultiBarRight)",
+                                min = 0.5,
+                                max = 2.0,
+                                step = 0.1,
+                                get = function()
+                                    return addon.db.profile.mainbars.scale_rightbar
+                                end,
+                                set = function(info, value)
+                                    addon.db.profile.mainbars.scale_rightbar = value
+                                    if addon.RefreshMainbars then
+                                        addon.RefreshMainbars()
+                                    end
+                                end,
+                                order = 2
                             },
-                            --  AÑADIMOS UNA DESCRIPCIÓN INTELIGENTE
+                            scale_leftbar = {
+                                type = 'range',
+                                name = "Left Bar Scale",
+                                desc = "Scale for left action bar (MultiBarLeft)",
+                                min = 0.5,
+                                max = 2.0,
+                                step = 0.1,
+                                get = function()
+                                    return addon.db.profile.mainbars.scale_leftbar
+                                end,
+                                set = function(info, value)
+                                    addon.db.profile.mainbars.scale_leftbar = value
+                                    if addon.RefreshMainbars then
+                                        addon.RefreshMainbars()
+                                    end
+                                end,
+                                order = 3
+                            },
+                            scale_bottomleft = {
+                                type = 'range',
+                                name = "Bottom Left Bar Scale",
+                                desc = "Scale for bottom left action bar (MultiBarBottomLeft)",
+                                min = 0.5,
+                                max = 2.0,
+                                step = 0.1,
+                                get = function()
+                                    return addon.db.profile.mainbars.scale_bottomleft
+                                end,
+                                set = function(info, value)
+                                    addon.db.profile.mainbars.scale_bottomleft = value
+                                    if addon.RefreshMainbars then
+                                        addon.RefreshMainbars()
+                                    end
+                                end,
+                                order = 4
+                            },
+                            scale_bottomright = {
+                                type = 'range',
+                                name = "Bottom Right Bar Scale",
+                                desc = "Scale for bottom right action bar (MultiBarBottomRight)",
+                                min = 0.5,
+                                max = 2.0,
+                                step = 0.1,
+                                get = function()
+                                    return addon.db.profile.mainbars.scale_bottomright
+                                end,
+                                set = function(info, value)
+                                    addon.db.profile.mainbars.scale_bottomright = value
+                                    if addon.RefreshMainbars then
+                                        addon.RefreshMainbars()
+                                    end
+                                end,
+                                order = 5
+                            },
+                            reset_scales = {
+                                type = 'execute',
+                                name = "Reset All Scales",
+                                desc = "Reset all action bar scales to their default values (0.9)",
+                                func = function()
+                                    -- Reset all scales to default value (0.9)
+                                    addon.db.profile.mainbars.scale_actionbar = 0.9
+                                    addon.db.profile.mainbars.scale_rightbar = 0.9
+                                    addon.db.profile.mainbars.scale_leftbar = 0.9
+                                    addon.db.profile.mainbars.scale_bottomleft = 0.9
+                                    addon.db.profile.mainbars.scale_bottomright = 0.9
+                                    
+                                    -- Apply the changes
+                                    if addon.RefreshMainbars then
+                                        addon.RefreshMainbars()
+                                    end
+                                    
+                                    print("|cFF00FF00[DragonUI]|r All action bar scales reset to default values (0.9)")
+                                    
+                                    -- Show reload UI dialog
+                                    StaticPopup_Show("DRAGONUI_RELOAD_UI")
+                                end,
+                                order = 6
+                            }
+                        }
+                    },
+                    positions = {
+                        type = 'group',
+                        name = "Action Bar Positions",
+                        inline = true,
+                        order = 2,
+                        args = {
                             editor_mode_desc = {
                                 type = 'description',
-                                name = "|cffFFD700Tip:|r Use the |cff00FF00/duiedit|r or |cff00FF00/dragonedit|r command to unlock and move the bars with your mouse.",
-                                order = 4.51
+                                name = "|cffFFD700Tip:|r Use the |cff00FF00Move UI Elements|r button above to reposition action bars with your mouse.",
+                                order = 1
                             },
-                            reset_positions = {
-                                type = 'execute',
-                                name = "Reset Bar Positions",
-                                desc = "Resets all action bars to their default positions using the centralized system.",
-                                func = function()
-                                    --  READ DEFAULTS FROM DATABASE.LUA
-                                    local defaults = addon.defaults and addon.defaults.profile and
-                                                         addon.defaults.profile.widgets
-                                    if not defaults then
-                                        print(
-                                            "|cffFF0000[DragonUI]|r Error: Could not find default positions in database.lua")
-                                        return
-                                    end
-
-                                    --  APPLY EACH DEFAULT POSITION FROM DATABASE.LUA (EXCLUDING PETBAR - IT'S HANDLED SEPARATELY)
-                                    local barNames = {"mainbar", "rightbar", "leftbar", "bottombarleft",
-                                                      "bottombarright"}
-
-                                    for _, barName in ipairs(barNames) do
-                                        if defaults[barName] then
-                                            -- Ensure widgets table exists
-                                            if not addon.db.profile.widgets[barName] then
-                                                addon.db.profile.widgets[barName] = {}
-                                            end
-
-                                            -- Apply default values from database.lua
-                                            addon.db.profile.widgets[barName].anchor = defaults[barName].anchor
-                                            addon.db.profile.widgets[barName].posX = defaults[barName].posX
-                                            addon.db.profile.widgets[barName].posY = defaults[barName].posY
-
-                                            -- Apply position immediately if frame exists
-                                            if addon.ActionBarFrames and addon.ActionBarFrames[barName] then
-                                                local frame = addon.ActionBarFrames[barName]
-                                                frame:ClearAllPoints()
-                                                frame:SetPoint(defaults[barName].anchor, UIParent,
-                                                    defaults[barName].anchor, defaults[barName].posX,
-                                                    defaults[barName].posY)
-                                            end
-                                        end
-                                    end
-
-                                    --  HANDLE PETBAR SEPARATELY (from petbar.lua module)
-                                    if defaults.petbar then
-                                        if not addon.db.profile.widgets.petbar then
-                                            addon.db.profile.widgets.petbar = {}
-                                        end
-
-                                        addon.db.profile.widgets.petbar.anchor = defaults.petbar.anchor
-                                        addon.db.profile.widgets.petbar.posX = defaults.petbar.posX
-                                        addon.db.profile.widgets.petbar.posY = defaults.petbar.posY
-
-                                        -- Refresh petbar immediately using its own refresh function
-                                        if addon.RefreshPetbar then
-                                            addon.RefreshPetbar()
-                                        end
-                                    end
-
-                                    --  ALSO RESET REPEXPBAR IF IT EXISTS IN DEFAULTS
-                                    if defaults.repexpbar and addon.ActionBarFrames and addon.ActionBarFrames.repexpbar then
-                                        if not addon.db.profile.widgets.repexpbar then
-                                            addon.db.profile.widgets.repexpbar = {}
-                                        end
-
-                                        addon.db.profile.widgets.repexpbar.anchor = defaults.repexpbar.anchor
-                                        addon.db.profile.widgets.repexpbar.posX = defaults.repexpbar.posX
-                                        addon.db.profile.widgets.repexpbar.posY = defaults.repexpbar.posY
-
-                                        local frame = addon.ActionBarFrames.repexpbar
-                                        frame:ClearAllPoints()
-                                        frame:SetPoint(defaults.repexpbar.anchor, UIParent, defaults.repexpbar.anchor,
-                                            defaults.repexpbar.posX, defaults.repexpbar.posY)
-                                    end
-
-                                    --  REPOSITION BLIZZARD FRAMES TO FOLLOW CONTAINERS
-                                    if addon.UpdateActionBarWidgets then
-                                        addon.UpdateActionBarWidgets()
-                                    end
-
-                                    print(
-                                        "|cff00FF00[DragonUI]|r Action bar positions reset to defaults from database.lua")
+                            left_horizontal = {
+                                type = 'toggle',
+                                name = "Left Bar Horizontal",
+                                desc = "Make the left secondary bar horizontal instead of vertical",
+                                get = function()
+                                    return addon.db.profile.mainbars.left.horizontal
                                 end,
-                                order = 4.6
+                                set = function(_, value)
+                                    addon.db.profile.mainbars.left.horizontal = value
+                                    if addon.PositionActionBars then
+                                        addon.PositionActionBars()
+                                    end
+                                end,
+                                order = 2
+                            },
+                            right_horizontal = {
+                                type = 'toggle',
+                                name = "Right Bar Horizontal",
+                                desc = "Make the right secondary bar horizontal instead of vertical",
+                                get = function()
+                                    return addon.db.profile.mainbars.right.horizontal
+                                end,
+                                set = function(_, value)
+                                    addon.db.profile.mainbars.right.horizontal = value
+                                    if addon.PositionActionBars then
+                                        addon.PositionActionBars()
+                                    end
+                                end,
+                                order = 3
                             }
                         }
                     },
@@ -537,9 +608,7 @@ function addon:CreateOptionsTable()
                                         end,
                                         set = function(info, value)
                                             addon.db.profile.buttons.pages.show = value
-                                            if addon.RefreshMainbars then
-                                                addon.RefreshMainbars()
-                                            end
+                                            StaticPopup_Show("DRAGONUI_RELOAD_UI")
                                         end,
                                         order = 1
                                     }
@@ -1097,7 +1166,7 @@ function addon:CreateOptionsTable()
                                     x_position = {
                                         type = 'range',
                                         name = "X Position",
-                                        desc = "Horizontal position of stance bar",
+                                        desc = "Horizontal position of stance bar from screen center. Negative values move left, positive values move right.",
                                         min = -1500,
                                         max = 1500,
                                         step = 1,
@@ -1116,8 +1185,8 @@ function addon:CreateOptionsTable()
                                     y_offset = {
                                         type = 'range',
                                         name = "Y Offset",
-                                        desc = "|cff00FF00Smart Anchoring:|r The stance bar automatically positions above the main action bar using intelligent anchoring.\n" ..
-                                            "|cffFFFF00Fine-Tuning:|r Use this offset to make small vertical adjustments while preserving the smart anchoring behavior.\n" ..
+                                        desc = "|cff00FF00Static Positioning:|r The stance bar uses a fixed position from the bottom of the screen (base Y=200).\n" ..
+                                            "|cffFFFF00Y Offset:|r Additional vertical adjustment added to the base position.\n" ..
                                             "|cffFFD700Note:|r Positive values move the bar up, negative values move it down.",
                                         min = -1500,
                                         max = 1500,
@@ -1132,6 +1201,44 @@ function addon:CreateOptionsTable()
                                             end
                                         end,
                                         order = 2,
+                                        width = "full"
+                                    },
+                                    button_size = {
+                                        type = 'range',
+                                        name = "Button Size",
+                                        desc = "Size of individual stance buttons in pixels.",
+                                        min = 16,
+                                        max = 64,
+                                        step = 1,
+                                        get = function()
+                                            return addon.db.profile.additional.stance.button_size
+                                        end,
+                                        set = function(info, value)
+                                            addon.db.profile.additional.stance.button_size = value
+                                            if addon.RefreshStance then
+                                                addon.RefreshStance()
+                                            end
+                                        end,
+                                        order = 3,
+                                        width = "full"
+                                    },
+                                    button_spacing = {
+                                        type = 'range',
+                                        name = "Button Spacing",
+                                        desc = "Space between stance buttons in pixels.",
+                                        min = 0,
+                                        max = 20,
+                                        step = 1,
+                                        get = function()
+                                            return addon.db.profile.additional.stance.button_spacing
+                                        end,
+                                        set = function(info, value)
+                                            addon.db.profile.additional.stance.button_spacing = value
+                                            if addon.RefreshStance then
+                                                addon.RefreshStance()
+                                            end
+                                        end,
+                                        order = 4,
                                         width = "full"
                                     }
                                 }
@@ -1398,110 +1505,6 @@ function addon:CreateOptionsTable()
                 }
             },
 
-            buffs = {
-                type = 'group',
-                name = "Buff Frame",
-                order = 11,
-                args = {
-                    enabled = {
-                        type = 'toggle',
-                        name = "Enable Buff Frame",
-                        desc = "Enable/disable the custom buff frame with toggle button",
-                        get = function()
-                            return addon.db.profile.buffs.enabled
-                        end,
-                        set = function(info, value)
-                            addon.db.profile.buffs.enabled = value
-                            if addon.BuffFrameModule then
-                                addon.BuffFrameModule:Toggle(value)
-                            end
-                        end,
-                        order = 1
-                    },
-                    show_toggle_button = {
-                        type = 'toggle',
-                        name = "Show Toggle Button",
-                        desc = "Show button to hide/show buffs",
-                        get = function()
-                            return addon.db.profile.buffs.show_toggle_button
-                        end,
-                        set = function(info, value)
-                            addon.db.profile.buffs.show_toggle_button = value
-                            if addon.BuffFrameModule then
-                                addon.BuffFrameModule:UpdatePosition()
-                            end
-                        end,
-                        order = 2,
-                        disabled = function()
-                            return not addon.db.profile.buffs.enabled
-                        end
-                    },
-                    position_header = {
-                        type = 'header',
-                        name = "Position",
-                        order = 3
-                    },
-                    x = {
-                        type = 'range',
-                        name = "X Position",
-                        desc = "Horizontal position",
-                        min = -500,
-                        max = 500,
-                        step = 1,
-                        get = function()
-                            return addon.db.profile.buffs.posX
-                        end,
-                        set = function(info, value)
-                            addon.db.profile.buffs.posX = value
-                            if addon.BuffFrameModule then
-                                addon.BuffFrameModule:UpdatePosition()
-                            end
-                        end,
-                        order = 4,
-                        disabled = function()
-                            return not addon.db.profile.buffs.enabled
-                        end
-                    },
-                    y = {
-                        type = 'range',
-                        name = "Y Position",
-                        desc = "Vertical position",
-                        min = -500,
-                        max = 500,
-                        step = 1,
-                        get = function()
-                            return addon.db.profile.buffs.posY
-                        end,
-                        set = function(info, value)
-                            addon.db.profile.buffs.posY = value
-                            if addon.BuffFrameModule then
-                                addon.BuffFrameModule:UpdatePosition()
-                            end
-                        end,
-                        order = 5,
-                        disabled = function()
-                            return not addon.db.profile.buffs.enabled
-                        end
-                    },
-                    reset_position = {
-                        type = 'execute',
-                        name = "Reset Position",
-                        desc = "Reset buff frame to default position",
-                        func = function()
-                            addon.db.profile.buffs.posX = -260
-                            addon.db.profile.buffs.posY = -20
-                            if addon.BuffFrameModule then
-                                addon.BuffFrameModule:UpdatePosition()
-                            end
-                        end,
-                        order = 6,
-                        disabled = function()
-                            return not addon.db.profile.buffs.enabled
-                        end
-                    }
-                }
-            },
-
             minimap = {
                 name = "Minimap",
                 type = "group",
@@ -1543,42 +1546,7 @@ function addon:CreateOptionsTable()
                         end,
                         order = 2
                     },
-                    tracking_icons = {
-                        type = "toggle",
-                        name = "Tracking Icons",
-                        desc = "Show current tracking icons (old style)",
-                        get = function()
-                            return addon.db.profile.minimap.tracking_icons
-                        end,
-                        set = function(_, val)
-                            addon.db.profile.minimap.tracking_icons = val
-                            if addon.MinimapModule then
-                                addon.MinimapModule:UpdateTrackingIcon()
-                            end
-                        end,
-                        order = 3
-                    },
-                    zoom_buttons = {
-                        type = 'toggle',
-                        name = "Zoom Buttons",
-                        desc = "Show zoom buttons (+/-)",
-                        get = function()
-                            return addon.db.profile.minimap.zoom_buttons
-                        end,
-                        set = function(info, value)
-                            addon.db.profile.minimap.zoom_buttons = value
-                            if MinimapZoomIn and MinimapZoomOut then
-                                if value then
-                                    MinimapZoomIn:Show()
-                                    MinimapZoomOut:Show()
-                                else
-                                    MinimapZoomIn:Hide()
-                                    MinimapZoomOut:Hide()
-                                end
-                            end
-                        end,
-                        order = 4
-                    },
+                    
 
                     addon_button_skin = {
                         type = 'toggle',
@@ -1699,6 +1667,58 @@ function addon:CreateOptionsTable()
                         name = "Display Settings",
                         order = 5
                     },
+                    tracking_icons = {
+                        type = "toggle",
+                        name = "Tracking Icons",
+                        desc = "Show current tracking icons (old style)",
+                        get = function()
+                            return addon.db.profile.minimap.tracking_icons
+                        end,
+                        set = function(_, val)
+                            addon.db.profile.minimap.tracking_icons = val
+                            if addon.MinimapModule then
+                                addon.MinimapModule:UpdateTrackingIcon()
+                            end
+                        end,
+                        order = 5
+                    },
+                    zoom_buttons = {
+                        type = 'toggle',
+                        name = "Zoom Buttons",
+                        desc = "Show zoom buttons (+/-)",
+                        get = function()
+                            return addon.db.profile.minimap.zoom_buttons
+                        end,
+                        set = function(info, value)
+                            addon.db.profile.minimap.zoom_buttons = value
+                            if MinimapZoomIn and MinimapZoomOut then
+                                if value then
+                                    MinimapZoomIn:Show()
+                                    MinimapZoomOut:Show()
+                                else
+                                    MinimapZoomIn:Hide()
+                                    MinimapZoomOut:Hide()
+                                end
+                            end
+                        end,
+                        order = 5
+                    },
+
+                    blip_skin = {
+                        type = 'toggle',
+                        name = "New Blip Style",
+                        desc = "Use new DragonUI object icons on the minimap. When disabled, uses classic Blizzard icons.",
+                        get = function()
+                            return addon.db.profile.minimap.blip_skin
+                        end,
+                        set = function(info, value)
+                            addon.db.profile.minimap.blip_skin = value
+                            if addon.MinimapModule then
+                                addon.MinimapModule:UpdateSettings()
+                            end
+                        end,
+                        order = 5
+                    },
                     zonetext_font_size = {
                         type = 'range',
                         name = "Zone Text Size",
@@ -1737,8 +1757,8 @@ function addon:CreateOptionsTable()
 
                             addon.db.profile.widgets.minimap = {
                                 anchor = "TOPRIGHT",
-                                posX = 14,
-                                posY = 14
+                                posX = 0,
+                                posY = 0
                             }
 
                             if addon.MinimapModule then
@@ -3243,8 +3263,57 @@ function addon:CreateOptionsTable()
                                 end,
                                 order = 3
                             },
-                            -- ❌ ELIMINADAS: textFormat, showHealthTextAlways, showManaTextAlways
-                            --  RAZÓN: El party ya no usa el sistema de textos personalizado
+                            showHealthTextAlways = {
+                                type = 'toggle',
+                                name = "Always Show Health Text",
+                                desc = "Always show health text on party frames (instead of only on hover)",
+                                get = function()
+                                    return addon.db.profile.unitframe.party.showHealthTextAlways
+                                end,
+                                set = function(info, value)
+                                    addon.db.profile.unitframe.party.showHealthTextAlways = value
+                                    if addon.RefreshPartyFrames then
+                                        addon.RefreshPartyFrames()
+                                    end
+                                end,
+                                order = 3.1
+                            },
+                            showManaTextAlways = {
+                                type = 'toggle',
+                                name = "Always Show Mana Text",
+                                desc = "Always show mana text on party frames (instead of only on hover)",
+                                get = function()
+                                    return addon.db.profile.unitframe.party.showManaTextAlways
+                                end,
+                                set = function(info, value)
+                                    addon.db.profile.unitframe.party.showManaTextAlways = value
+                                    if addon.RefreshPartyFrames then
+                                        addon.RefreshPartyFrames()
+                                    end
+                                end,
+                                order = 3.2
+                            },
+                            textFormat = {
+                                type = 'select',
+                                name = "Text Format",
+                                desc = "Choose how to display health and mana text",
+                                values = {
+                                    ['numeric'] = 'Current Value Only (2345)',
+                                    ['formatted'] = 'Formatted Current (2.3k)', 
+                                    ['percentage'] = 'Percentage Only (75%)',
+                                    ['both'] = 'Percentage + Current (75% | 2.3k)'
+                                },
+                                get = function()
+                                    return addon.db.profile.unitframe.party.textFormat or 'both'
+                                end,
+                                set = function(info, value)
+                                    addon.db.profile.unitframe.party.textFormat = value
+                                    if addon.RefreshPartyFrames then
+                                        addon.RefreshPartyFrames()
+                                    end
+                                end,
+                                order = 3.3
+                            },
                             orientation = {
                                 type = 'select',
                                 name = "Orientation",
@@ -3284,66 +3353,7 @@ function addon:CreateOptionsTable()
                                 end,
                                 order = 5
                             },
-                            override = {
-                                type = 'toggle',
-                                name = "Override Position",
-                                desc = "Override default party frame position",
-                                get = function()
-                                    return addon.db.profile.unitframe.party.override
-                                end,
-                                set = function(info, value)
-                                    addon.db.profile.unitframe.party.override = value
-                                    --  AUTO-REFRESH
-                                    if addon.RefreshPartyFrames then
-                                        addon.RefreshPartyFrames()
-                                    end
-                                end,
-                                order = 6
-                            },
-                            x = {
-                                type = 'range',
-                                name = "X Position",
-                                desc = "Horizontal position",
-                                min = -1000,
-                                max = 1000,
-                                step = 1,
-                                get = function()
-                                    return addon.db.profile.unitframe.party.x
-                                end,
-                                set = function(info, value)
-                                    addon.db.profile.unitframe.party.x = value
-                                    --  AUTO-REFRESH INMEDIATO
-                                    if addon.RefreshPartyFrames then
-                                        addon.RefreshPartyFrames()
-                                    end
-                                end,
-                                order = 7,
-                                disabled = function()
-                                    return not addon.db.profile.unitframe.party.override
-                                end
-                            },
-                            y = {
-                                type = 'range',
-                                name = "Y Position",
-                                desc = "Vertical position",
-                                min = -1000,
-                                max = 1000,
-                                step = 1,
-                                get = function()
-                                    return addon.db.profile.unitframe.party.y
-                                end,
-                                set = function(info, value)
-                                    addon.db.profile.unitframe.party.y = value
-                                    --  AUTO-REFRESH INMEDIATO
-                                    if addon.RefreshPartyFrames then
-                                        addon.RefreshPartyFrames()
-                                    end
-                                end,
-                                order = 8,
-                                disabled = function()
-                                    return not addon.db.profile.unitframe.party.override
-                                end
-                            }
+                           
                         }
                     }
                 }

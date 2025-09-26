@@ -7,8 +7,8 @@ local defaults = {
         widgets = {
             minimap = {
                 anchor = "TOPRIGHT",
-                posX = 14,
-                posY = 14
+                posX = 0,
+                posY = 0
             },
             player = {
                 anchor = "TOPLEFT",
@@ -198,8 +198,10 @@ local defaults = {
             size = 27,
             spacing = 6,
             stance = {
-                x_position = -230,
-                y_offset = 0 -- Additional Y offset for fine-tuning position
+                x_position = -215,
+                y_offset = -50, -- Additional Y offset for fine-tuning position
+                button_size = 32, -- Size of stance buttons
+                button_spacing = 3 -- Spacing between stance buttons
             },
             pet = {
 
@@ -207,7 +209,7 @@ local defaults = {
             },
             vehicle = {
                 x_position = 0,
-                artstyle = true
+                artstyle = false
             },
             totem = {
                 x_position = -210,
@@ -217,10 +219,11 @@ local defaults = {
 
         -- MINIMAP SETTINGS
         minimap = {
-            scale = 0.9,
+            scale = 1,
             border_alpha = 1,
+            blip_skin = true, -- true = new/modern style, false = old/classic Blizzard style
             tracking_icons = true,
-            zoom_buttons = true,
+            zoom_buttons = false,
             calendar = true,
             clock = true,
             clock_font_size = 12,
@@ -257,7 +260,7 @@ local defaults = {
                 enabled = true,
                 scale = 1,
                 x_position = -20,
-                y_position = -10,
+                y_position = -20,
                 text_mode = "simple", -- "simple" (centered spell name only) or "detailed" (name + time)
                 precision_time = 1,
                 precision_max = 1,
@@ -280,7 +283,7 @@ local defaults = {
                 enabled = true,
                 scale = 1,
                 x_position = -20,
-                y_position = 0,
+                y_position = -20,
                 text_mode = "simple", -- "simple" (centered spell name only) or "detailed" (name + time)
                 precision_time = 1,
                 precision_max = 1,
@@ -351,20 +354,24 @@ local defaults = {
             party = {
                 enabled = true,
                 classcolor = false,
-                textFormat = 'both',
                 breakUpLargeNumbers = true,
+                textFormat = 'both',
                 showHealthTextAlways = false,
                 showManaTextAlways = false,
                 orientation = 'vertical',
-                padding = 10,
-                scale = 1.0
-
+                padding = 15,
+                scale = 1.0,
+                override = false,
+                anchor = 'TOPLEFT',
+                anchorParent = 'TOPLEFT',
+                x = 10,
+                y = -200
             },
             tot = {
                 classcolor = false,
                 scale = 1.0,
-                x = -30,
-                y = -20,
+                x = 25,
+                y = -15,
                 textFormat = 'numeric',
                 breakUpLargeNumbers = false,
                 showHealthTextAlways = false,
@@ -377,8 +384,8 @@ local defaults = {
             fot = {
                 classcolor = false,
                 scale = 1.0,
-                x = -20,
-                y = -20,
+                x = 25,
+                y = -15,
                 textFormat = 'numeric',
                 breakUpLargeNumbers = false,
                 showHealthTextAlways = false,
@@ -421,6 +428,13 @@ local defaults = {
             },
             minimap = {
                 enabled = true -- Apply DragonUI minimap enhancements including custom styling, positioning, tracking icons, and calendar
+            },
+            buffs = {
+                enabled = true -- Enable DragonUI buff frame with custom styling, positioning, and toggle button functionality
+            },
+            keybinding = {
+                enabled = true, -- Enable LibKeyBound integration for intuitive keybinding (hover + key press)
+                auto_register_action_buttons = true -- Automatically make action buttons bindable
             }
         }
     }

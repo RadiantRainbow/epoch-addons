@@ -6,12 +6,13 @@
 
 A personal project bringing Dragonflight UI aesthetics to WotLK 3.3.5a.
 
-![DragonUI Interface](https://i.postimg.cc/L8MPT006/1.png)
-![DragonUI Features](https://i.postimg.cc/KYk0MWKc/3.png)
+<img width="816" height="551" alt="{649C1BC5-978C-4852-B622-5ED11CE01A1F}" src="https://github.com/user-attachments/assets/54b8d8df-caf2-40e4-bb1e-5fec3a7f5039" />
+<img width="816" height="551" alt="{1233C38B-B4C6-4D9F-BF7F-40165F6417E8}" src="https://github.com/user-attachments/assets/28b3ccfa-55a2-470f-8510-c6f5a484c063" />
 
 ## Features
 
 *   **Modular System:** Enable or disable major UI modules individually, including Cast Bars,Mini Map, Action Bars, Micro Menu (with integrated bags), and the Cooldown system.
+*   **Keybinding System:** Easily set or change your action bar keybinds by hovering over a button and pressing a key, no menus needed.
 *   **Unit Frames:** Refactored Player, Target, Focus, and Party frames, each implemented as separate modules (including ToT/ToF)
 *   **Micro Menu:** Two styles available (colored and grayscale), both with enhanced design, player portrait, faction-based PvP indicators, and integrated bags bar.
 *   **Cast Bars:** Improved casting bars with modern styling.
@@ -38,7 +39,7 @@ If you're interested in helping develop or improve it, contributions are welcome
 
 ## Known Issues
 
-- **Party Frames Vehicle Bug:** Party frames do not display correctly when party members enter vehicles.
+- **Vehicle & Party UI Bugs:** Action bars, unit frames, and party frames may break, move, or display incorrectly when entering vehicles. All vehicle-related UI behavior still needs to be fixed.
 - Other bugs are still present and will be polished over time.
 
 ## Credits
@@ -47,7 +48,7 @@ This project combines and adapts code from several sources:
 
 - **[s0h2x](https://github.com/s0h2x)** – Two specific addons: one for action bars and another for minimap, which have been merged and integrated into DragonUI.
 - **[KarlHeinz_Schneider - Dragonflight UI (Classic)](https://www.curseforge.com/wow/addons/dragonflight-ui-classic)** – Original addon from which many elements have been taken and backported/adapted to 3.3.5a, including the micro menu and other features built from scratch based on this design.
-- **[Raz0r1337 - RetailUI](https://github.com/Raz0r1337/RetailUI)** – Large portions of code are used as reference and directly integrated for UI elements and implementation approaches.
+- **[a3st - RetailUI](https://github.com/a3st/RetailUI)** – Large portions of code are used as reference and directly integrated for UI elements and implementation approaches.
 
 ## Special Thanks
 

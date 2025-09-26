@@ -7,6 +7,20 @@ local gridOverlay = nil;
 local exitEditorButton = nil;
 local resetAllButton = nil;
 
+-- StaticPopup para reiniciar UI después de salir del modo editor
+StaticPopupDialogs["DRAGONUI_RELOAD_UI"] = {
+    text = "UI elements have been repositioned. Reload UI to ensure all graphics display correctly?",
+    button1 = "Reload Now",
+    button2 = "Later",
+    OnAccept = function()
+        ReloadUI()
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
 --  BOTÓN DE SALIDA DEL MODO EDITOR
 local function createExitButton()
     if exitEditorButton then return; end
@@ -86,11 +100,9 @@ local function createResetAllButton()
         fontString:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE") -- Fuente profesional
     end
 
-    -- ESTRATEGIA: Primero salir del editor mode, luego confirmar
+    -- ESTRATEGIA: Mostrar confirmación directamente sin salir del editor mode
     resetAllButton:SetScript("OnClick", function()
-        -- 1. Salir del editor mode primero (igual que Exit button)
-        EditorMode:Hide()
-        -- 2. Mostrar confirmación fuera del editor mode
+        -- Mostrar solo el popup de confirmación específico para reset
         EditorMode:ShowResetConfirmation()
     end);
 
@@ -213,7 +225,7 @@ function EditorMode:Show()
 end
 
 
-function EditorMode:Hide()
+function EditorMode:Hide(showReloadPopup)
     if gridOverlay then gridOverlay:Hide() end
     if exitEditorButton then exitEditorButton:Hide() end
     if resetAllButton then resetAllButton:Hide() end
@@ -232,6 +244,11 @@ function EditorMode:Hide()
     -- Refresh AceConfig to update button state
     self:RefreshOptionsUI()
     
+    -- NUEVO: Solo mostrar popup de reload UI si no viene desde reset positions
+    if showReloadPopup ~= false then
+        StaticPopup_Show("DRAGONUI_RELOAD_UI")
+    end
+    
     
 end
 
@@ -248,7 +265,7 @@ end
 
 function EditorMode:Toggle()
     if self:IsActive() then 
-        self:Hide() 
+        self:Hide(true) -- true = mostrar popup de reload UI (salida normal)
     else 
         self:Show() 
     end
@@ -324,7 +341,10 @@ function EditorMode:ResetAllPositions()
         return
     end
     
-    
+    -- Ocultar el editor mode sin mostrar el popup genérico
+    if self:IsActive() then
+        self:Hide(false) -- false = no mostrar popup de reload UI
+    end
     
     -- Resetear solo la sección widgets usando los defaults de Ace3
     if addon.defaults and addon.defaults.profile and addon.defaults.profile.widgets then
@@ -361,8 +381,8 @@ end
 
 --  DEFINIR EL POPUP DE CONFIRMACIÓN
 StaticPopupDialogs["DRAGONUI_RESET_ALL_POSITIONS"] = {
-    text = "¿Estás seguro que quieres resetear todos los elementos de la interfaz a su posición original?",
-    button1 = "Sí",
+    text = "Are you sure you want to reset all interface elements to their default positions?",
+    button1 = "Yes",
     button2 = "No",
     OnAccept = function()
         EditorMode:ResetAllPositions()

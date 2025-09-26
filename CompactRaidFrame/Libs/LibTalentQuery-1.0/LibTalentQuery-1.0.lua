@@ -27,7 +27,7 @@ Example Usage:
 	end
 ]]
 
-local MAJOR, MINOR = "LibTalentQuery-1.0", 90000 + tonumber(("$Rev: 85 $"):match("(%d+)"))
+local MAJOR, MINOR = "LibTalentQuery-1.0", 90000 + tonumber(("$Rev: 84 $"):match("(%d+)"))
 
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end

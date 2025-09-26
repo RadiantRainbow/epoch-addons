@@ -1,4 +1,7 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- Conflict Detection module (loaded early) -->
+    <Script file="compatibility.lua"/>
+    
     <!-- Actionbar modules -->
     <Script file="noop.lua"/>
     <Script file="buttons.lua"/>
@@ -11,6 +14,9 @@
     
     <!-- Micro Menu & Bag module -->
     <Script file="micromenu.lua"/>
+    
+    <!-- KeyBinding module -->
+    <Script file="keybinding.lua"/>
     
     <!-- Buffs, Minimap & Quest Tracker modules -->
     <Script file="BuffFrame.lua"/> 
@@ -28,7 +34,4 @@
     
     <!-- Editor Mode module -->
     <Script file="editor_mode.lua"/>
-    
-    <!-- Conflict Detection module -->
-    <Script file="compatibility.lua"/>
 </Ui>
