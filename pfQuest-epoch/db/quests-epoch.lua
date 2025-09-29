@@ -4954,6 +4954,7 @@ pfDB["quests"]["data-epoch"] = {
     },
     ["lvl"] = 40,
     ["min"] = 40,
+    ["class"] = 2,
   },
   [26442] = {
     ["start"] = {
@@ -8436,6 +8437,7 @@ pfDB["quests"]["data-epoch"] = {
     },
     ["lvl"] = 30,
     ["min"] = 24,
+    ["race"] = 77,
   },
   [26724] = {
     ["start"] = {
@@ -26271,6 +26273,7 @@ pfDB["quests"]["data-epoch"] = {
     ["skillmin"] = 100,
     ["lvl"] = 20,
     ["min"] = 5,
+    ["race"] = 178,
   },
   [28548] = {
     ["start"] = {
