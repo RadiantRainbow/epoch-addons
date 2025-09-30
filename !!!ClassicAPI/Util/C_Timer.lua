@@ -9,7 +9,7 @@ if ( not C_Timer ) then
 		Timer.Ref = nil
 		Timer.Callback = nil
 		Timer.Iteration = nil
-		ObjPool[#ObjPool+1] = Timer
+		ObjPool[#ObjPool + 1] = Timer
 	end
 
 	local function Caller(Self)
@@ -30,10 +30,11 @@ if ( not C_Timer ) then
 	end
 
 	local function New()
-		local Index, Timer = Next(ObjPool)
+		local TimerIndex = #ObjPool
+		local Timer = ObjPool[TimerIndex]
 
 		if ( Timer ) then
-			ObjPool[Index] = nil
+			ObjPool[TimerIndex] = nil
 		else
 			local A = C_Timer:CreateAnimationGroup()
 			Timer = A:CreateAnimation("Animation")

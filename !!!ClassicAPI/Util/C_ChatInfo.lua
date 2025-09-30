@@ -69,8 +69,8 @@ end
 C_ChatInfo.GetChannelRosterInfo = GetChannelRosterInfo
 C_ChatInfo.GetNumActiveChannels = GetNumDisplayChannels
 C_ChatInfo.IsAddonMessagePrefixRegistered = Private.True
+C_ChatInfo.RegisterAddonMessagePrefix = Private.True
 
-C_ChatInfo.RegisterAddonMessagePrefix = Private.Void
 C_ChatInfo.GetRegisteredAddonMessagePrefixes = Private.Void
 
 -- INCOMPLETE

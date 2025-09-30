@@ -14,9 +14,10 @@ local function ActionButton_GetOverlayGlow()
 		unusedOverlayGlows = {}
 	end
 
-	local index, overlay = Next(unusedOverlayGlows)
+	local overlayIndex = #unusedOverlayGlows
+	local overlay = unusedOverlayGlows[overlayIndex]
 	if ( overlay ) then
-		unusedOverlayGlows[index] = nil
+		unusedOverlayGlows[overlayIndex] = nil
 	else
 		numOverlays = numOverlays + 1
 		overlay = CreateFrame("Frame", "ActionButtonOverlay"..numOverlays, UIParent, "ActionBarButtonSpellActivationAlert")
@@ -49,7 +50,7 @@ local function ActionButton_OverlayGlowAnimOutFinished(animGroup)
 	local actionButton = overlay:GetParent()
 
 	if ( unusedOverlayGlows ) then
-		unusedOverlayGlows[#unusedOverlayGlows+1] = overlay
+		unusedOverlayGlows[#unusedOverlayGlows + 1] = overlay
 		actionButton.overlay = nil
 	end
 

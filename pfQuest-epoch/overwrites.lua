@@ -473,7 +473,10 @@ do -- quests
   pfDB["quests"]["data-epoch"][11451] = { } --Remove tbc quest Alicia's Poem
   pfDB["quests"]["data-epoch"][182] = { } --Remove dwarf quest The Troll Cave
   pfDB["quests"]["data-epoch"][8551] = { } --Remove The Captain's Chest (Non elite version)
-  
+  pfDB["quests"]["data-epoch"][3361] = { } -- Remove Original Refugee's Quandary
+  pfDB["quests"]["data-epoch"][551] = { } -- Remove Original The Ensorcelled Parchment
+  pfDB["quests"]["data-epoch"][11185] = { } -- Remove The Apothecary's Letter
+  pfDB["quests"]["data-epoch"][11186] = { } -- Remove Signs of Treachery?
 end
 
 do -- Objects
