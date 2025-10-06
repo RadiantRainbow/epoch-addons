@@ -646,7 +646,8 @@ function pfMap:UpdateNodes()
                                         if
                                             string.find(title, "Warsong") or string.find(title, "Arathi") or
                                                 string.find(title, "Alterac") or
-                                                string.find(title, "Battleground")
+                                                string.find(title, "Battleground") or
+                                                string.find(title, "Call to Skirmish")
                                          then
                                             skipNode = true
                                             break
@@ -953,7 +954,8 @@ function pfMap:UpdateNodes()
                                 if
                                     string.find(title, "Warsong") or string.find(title, "Arathi") or
                                         string.find(title, "Alterac") or
-                                        string.find(title, "Battleground")
+                                        string.find(title, "Battleground") or
+                                        string.find(title, "Call to Skirmish")
                                  then
                                     skipNode = true
                                     break
@@ -1096,7 +1098,6 @@ local function ExtendPfQuestConfig()
             type = "header"
         }
     )
-
     table.insert(
         pfQuest_defconfig,
         {
@@ -1106,7 +1107,6 @@ local function ExtendPfQuestConfig()
             config = "epochContinentPins"
         }
     )
-
     table.insert(
         pfQuest_defconfig,
         {
@@ -1116,7 +1116,6 @@ local function ExtendPfQuestConfig()
             config = "continentClickThrough"
         }
     )
-
     table.insert(
         pfQuest_defconfig,
         {
@@ -1126,7 +1125,6 @@ local function ExtendPfQuestConfig()
             config = "continentNodeSize"
         }
     )
-
     table.insert(
         pfQuest_defconfig,
         {
@@ -1136,7 +1134,6 @@ local function ExtendPfQuestConfig()
             config = "continentUtilityNodeSize"
         }
     )
-
     table.insert(
         pfQuest_defconfig,
         {
@@ -1146,7 +1143,6 @@ local function ExtendPfQuestConfig()
             config = "epochHideChickenQuests"
         }
     )
-
     table.insert(
         pfQuest_defconfig,
         {
@@ -1156,7 +1152,6 @@ local function ExtendPfQuestConfig()
             config = "epochHideFelwoodFlowers"
         }
     )
-
     table.insert(
         pfQuest_defconfig,
         {
@@ -1166,7 +1161,6 @@ local function ExtendPfQuestConfig()
             config = "epochHidePvPQuests"
         }
     )
-
     table.insert(
         pfQuest_defconfig,
         {
@@ -1176,7 +1170,66 @@ local function ExtendPfQuestConfig()
             config = "epochHideCommissionQuests"
         }
     )
-
+    table.insert(
+        pfQuest_defconfig,
+        {
+            text = "|cff33ffccQuest Tracker Style|r",
+            type = "header"
+        }
+    )
+    table.insert(
+        pfQuest_defconfig,
+        {
+            text = "Show Zone Groups (Modern Style)",
+            default = "0",
+            type = "checkbox",
+            config = "trackershowzones"
+        }
+    )
+    table.insert(
+        pfQuest_defconfig,
+        {
+            text = "|cff33ffccQuest Tracker Dimensions|r",
+            type = "header"
+        }
+    )
+    table.insert(
+        pfQuest_defconfig,
+        {
+            text = "Use Fixed Height",
+            default = "0",
+            type = "checkbox",
+            config = "trackerfixedheight"
+        }
+    )
+    table.insert(
+        pfQuest_defconfig,
+        {
+            text = "Tracker Height (pixels)",
+            default = "400",
+            type = "text",
+            config = "trackerheight"
+        }
+    )
+    table.insert(
+        pfQuest_defconfig,
+        {
+            text = "Use Fixed Width",
+            default = "0",
+            type = "checkbox",
+            config = "trackerfixedwidth"
+        }
+    )
+    table.insert(
+        pfQuest_defconfig,
+        {
+            text = "Tracker Width (pixels)",
+            default = "250",
+            type = "text",
+            config = "trackerwidth"
+        }
+    )
+    
     -- Initialize the config values with defaults
     pfQuest_config["epochContinentPins"] = pfQuest_config["epochContinentPins"] or "1"
     pfQuest_config["continentClickThrough"] = pfQuest_config["continentClickThrough"] or "0"
@@ -1186,6 +1239,11 @@ local function ExtendPfQuestConfig()
     pfQuest_config["epochHideFelwoodFlowers"] = pfQuest_config["epochHideFelwoodFlowers"] or "1"
     pfQuest_config["epochHidePvPQuests"] = pfQuest_config["epochHidePvPQuests"] or "1"
     pfQuest_config["epochHideCommissionQuests"] = pfQuest_config["epochHideCommissionQuests"] or "0"
+    pfQuest_config["trackershowzones"] = pfQuest_config["trackershowzones"] or "0"
+    pfQuest_config["trackerfixedheight"] = pfQuest_config["trackerfixedheight"] or "0"
+    pfQuest_config["trackerheight"] = pfQuest_config["trackerheight"] or "400"
+    pfQuest_config["trackerfixedwidth"] = pfQuest_config["trackerfixedwidth"] or "0"
+    pfQuest_config["trackerwidth"] = pfQuest_config["trackerwidth"] or "250"
 end
 
 local f = CreateFrame("Frame")

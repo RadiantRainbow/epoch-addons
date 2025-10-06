@@ -1306,6 +1306,13 @@ do -- units/npcs
   -- Remove Eye of the Storm PVP Quests
   pfDB["quests"]["data-epoch"][11337] = { } --Call to Arms: Eye of the Storm
   pfDB["quests"]["data-epoch"][11341] = { } --Call to Arms: Eye of the Storm
+
+  -- Remove Libram Quests
+  pfDB["quests"]["data-epoch"][4463] = { } --Libram of Rumination
+  pfDB["quests"]["data-epoch"][4481] = { } --Libram of Constitution
+  pfDB["quests"]["data-epoch"][4482] = { } --Libram of Tenacity
+  pfDB["quests"]["data-epoch"][4483] = { } --Libram of Resilience
+  pfDB["quests"]["data-epoch"][4484] = { } --Libram of Voracity
 end
 
 do -- quests
@@ -1346,7 +1353,9 @@ do -- quests
   pfDB["quests"]["data-epoch"][7581] = { } -- Remove The Prison's Bindings
   pfDB["quests"]["data-epoch"][7582] = { } -- Remove The Prison's Casing
   pfDB["quests"]["data-epoch"][7583] = { } -- Remove Suppression
-  pfDB["quests"]["data-epoch"][14387] = { } -- Remove old Attunment to the Core
+  pfDB["quests"]["data-epoch"][7487] = { } -- Remove old Attunment to the Core
+  pfDB["quests"]["data-epoch"][7848] = { } -- Remove old Attunment to the Core
+  pfDB["quests"]["data-epoch"][349] = { } -- Remove weird Stranglethorn Fever temp log
 end
 
 do -- Objects

@@ -87,6 +87,27 @@ local moduleState = {
 -- UTILITY FUNCTIONS
 -- ===============================================================
 local function noop() end
+-- Oculta de forma persistente los textos vanilla del PetFrame (vida/poder)
+local function HideBlizzardPetTexts()
+    local petTexts = {
+        _G.PetFrameHealthBar and _G.PetFrameHealthBar.TextString,
+        _G.PetFrameManaBar and _G.PetFrameManaBar.TextString,
+        _G.PetFrameHealthBarText,
+        _G.PetFrameManaBarText
+    }
+    for _, t in pairs(petTexts) do
+        if t and not t.DragonUIHidden then
+            t:SetAlpha(0)
+            t.DragonUIShow = t.Show
+            t.Show = function(self)
+                self:SetAlpha(0)
+                -- opcional: no llamar al Show original para evitar parpadeos
+            end
+            t:Hide()
+            t.DragonUIHidden = true
+        end
+    end
+end
 
 -- ===============================================================
 -- FRAME POSITIONING
@@ -239,8 +260,7 @@ local function ReplaceBlizzardPetFrame()
     PetFrameTexture:Hide()
     
     -- Hide original text elements to avoid conflicts
-    if PetFrameHealthBarText then PetFrameHealthBarText:Hide() end
-    if PetFrameManaBarText then PetFrameManaBarText:Hide() end
+    HideBlizzardPetTexts()
     
     -- Setup portrait
     local portrait = PetPortrait
@@ -377,6 +397,9 @@ local function OnPetFrameUpdate()
     if moduleState.textSystem and moduleState.textSystem.update then
         moduleState.textSystem.update()
     end
+
+    -- Asegurar que los textos vanilla sigan ocultos
+    HideBlizzardPetTexts()
 end
 
 -- ===============================================================
@@ -387,6 +410,8 @@ function PetFrameModule:OnEnable()
         hooksecurefunc('PetFrame_Update', OnPetFrameUpdate)
         moduleState.hooks.petUpdate = true
     end
+    -- Ocultar textos vanilla al habilitar el módulo
+    HideBlizzardPetTexts()
 end
 
 function PetFrameModule:OnDisable()
@@ -397,6 +422,8 @@ end
 
 function PetFrameModule:PLAYER_ENTERING_WORLD()
     ReplaceBlizzardPetFrame()
+    -- Redundancia defensiva por si Blizzard re-activa los textos
+    HideBlizzardPetTexts()
 end
 
 -- ===============================================================

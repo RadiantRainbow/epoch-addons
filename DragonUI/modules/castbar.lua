@@ -1638,30 +1638,25 @@ if TargetFrameSpellBar then
     end)
 end
 
--- NUEVO: Hook para detectar apertura del mapa mundial que puede pausar casting
+-- [[ O P R A V A ]] --
+-- Hook pro detekci otevření mapy světa, což může pozastavit kouzlení.
+-- Přejmenovali jsme lokální proměnné, abychom předešli "taint" chybě způsobené konfliktem názvů.
 if WorldMapFrame then
-    local originalShow = WorldMapFrame.Show
-    local originalHide = WorldMapFrame.Hide
-    
-    WorldMapFrame.Show = function(self)
-        if originalShow then originalShow(self) end
-        
+    hooksecurefunc(WorldMapFrame, "Show", function()
         -- Sincronizar castbar del player cuando se abre el mapa
         local state = CastbarModule.states.player
         if state and (state.casting or state.isChanneling) then
             state.lastServerCheck = 0  -- Forzar verificación inmediata
         end
-    end
+    end)
     
-    WorldMapFrame.Hide = function(self)
-        if originalHide then originalHide(self) end
-        
+    hooksecurefunc(WorldMapFrame, "Hide", function()
         -- Sincronizar castbar del player cuando se cierra el mapa
         local state = CastbarModule.states.player
         if state and (state.casting or state.isChanneling) then
             state.lastServerCheck = 0  -- Forzar verificación inmediata
         end
-    end
+    end)
 end
 
 -- ============================================================================
