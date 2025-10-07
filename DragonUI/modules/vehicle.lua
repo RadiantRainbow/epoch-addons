@@ -348,7 +348,7 @@ local function SetupVehicleLeaveButton()
     end
     
     vehicleLeave:SetSize(config.additional.size, config.additional.size)
-    vehicleLeave:SetPoint('TOPLEFT', config.additional.vehicle.x_position, 0)
+    vehicleLeave:SetPoint('TOPLEFT', config.additional.vehicle.x_position, -5)
     vehicleLeave:SetNormalTexture('Interface\\Vehicles\\UI-Vehicles-Button-Exit-Up')
     vehicleLeave:GetNormalTexture():SetTexCoord(0.140625, 0.859375, 0.140625, 0.859375)
     vehicleLeave:SetPushedTexture('Interface\\Vehicles\\UI-Vehicles-Button-Exit-Down')
@@ -384,7 +384,7 @@ local function SetupVehicleExitButton()
     end
     
     vehicleExit:SetSize(config.additional.size, config.additional.size)
-    vehicleExit:SetPoint('TOPLEFT', config.additional.vehicle.x_position, 0)
+    vehicleExit:SetPoint('TOPLEFT', config.additional.vehicle.x_position, -5)
     vehicleExit:SetNormalTexture('Interface\\Vehicles\\UI-Vehicles-Button-Exit-Up')
     vehicleExit:GetNormalTexture():SetTexCoord(0.140625, 0.859375, 0.140625, 0.859375)
     vehicleExit:SetPushedTexture('Interface\\Vehicles\\UI-Vehicles-Button-Exit-Down')
@@ -648,14 +648,14 @@ function addon.RefreshVehicle()
     if vehicleLeave then
         vehicleLeave:SetSize(btnsize, btnsize)
         vehicleLeave:ClearAllPoints()
-        vehicleLeave:SetPoint('TOPLEFT', x_position, 0)
+        vehicleLeave:SetPoint('TOPLEFT', x_position, -5)
     end
     
     -- Update vehicle exit button if it exists
     if vehicleExit then
         vehicleExit:SetSize(btnsize, btnsize)
         vehicleExit:ClearAllPoints()
-        vehicleExit:SetPoint('TOPLEFT', x_position, 0)
+        vehicleExit:SetPoint('TOPLEFT', x_position, -5)
     end
     
     -- Update vehicle bar background scale

@@ -1,7 +1,5 @@
 local addon = select(2, ...)
 
-
-
 -- ====================================================================
 -- DRAGONUI PLAYER FRAME MODULE - Optimized for WoW 3.3.5a
 -- ====================================================================
@@ -10,11 +8,20 @@ local addon = select(2, ...)
 -- MODULE VARIABLES & CONFIGURATION
 -- ============================================================================
 
-local Module = {}
-Module.playerFrame = nil
-Module.textSystem = nil
-Module.initialized = false
-Module.eventsFrame = nil
+-- Variable para defer aplicación después de combate
+local deferredPositionUpdate = false
+
+-- MEJORAR: Añadir tracking de módulo como otras partes del addon
+local Module = {
+    playerFrame = nil,
+    textSystem = nil,
+    initialized = false,
+    eventsFrame = nil,
+    -- AÑADIR: State tracking según patrón DragonUI
+    hooks = {},
+    registeredEvents = {},
+    originalStates = {}
+}
 -- Animation variables for Combat Flash pulse effect
 local combatPulseTimer = 0
 local eliteStatusPulseTimer = 0
@@ -145,9 +152,14 @@ local function GetPlayerConfig()
             config[key] = value
         end
     end
+
+    -- Defaults específicos para runas DK si no están en database
+    if config.show_runes == nil then
+        config.show_runes = true -- Mostrar runas por defecto
+    end
+
     return config
 end
-
 
 -- ============================================================================
 -- BLIZZARD FRAME MANAGEMENT
@@ -155,28 +167,23 @@ end
 -- Hide Blizzard's original player frame texts permanently using alpha 0
 local function HideBlizzardPlayerTexts()
     -- Get Blizzard's ORIGINAL text elements (not our custom ones)
-    local blizzardTexts = {
-        -- These are the actual Blizzard frame text elements in WoW 3.3.5a
-        PlayerFrameHealthBar.TextString,
-        PlayerFrameManaBar.TextString,
-        -- Alternative names that might exist
-        _G.PlayerFrameHealthBarText,
-        _G.PlayerFrameManaBarText
-    }
-    
+    local blizzardTexts = { -- These are the actual Blizzard frame text elements in WoW 3.3.5a
+    PlayerFrameHealthBar.TextString, PlayerFrameManaBar.TextString, -- Alternative names that might exist
+    _G.PlayerFrameHealthBarText, _G.PlayerFrameManaBarText}
+
     -- Hide each BLIZZARD text element permanently with alpha 0 (ONE TIME SETUP)
     for _, textElement in pairs(blizzardTexts) do
         if textElement and not textElement.DragonUIHidden then
             -- Set alpha to 0 immediately (taint-free)
             textElement:SetAlpha(0)
-            
+
             -- Override Show function to maintain permanent invisibility
             textElement.DragonUIShow = textElement.Show
             textElement.Show = function(self)
                 -- Always stay invisible - no timer needed
                 self:SetAlpha(0)
             end
-            
+
             -- Mark as processed to avoid duplicate setup
             textElement.DragonUIHidden = true
         end
@@ -430,7 +437,7 @@ local function PlayerFrame_OnUpdate(self, elapsed)
     end)
 
     if not success then
-        
+
     end
 end
 
@@ -464,11 +471,10 @@ local function UpdateRune(button)
     end
 end
 
--- Setup Death Knight rune frame
+-- Setup Death Knight rune frame (improved like RetailUI)
 local function SetupRuneFrame()
-    if select(2, UnitClass("player")) ~= "DEATHKNIGHT" then
-        return
-    end
+    -- WoW automáticamente maneja la disponibilidad de runas para DKs
+    -- No necesitamos verificar la clase manualmente
 
     for index = 1, 6 do
         local button = _G['RuneButtonIndividual' .. index]
@@ -477,9 +483,24 @@ local function SetupRuneFrame()
             if index > 1 then
                 button:SetPoint('LEFT', _G['RuneButtonIndividual' .. (index - 1)], 'RIGHT', 4, 0)
             else
-                button:SetPoint('CENTER', PlayerFrame, 'BOTTOM', -20, 0)
+                button:SetPoint('CENTER', PlayerFrame, 'BOTTOM', -10, 15)
             end
             UpdateRune(button)
+        end
+    end
+end
+
+-- Handle Death Knight runes in vehicle transitions (like RetailUI)
+local function HandleRuneFrameVehicleTransition(toVehicle)
+    for index = 1, 6 do
+        local button = _G['RuneButtonIndividual' .. index]
+        if button then
+            if toVehicle then
+                button:Hide() -- Ocultar runas en vehículo
+            else
+                button:Show() -- Mostrar runas fuera de vehículo
+                UpdateRune(button) -- Actualizar al salir de vehículo
+            end
         end
     end
 end
@@ -591,26 +612,90 @@ local function UpdateMasterIconPosition()
     end
 end
 
+-- Función simple para ocultar/mostrar decoración de dragón en vehículo
+local function UpdateDragonVisibilityForVehicle(inVehicle, hasEliteDecoration)
+    if not hasEliteDecoration then
+        return -- Solo actuar si hay decoración elite
+    end
+    
+    local dragonFrame = _G["DragonUIUnitframeFrame"]
+    if not dragonFrame then
+        return
+    end
+    
+    -- Solo cambiar alpha de la decoración del dragón
+    if dragonFrame.PlayerDragonDecoration then
+        if inVehicle then
+            dragonFrame.PlayerDragonDecoration:SetAlpha(0) -- Ocultar en vehículo
+        else
+            dragonFrame.PlayerDragonDecoration:SetAlpha(1) -- Mostrar fuera de vehículo
+        end
+    end
+end
+
+-- Función para poner el timer PVP por encima del dragón Y reposicionarlo
+local function UpdatePVPTimerPosition(isEliteMode)
+    local pvpTimerText = _G["PlayerPVPTimerText"]
+    if not pvpTimerText then
+        return
+    end
+    
+    -- SOLO modificar si hay decoración elite (elite, rareelite, worldboss, etc.)
+    if isEliteMode then
+        -- Con decoración elite: usar el MISMO parent que el icono PVP (que ya está por encima)
+        local dragonFrame = _G["DragonUIUnitframeFrame"]
+        if dragonFrame and dragonFrame.EliteIconContainer then
+            -- 1. Reparentar al mismo contenedor que el icono PVP
+            pvpTimerText:SetParent(dragonFrame.EliteIconContainer)
+            pvpTimerText:SetDrawLayer("OVERLAY", 7)
+            
+            -- 2. Reposicionar el timer (ajusta estas coordenadas como quieras)
+            pvpTimerText:ClearAllPoints()
+            pvpTimerText:SetPoint("CENTER", PlayerPVPIcon, "LEFT", 22, 38)  -- A la izquierda del icono
+            
+            -- Opcional: ajustar tamaño del texto para mejor visibilidad
+            pvpTimerText:SetFont(pvpTimerText:GetFont(), 11, "OUTLINE")
+        end
+    end
+    -- SIN decoración elite: NO tocar nada, dejar parent, layer y posición originales de Blizzard
+end
+
 local function UpdatePVPIconPosition()
     if not PlayerPVPIcon then
+        return
+    end
+
+    -- ARREGLO: Verificar que el frame existe antes de continuar
+    local dragonFrame = _G["DragonUIUnitframeFrame"]
+    if not dragonFrame or not dragonFrame.EliteIconContainer then
         return
     end
 
     local config = GetPlayerConfig()
     local decorationType = config.dragon_decoration or "none"
     local isEliteMode = decorationType == "elite" or decorationType == "rareelite"
+    local hasVehicleUI = UnitHasVehicleUI("player")
+
+    local iconContainer = dragonFrame.EliteIconContainer
+    PlayerPVPIcon:SetParent(iconContainer)
+    PlayerPVPIcon:ClearAllPoints()
 
     if isEliteMode then
-        local iconContainer = _G["DragonUIUnitframeFrame"].EliteIconContainer
-        PlayerPVPIcon:SetParent(iconContainer)
-        PlayerPVPIcon:ClearAllPoints()
+        -- Modo elite: posición específica
         PlayerPVPIcon:SetPoint("TOPRIGHT", PlayerFrame, "TOPRIGHT", -155, -22)
     else
-        local iconContainer = _G["DragonUIUnitframeFrame"].EliteIconContainer
-        PlayerPVPIcon:SetParent(iconContainer)
-        PlayerPVPIcon:ClearAllPoints()
-        PlayerPVPIcon:SetPoint("TOPRIGHT", PlayerFrame, "TOPRIGHT", -155, -22)
+        -- Modo normal: diferenciar entre vehículo y player
+        if hasVehicleUI then
+            -- AQUÍ MODIFICAS LA POSICIÓN PARA VEHÍCULO
+            PlayerPVPIcon:SetPoint("TOPRIGHT", PlayerFrame, "TOPRIGHT", -149, -25)
+        else
+            -- Posición normal del player
+            PlayerPVPIcon:SetPoint("TOPRIGHT", PlayerFrame, "TOPRIGHT", -155, -22)
+        end
     end
+    
+    -- NUEVO: Reposicionar el timer de PVP según el modo
+    UpdatePVPTimerPosition(isEliteMode)
 end
 
 -- Master function to update all leadership icons positioning
@@ -695,10 +780,33 @@ local function UpdatePowerBarTexture(statusBar)
     local currentTexture = statusBar:GetStatusBarTexture():GetTexture()
     if currentTexture ~= powerTexture then
         statusBar:GetStatusBarTexture():SetTexture(powerTexture)
-        
+
     end
 end
+-- ============================================================================
+-- VEHICLE SYSTEM INTEGRATION
+-- ============================================================================
 
+-- Function to update textSystem unit based on vehicle state
+local function UpdateTextSystemUnit()
+    if not Module.textSystem then
+        return
+    end
+
+    local hasVehicleUI = UnitHasVehicleUI("player")
+    local targetUnit = hasVehicleUI and "vehicle" or "player"
+
+    -- Update both the public unit field and internal reference
+    Module.textSystem.unit = targetUnit
+    if Module.textSystem._unitRef then
+        Module.textSystem._unitRef.unit = targetUnit
+    end
+
+    -- Force immediate update
+    if Module.textSystem.update then
+        Module.textSystem.update()
+    end
+end
 -- ============================================================================
 -- FRAME CREATION & CONFIGURATION
 -- ============================================================================
@@ -818,7 +926,7 @@ local function UpdatePlayerDragonDecoration()
     -- Get dragon coordinates
     local coords = DRAGON_COORDINATES[decorationType]
     if not coords then
-        
+
         return
     end
 
@@ -841,7 +949,6 @@ local function UpdatePlayerDragonDecoration()
 
     UpdateLeadershipIcons() -- Reposicionar icons de liderazgo
 
-    
 end
 
 -- Create custom DragonUI textures and elements
@@ -849,7 +956,7 @@ local function CreatePlayerFrameTextures()
     local dragonFrame = _G["DragonUIUnitframeFrame"]
     if not dragonFrame then
         dragonFrame = CreateFrame('FRAME', 'DragonUIUnitframeFrame', UIParent)
-        
+
     end
 
     HideBlizzardGlows()
@@ -880,7 +987,6 @@ local function CreatePlayerFrameTextures()
         dragonFrame.DragonUICombatGlow = combatFlashFrame
         dragonFrame.DragonUICombatTexture = combatTexture
 
-        
     end
 
     -- CREATE ELITE GLOW SYSTEM - Two glows using ELITE_GLOW_COORDINATES
@@ -919,7 +1025,6 @@ local function CreatePlayerFrameTextures()
         dragonFrame.EliteCombatGlow = combatFrame
         dragonFrame.EliteCombatTexture = eliteCombatTexture
 
-        
     end
 
     -- Create background texture
@@ -1051,7 +1156,6 @@ local function CreatePlayerFrameTextures()
     UpdatePlayerDragonDecoration()
 end
 
-
 -- Main frame configuration function
 local function ChangePlayerframe()
     CreatePlayerFrameTextures()
@@ -1060,11 +1164,19 @@ local function ChangePlayerframe()
 
     local hasVehicleUI = UnitHasVehicleUI("player")
 
-    -- Configure portrait
+    -- Configure portrait with vehicle-specific positioning
     PlayerPortrait:ClearAllPoints()
     PlayerPortrait:SetDrawLayer('ARTWORK', 5)
-    PlayerPortrait:SetPoint('TOPLEFT', PlayerFrame, 'TOPLEFT', 42, -15)
-    PlayerPortrait:SetSize(hasVehicleUI and 62 or 56, hasVehicleUI and 62 or 56)
+    
+    if hasVehicleUI then
+        -- PERSONALIZAR: Posición específica para vehículo
+        PlayerPortrait:SetPoint('TOPLEFT', PlayerFrame, 'TOPLEFT', 47, -17) -- Ajusta X e Y aquí
+        PlayerPortrait:SetSize(56, 56)
+    else
+        -- Posición normal del player
+        PlayerPortrait:SetPoint('TOPLEFT', PlayerFrame, 'TOPLEFT', 42, -15)
+        PlayerPortrait:SetSize(56, 56)
+    end
 
     -- Position name and level
     PlayerName:ClearAllPoints()
@@ -1074,12 +1186,12 @@ local function ChangePlayerframe()
 
     -- Configure health bar
     PlayerFrameHealthBar:ClearAllPoints()
-    PlayerFrameHealthBar:SetSize(hasVehicleUI and 117 or 125, 20)
+    PlayerFrameHealthBar:SetSize(125, 20) -- Mismo tamaño siempre para consistencia
     PlayerFrameHealthBar:SetPoint('LEFT', PlayerPortrait, 'RIGHT', 1, 0)
 
     -- Configure mana bar
     PlayerFrameManaBar:ClearAllPoints()
-    PlayerFrameManaBar:SetSize(hasVehicleUI and 117 or 125, hasVehicleUI and 9 or 8)
+    PlayerFrameManaBar:SetSize(125, hasVehicleUI and 9 or 8) -- Ancho consistente, altura dinámica
     PlayerFrameManaBar:SetPoint('LEFT', PlayerPortrait, 'RIGHT', 1, -16.5)
 
     -- Set power bar texture based on type
@@ -1121,17 +1233,19 @@ local function ChangePlayerframe()
     end
 
     -- Setup class-specific elements
-    SetupRuneFrame()
+    local config = GetPlayerConfig()
+    if config.show_runes ~= false then -- Solo setup si no est\u00e1 expl\u00edcitamente deshabilitado
+        SetupRuneFrame()
+    end
     UpdatePlayerRoleIcon()
     UpdateGroupIndicator()
     UpdateHealthBarColor(PlayerFrameHealthBar, "player")
     UpdateManaBarColor(PlayerFrameManaBar)
     UpdateLeadershipIcons()
-    
+
     -- Hide Blizzard texts after frame configuration
     HideBlizzardPlayerTexts()
 
-    
 end
 
 local function SetCombatFlashVisible(visible)
@@ -1163,6 +1277,11 @@ end
 
 --  FUNCIÓN PARA APLICAR POSICIÓN DESDE WIDGETS (COMO MINIMAP)
 local function ApplyWidgetPosition()
+    -- SEGURO: No modificar frames seguros durante combate
+    if InCombatLockdown() then
+        return
+    end
+
     local widgetConfig = addon:GetConfigValue("widgets", "player")
     if not widgetConfig then
         -- Si no hay widgets config, usar defaults
@@ -1173,21 +1292,31 @@ local function ApplyWidgetPosition()
         }
     end
 
-    --  CLAVE: Posicionar el frame auxiliar
-    Module.playerFrame:ClearAllPoints()
-    Module.playerFrame:SetPoint(
-        widgetConfig.anchor or "TOPLEFT", 
-        UIParent, 
-        widgetConfig.anchor or "TOPLEFT",
-        widgetConfig.posX or -19,
-        widgetConfig.posY or -4
-    )
-    
-    --  CLAVE: Anclar PlayerFrame al auxiliar (sistema RetailUI)
-    PlayerFrame:ClearAllPoints()
-    PlayerFrame:SetPoint("CENTER", Module.playerFrame, "CENTER", -15, -7)
+    -- SEGURO: Proteger con pcall
+    local success, err = pcall(function()
+        --  CLAVE: Posicionar el frame auxiliar
+        Module.playerFrame:ClearAllPoints()
+        Module.playerFrame:SetPoint(widgetConfig.anchor or "TOPLEFT", UIParent, widgetConfig.anchor or "TOPLEFT",
+            widgetConfig.posX or -19, widgetConfig.posY or -4)
 
-    
+        --  CLAVE: Anclar PlayerFrame al auxiliar (sistema RetailUI)
+        PlayerFrame:ClearAllPoints()
+
+        -- Ajustar posición ligeramente según si es vehículo o normal
+        local hasVehicleUI = UnitHasVehicleUI("player")
+        if hasVehicleUI then
+            -- Posición del vehículo: un poco más arriba-izquierda para alinearse mejor
+            PlayerFrame:SetPoint("CENTER", Module.playerFrame, "CENTER", -20, -5)
+        else
+            -- Posición normal del player
+            PlayerFrame:SetPoint("CENTER", Module.playerFrame, "CENTER", -15, -7)
+        end
+    end)
+
+    if not success then
+        -- Log error silently pero no interrumpir
+        -- print("DragonUI: Error applying widget position:", err)
+    end
 end
 
 -- Apply configuration settings
@@ -1204,17 +1333,21 @@ local function ApplyPlayerConfig()
     local dragonFrame = _G["DragonUIUnitframeFrame"]
     if dragonFrame and addon.TextSystem then
         if not Module.textSystem then
-            Module.textSystem = addon.TextSystem.SetupFrameTextSystem("player", "player", dragonFrame,
+            -- Initialize with dynamic unit based on vehicle state
+            local initialUnit = UnitHasVehicleUI("player") and "vehicle" or "player"
+            Module.textSystem = addon.TextSystem.SetupFrameTextSystem("player", initialUnit, dragonFrame,
                 PlayerFrameHealthBar, PlayerFrameManaBar, "PlayerFrame")
         end
         if Module.textSystem then
+            -- Ensure we have the correct unit after setup
+            UpdateTextSystemUnit()
             Module.textSystem.update()
         end
     end
 
     UpdatePlayerDragonDecoration()
     UpdateGlowVisibility()
-    
+
 end
 
 -- ============================================================================
@@ -1229,7 +1362,7 @@ local function ResetPlayerFrame()
         addon:SetConfigValue("unitframe", "player", key, value)
     end
     ApplyPlayerConfig()
-    
+
 end
 
 -- Refresh frame configuration
@@ -1248,7 +1381,6 @@ local function RefreshPlayerFrame()
         Module.textSystem.update()
     end
 
-    
 end
 
 -- ============================================================================
@@ -1265,7 +1397,7 @@ local function SetupPlayerClassColorHooks()
         end)
 
         _G.DragonUI_PlayerHealthHookSetup = true
-        
+
     end
 end
 -- Initialize the PlayerFrame module
@@ -1273,11 +1405,63 @@ local function InitializePlayerFrame()
     if Module.initialized then
         return
     end
+    
+    -- SEGURO: No inicializar durante combate
+    if InCombatLockdown() then
+        -- Registrar para inicializar después del combate
+        local combatFrame = CreateFrame("Frame")
+        combatFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+        combatFrame:SetScript("OnEvent", function(self)
+            self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+            InitializePlayerFrame()
+        end)
+        return
+    end
 
-    if _G.PlayerFrame_ToVehicleArt then
-        hooksecurefunc("PlayerFrame_ToVehicleArt", function()
-            -- Reconfigurar textures para vehículo
-            ChangePlayerframe()
+    -- Setup vehicle transition hooks con función segura
+    local function SafeHookSecureFunc(funcName, hookFunc)
+        if _G[funcName] and type(_G[funcName]) == "function" then
+            hooksecurefunc(funcName, hookFunc)
+        end
+    end
+
+    -- Setup vehicle transition hooks con seguridad
+    SafeHookSecureFunc("PlayerFrame_ToVehicleArt", function()
+        -- Reconfigurar textures para vehículo
+        ChangePlayerframe()
+        -- Ocultar runas DK en vehículo
+        HandleRuneFrameVehicleTransition(true)
+    end)
+
+    SafeHookSecureFunc("PlayerFrame_ToPlayerArt", function()
+        -- Mostrar runas DK al salir de vehículo
+        HandleRuneFrameVehicleTransition(false)
+    end)
+
+    -- SEGURO: Hook con protección adicional
+    SafeHookSecureFunc("PlayerFrame_UpdateStatus", PlayerFrame_UpdateStatus)
+    SafeHookSecureFunc("PlayerFrame_UpdateArt", ChangePlayerframe)
+    SafeHookSecureFunc("UnitFrameHealthBar_Update", function(statusbar, unit)
+        if statusbar == PlayerFrameHealthBar and unit == "player" then
+            UpdatePlayerHealthBarColor()
+        end
+    end)
+
+    -- Hook para actualizar posición del timer PVP cuando aparece/cambia
+    local pvpTimerText = _G["PlayerPVPTimerText"]
+    if pvpTimerText and pvpTimerText.HookScript then
+        pvpTimerText:HookScript("OnShow", function()
+            local config = GetPlayerConfig()
+            local decorationType = config.dragon_decoration or "none"
+            local isEliteMode = decorationType == "elite" or decorationType == "rareelite"
+            UpdatePVPTimerPosition(isEliteMode)
+        end)
+        -- También actualizar cuando el texto cambia
+        pvpTimerText:HookScript("OnTextChanged", function()
+            local config = GetPlayerConfig()
+            local decorationType = config.dragon_decoration or "none"
+            local isEliteMode = decorationType == "elite" or decorationType == "rareelite"
+            UpdatePVPTimerPosition(isEliteMode)
         end)
     end
 
@@ -1340,12 +1524,12 @@ local function InitializePlayerFrame()
             end)
         end
     end
-    
+
     -- Hide Blizzard texts after module initialization
     HideBlizzardPlayerTexts()
-    
+
     Module.initialized = true
-    
+
 end
 
 -- ============================================================================
@@ -1369,9 +1553,14 @@ local function SetupPlayerEvents()
 
     -- Event handlers
     local handlers = {
-        PLAYER_REGEN_DISABLED = function()
+        PLAYER_REGEN_ENABLED = function()
             UpdateBothBars()
-            SetCombatFlashVisible(true)
+            SetCombatFlashVisible(false)
+            -- SEGURO: Aplicar cambios diferidos después del combate
+            if deferredPositionUpdate then
+                ApplyWidgetPosition()
+                deferredPositionUpdate = false
+            end
         end,
 
         PLAYER_REGEN_ENABLED = function()
@@ -1390,11 +1579,17 @@ local function SetupPlayerEvents()
             ApplyPlayerConfig()
             -- Ensure Blizzard texts are hidden after entering world
             HideBlizzardPlayerTexts()
+            -- Update textSystem unit in case of reload while in vehicle
+            UpdateTextSystemUnit()
         end,
 
         RUNE_TYPE_UPDATE = function(runeIndex)
-            if runeIndex then
-                UpdateRune(_G['RuneButtonIndividual' .. runeIndex])
+            -- Mejorado: manejo más robusto del evento
+            if runeIndex and runeIndex >= 1 and runeIndex <= 6 then
+                local button = _G['RuneButtonIndividual' .. runeIndex]
+                if button then
+                    UpdateRune(button)
+                end
             end
         end,
 
@@ -1405,6 +1600,50 @@ local function SetupPlayerEvents()
         UNIT_AURA = function(unit)
             if unit == "player" then
                 UpdateBothBars()
+            end
+        end,
+
+        -- Vehicle events for proper unit switching
+        UNIT_ENTERED_VEHICLE = function(unit)
+            if unit == "player" then
+                UpdateTextSystemUnit()
+                UpdateBothBars()
+                -- Force textSystem update after unit change
+                if Module.textSystem and Module.textSystem.update then
+                    Module.textSystem.update()
+                end
+                
+                -- NUEVO: Ocultar decoración de dragón al entrar al vehículo
+                local config = GetPlayerConfig()
+                local decorationType = config.dragon_decoration or "none"
+                local isEliteMode = decorationType == "elite" or decorationType == "rareelite"
+                UpdateDragonVisibilityForVehicle(true, isEliteMode)
+            end
+        end,
+
+        UNIT_EXITED_VEHICLE = function(unit)
+            if unit == "player" then
+                UpdateTextSystemUnit()
+                UpdateBothBars()
+                -- Force textSystem update after unit change and trigger health events
+                if Module.textSystem and Module.textSystem.update then
+                    Module.textSystem.update()
+                end
+                
+                -- NUEVO: Mostrar decoración de dragón al salir del vehículo
+                local config = GetPlayerConfig()
+                local decorationType = config.dragon_decoration or "none"
+                local isEliteMode = decorationType == "elite" or decorationType == "rareelite"
+                UpdateDragonVisibilityForVehicle(false, isEliteMode)
+                -- Force health and power updates to ensure bars show correctly
+                if PlayerFrameHealthBar then
+                    PlayerFrameHealthBar:GetScript("OnEvent")(PlayerFrameHealthBar, "UNIT_HEALTH", "player")
+                end
+                if PlayerFrameManaBar then
+                    PlayerFrameManaBar:GetScript("OnEvent")(PlayerFrameManaBar, "UNIT_POWER_UPDATE", "player")
+                    -- SOLUCIÓN: Restaurar el pintado blanco para pureza de textura
+                    UpdateManaBarColor(PlayerFrameManaBar)
+                end
             end
         end
     }
@@ -1443,9 +1682,7 @@ local function SetupPlayerEvents()
         end
     end)
 
-    
 end
-
 
 -- ============================================================================
 -- MODULE STARTUP
@@ -1457,6 +1694,115 @@ SetupPlayerClassColorHooks()
 
 -- Hide Blizzard texts after initialization
 HideBlizzardPlayerTexts()
+
+-- ===============================================================
+-- HOOKS PARA MANTENER POSICIÓN EN TRANSICIONES DE VEHÍCULO
+-- ===============================================================
+
+-- Hook PlayerFrame_ToPlayerArt (al salir del vehículo)
+hooksecurefunc("PlayerFrame_ToPlayerArt", function()
+    if InCombatLockdown() then
+        deferredPositionUpdate = true
+        return
+    end
+    -- Aplicar posición inmediatamente después de la transición
+    ApplyWidgetPosition()
+    
+    -- CRÍTICO: Sistema robusto para restaurar estiramiento de mana bar en modo decoración
+    local config = GetPlayerConfig()
+    local decorationType = config.dragon_decoration or "none"
+    local isEliteMode = decorationType == "elite" or decorationType == "rareelite"
+    
+    -- NUEVO: Mostrar decoración de dragón al salir del vehículo
+    UpdateDragonVisibilityForVehicle(false, isEliteMode)
+    
+    if isEliteMode then
+        -- Inmediato: primer intento
+        ChangePlayerframe()
+        UpdateLeadershipIcons()
+        
+        -- Con delay: segundo intento más robusto usando OnUpdate (compatible con 3.3.5a)
+        local delayFrame = CreateFrame("Frame")
+        local attempts = 0
+        delayFrame:SetScript("OnUpdate", function(self, elapsed)
+            attempts = attempts + 1
+            if attempts >= 3 then -- Después de 3 frames (~0.1s)
+                -- Re-aplicar completamente el frame
+                ChangePlayerframe()
+                
+                -- ESPECÍFICO: Forzar el estiramiento de mana bar si no se aplicó correctamente
+                if PlayerFrameManaBar then
+                    local hasVehicleUI = UnitHasVehicleUI("player")
+                    local normalWidth = hasVehicleUI and 117 or 125
+                    local extendedWidth = hasVehicleUI and 130 or 130
+                    
+                    PlayerFrameManaBar:ClearAllPoints()
+                    PlayerFrameManaBar:SetSize(extendedWidth, hasVehicleUI and 9 or 8)
+                    -- CLAVE: Anclar por el lado DERECHO para estiramiento hacia la izquierda
+                    PlayerFrameManaBar:SetPoint('RIGHT', PlayerPortrait, 'RIGHT', 1 + normalWidth, -16.5)
+                end
+                
+                -- También actualizar iconos y decoración
+                UpdateLeadershipIcons()
+                
+                -- Limpiar el frame temporal
+                self:SetScript("OnUpdate", nil)
+            end
+        end)
+    else
+        -- Sin decoración: comportamiento normal
+        ChangePlayerframe()
+        UpdateLeadershipIcons()
+    end
+end)
+
+-- Hook PlayerFrame_ToVehicleArt con seguridad
+hooksecurefunc("PlayerFrame_ToVehicleArt", function()
+    if InCombatLockdown() then
+        deferredPositionUpdate = true
+        return
+    end
+    -- Aplicar posición inmediatamente después de la transición  
+    ApplyWidgetPosition()
+    
+    -- NUEVO: Ocultar decoración de dragón al entrar al vehículo
+    local config = GetPlayerConfig()
+    local decorationType = config.dragon_decoration or "none"
+    local isEliteMode = decorationType == "elite" or decorationType == "rareelite"
+    UpdateDragonVisibilityForVehicle(true, isEliteMode)
+end)
+
+-- Hook PlayerFrame_SequenceFinished (final de animaciones)
+if PlayerFrame_SequenceFinished then
+    hooksecurefunc("PlayerFrame_SequenceFinished", function()
+        ApplyWidgetPosition()
+    end)
+end
+
+-- SOLUCIÓN ANTI-PARPADEO: Hook SetPoint del PlayerFrame para interceptar movimientos no deseados
+local originalPlayerFrameSetPoint = PlayerFrame.SetPoint
+PlayerFrame.SetPoint = function(self, point, relativeTo, relativePoint, x, y)
+    -- SEGURO: Verificar combat lockdown antes de modificar
+    if InCombatLockdown() then
+        -- En combate, usar el SetPoint original sin modificaciones
+        originalPlayerFrameSetPoint(self, point, relativeTo, relativePoint, x, y)
+        return
+    end
+
+    -- Si es un movimiento automático de Blizzard durante transiciones de vehículo,
+    -- aplicar nuestra posición personalizada en su lugar
+    if point and relativeTo == UIParent and (point == "TOPLEFT" or point == "CENTER") then
+        -- SEGURO: Usar pcall para proteger contra errores
+        local success, err = pcall(ApplyWidgetPosition)
+        if not success then
+            -- Fallback al comportamiento original si hay error
+            originalPlayerFrameSetPoint(self, point, relativeTo, relativePoint, x, y)
+        end
+    else
+        -- Llamar al SetPoint original para otros casos
+        originalPlayerFrameSetPoint(self, point, relativeTo, relativePoint, x, y)
+    end
+end
 
 -- Expose public API
 addon.PlayerFrame = {
@@ -1471,6 +1817,3 @@ addon.PlayerFrame = {
     UpdatePlayerHealthBarColor = UpdatePlayerHealthBarColor
 }
 
-
-
---  FUNCIONES EDITOR MODE ELIMINADAS - AHORA USA SISTEMA CENTRALIZADO

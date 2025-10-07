@@ -95,7 +95,7 @@ local defaults = {
         -- Quest Tracker
         questtracker = {
             anchor = "TOPRIGHT",
-            x = -140,
+            x = -210,
             y = -255,
             show_header = false
         },
@@ -195,7 +195,7 @@ local defaults = {
         },
 
         additional = {
-            size = 27,
+            size = 32,
             spacing = 6,
             stance = {
                 x_position = -215,
@@ -208,7 +208,7 @@ local defaults = {
                 grid = false -- Disable grid by default (matches original Dragonflight port)
             },
             vehicle = {
-                x_position = 0,
+                x_position = -40,
                 artstyle = false
             },
             totem = {

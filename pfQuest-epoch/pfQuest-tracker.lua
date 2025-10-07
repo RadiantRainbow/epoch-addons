@@ -74,11 +74,18 @@ tracker:SetMovable(true)
 tracker:EnableMouse(true)
 tracker:SetClampedToScreen(true)
 tracker:RegisterEvent("PLAYER_ENTERING_WORLD")
-tracker:RegisterEvent("TRACKED_ACHIEVEMENT_LIST_CHANGED")
+tracker:RegisterEvent("TRACKED_ACHIEVEMENT_UPDATE")
 tracker:RegisterEvent("ACHIEVEMENT_EARNED")
 tracker:SetScript(
     "OnEvent",
     function()
+        if event == "TRACKED_ACHIEVEMENT_UPDATE" or event == "ACHIEVEMENT_EARNED" then
+            if tracker.mode == "ACHIEVEMENT_TRACKING" and tracker:IsShown() then
+                tracker.Reset()
+            end
+            return
+        end
+
         -- update font sizes according to config
         fontsize = tonumber(pfQuest_config["trackerfontsize"]) or 12
         entryheight = ceil(fontsize * 1.6)
@@ -416,15 +423,18 @@ function tracker.CreateZoneHeader(zone)
     )
 
     header:SetScript(
-        "OnUpdate",
+        "OnEnter",
         function()
             local alpha = tonumber((pfQuest_config["trackeralpha"] or .2)) or .2
+            this.bg:SetTexture(0.2, 0.2, 0.2, math.max(.5, alpha))
+        end
+    )
 
-            if MouseIsOver(this) then
-                this.bg:SetTexture(0.2, 0.2, 0.2, math.max(.5, alpha))
-            else
-                this.bg:SetTexture(0.1, 0.1, 0.1, math.max(.3, alpha))
-            end
+    header:SetScript(
+        "OnLeave",
+        function()
+            local alpha = tonumber((pfQuest_config["trackeralpha"] or .2)) or .2
+            this.bg:SetTexture(0.1, 0.1, 0.1, math.max(.3, alpha))
         end
     )
 
@@ -444,34 +454,24 @@ end
 
 function tracker.ButtonEnter()
     pfMap.highlight = this.title
+
+    local alpha = tonumber((pfQuest_config["trackeralpha"] or .2)) or .2
+    this.bg:SetTexture(1, 1, 1, math.max(.2, alpha))
+    this.bg:SetAlpha(math.max(.5, alpha))
+    this.highlight = true
+    
     ShowTooltip()
 end
 
 function tracker.ButtonLeave()
     pfMap.highlight = nil
-    HideTooltip()
-end
 
-function tracker.ButtonUpdate()
     local alpha = tonumber((pfQuest_config["trackeralpha"] or .2)) or .2
-
-    if not this.alpha or this.alpha ~= alpha then
-        this.bg:SetTexture(0, 0, 0, alpha)
-        this.bg:SetAlpha(alpha)
-        this.alpha = alpha
-    end
-
-    if pfMap.highlight and pfMap.highlight == this.title then
-        if not this.highlight then
-            this.bg:SetTexture(1, 1, 1, math.max(.2, alpha))
-            this.bg:SetAlpha(math.max(.5, alpha))
-            this.highlight = true
-        end
-    elseif this.highlight then
-        this.bg:SetTexture(0, 0, 0, alpha)
-        this.bg:SetAlpha(alpha)
-        this.highlight = nil
-    end
+    this.bg:SetTexture(0, 0, 0, alpha)
+    this.bg:SetAlpha(alpha)
+    this.highlight = nil
+    
+    HideTooltip()
 end
 
 function tracker.ButtonClick()
@@ -486,24 +486,31 @@ function tracker.ButtonClick()
             end
         end
     elseif IsShiftKeyDown() then
-        -- mark as done if node is quest and not in questlog
-        if this.node.questid and not this.node.qlogid then
-            -- mark as done in history
-            pfQuest_history[this.node.questid] = {time(), UnitLevel("player")}
-            UIErrorsFrame:AddMessage(
-                string.format(
-                    "The Quest |cffffcc00[%s]|r (id:%s) is now marked as done.",
-                    this.title,
-                    this.node.questid
-                ),
-                1,
-                1,
-                1
-            )
-        end
+            -- Handle achievement untracking
+            if tracker.mode == "ACHIEVEMENT_TRACKING" and this.node and this.node.achievementID then
+                RemoveTrackedAchievement(this.node.achievementID)
+                tracker.Reset()
+                return
+            end
 
-        pfMap:DeleteNode(this.node.addon, this.title)
-        pfMap:UpdateNodes()
+            -- mark as done if node is quest and not in questlog
+            if this.node.questid and not this.node.qlogid then
+                -- mark as done in history
+                pfQuest_history[this.node.questid] = {time(), UnitLevel("player")}
+                UIErrorsFrame:AddMessage(
+                    string.format(
+                        "The Quest |cffffcc00[%s]|r (id:%s) is now marked as done.",
+                        this.title,
+                        this.node.questid
+                    ),
+                    1,
+                    1,
+                    1
+                )
+            end
+
+            pfMap:DeleteNode(this.node.addon, this.title)
+            pfMap:UpdateNodes()
 
         pfQuest.updateQuestGivers = true
     elseif IsControlKeyDown() and not WorldMapFrame:IsShown() then
@@ -895,9 +902,7 @@ function tracker.Refresh()
                         if item then
                             -- Create or reuse item button
                             if not button.itemButton then
-                                button.itemButton = CreateFrame("BUTTON", "pfQuestTrackerItem_" .. bid, button)
-                                button.itemButton:SetWidth(14)
-                                button.itemButton:SetHeight(14)
+                                button.itemButton = CreateFrame("BUTTON", "pfQuestTrackerItem_" .. bid, button, "WatchFrameItemButtonTemplate")
 
                                 -- Create the icon texture manually
                                 button.itemButton.icon = button.itemButton:CreateTexture(nil, "BACKGROUND")
@@ -908,14 +913,6 @@ function tracker.Refresh()
                                 button.itemButton.count:SetFont(pfUI.font_default, 10, "OUTLINE")
                                 button.itemButton.count:SetPoint("BOTTOMRIGHT", -2, 2)
                                 button.itemButton.count:SetTextColor(1, 1, 1)
-
-                                -- Add click handler to use the item
-                                button.itemButton:SetScript(
-                                    "OnClick",
-                                    function()
-                                        UseQuestLogSpecialItem(this:GetID())
-                                    end
-                                )
 
                                 -- Add tooltip
                                 button.itemButton:SetScript(
@@ -1155,7 +1152,6 @@ function tracker.ButtonAdd(title, node)
 
         tracker.buttons[id]:SetScript("OnEnter", tracker.ButtonEnter)
         tracker.buttons[id]:SetScript("OnLeave", tracker.ButtonLeave)
-        tracker.buttons[id]:SetScript("OnUpdate", tracker.ButtonUpdate)
         tracker.buttons[id]:SetScript("OnEvent", tracker.ButtonEvent)
         tracker.buttons[id]:SetScript("OnClick", tracker.ButtonClick)
     end
