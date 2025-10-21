@@ -150,56 +150,90 @@ local function setup_background(button, anchor, shadow)
 end
 
 -- ============================================================================
+-- KEY FORMATTING SYSTEM (Control total desde DragonUI)
+-- ============================================================================
+
+local GetKeyText
+do
+    local keyButton = string.gsub(KEY_BUTTON4 or "Button 4", '%d', '')
+    local keyNumpad = string.gsub(KEY_NUMPAD1 or "NumPad 1", '%d', '')
+    local displaySubs = {
+        { '('..keyButton..')', 'M' },
+        { '('..keyNumpad..')', 'N' },
+        { '(a%-)', 'a' },           -- alt- -> a (minúscula)
+        { '(c%-)', 'c' },           -- ctrl- -> c (minúscula)
+        { '(s%-)', 's' },           -- shift- -> s (minúscula)
+        { KEY_BUTTON3 or "Middle Mouse", 'M3' },
+        { KEY_MOUSEWHEELUP or "Mouse Wheel Up", 'MU' },
+        { KEY_MOUSEWHEELDOWN or "Mouse Wheel Down", 'MD' },
+        { KEY_SPACE or "Space", 'BAR' },
+        { CAPSLOCK_KEY_TEXT or "Caps Lock", 'CL' },
+        { KEY_NUMLOCK or "Num Lock", 'NL' },
+        { 'BUTTON', 'M' },
+        { 'NUMPAD', 'N' },
+        { '(ALT%-)', 'a' },         -- ALT- -> a (versión mayúscula)
+        { '(CTRL%-)', 'c' },        -- CTRL- -> c 
+        { '(SHIFT%-)', 's' },       -- SHIFT- -> s
+        { 'MOUSEWHEELUP', 'MU' },
+        { 'MOUSEWHEELDOWN', 'MD' },
+        { 'SPACE', 'BAR' },
+    }
+
+    -- returns formatted key for text.
+    -- @param key - a hotkey name
+    function GetKeyText(key)
+        if not key then return '' end
+        for _, value in pairs(displaySubs) do
+            key = string.gsub(key, value[1], value[2])
+        end
+        return key or error('invalid key string: '..tostring(key))
+    end
+end
+
+-- Asignar a addon para acceso global
+addon.GetKeyText = GetKeyText
+
+-- ============================================================================
 -- BUTTON STYLING FUNCTIONS
 -- ============================================================================
 
 local function actionbuttons_hotkey(button)
     if not IsModuleEnabled() then return end
     
-    -- CRITICAL: Don't modify hotkeys during keybinding mode
-    if addon.KeyBindingModule and addon.KeyBindingModule.enabled and LibStub and LibStub("LibKeyBound-1.0") then
-        local LibKeyBound = LibStub("LibKeyBound-1.0")
-        if LibKeyBound:IsShown() then
-            return -- Let LibKeyBound handle hotkey display
-        end
-    end
-    
-	if not button then return; end
-	local buttonName = button:GetName();
-	if not buttonName then return; end
+	if not button then return end
+	local buttonName = button:GetName()
+	if not buttonName then return end
 	
-	local hotkey = _G[buttonName..'HotKey'];
-	if not hotkey then return; end
+	local hotkey = _G[buttonName..'HotKey']
+	if not hotkey then return end
 	
-	local text = hotkey:GetText();
-	if not text then return; end
+	local text = hotkey:GetText()
+	if not text then return end
 	
 	local db = GetButtonsConfig()
 	if not db or not db.hotkey then return end
 	
 	if RANGE_INDICATOR and text == RANGE_INDICATOR then
 		if db.hotkey.range then
-			hotkey:SetText(RANGE_INDICATOR);
+			hotkey:SetText(RANGE_INDICATOR)
 		else
-			hotkey:SetText'';
+			hotkey:SetText('')
 		end
 	else
 		hotkey:SetAlpha(db.hotkey.show and 1 or 0)
 		
-		if addon.GetKeyText then
-			hotkey:SetText(addon.GetKeyText(text));
-		else
-			hotkey:SetText(text);
-		end
+		-- CONTROL TOTAL: Usar nuestro sistema de formato personalizado
+		local formattedText = GetKeyText(text)
+		hotkey:SetText(formattedText)
 		
 		if db.hotkey.font then
-			hotkey:SetFont(unpack(db.hotkey.font));
+			hotkey:SetFont(unpack(db.hotkey.font))
 		end
 		
-		hotkey:SetShadowOffset(-1.3, -1.1);
+		hotkey:SetShadowOffset(-1.3, -1.1)
 		
 		if db.hotkey.shadow then
-			hotkey:SetShadowColor(unpack(db.hotkey.shadow));
+			hotkey:SetShadowColor(unpack(db.hotkey.shadow))
 		end
 	end
 end
@@ -563,7 +597,12 @@ function addon.vehiclebuttons_template()
     
 	if UnitHasVehicleUI('player') then
 		for index=1, VEHICLE_MAX_ACTIONBUTTONS do
-			main_buttons(_G['VehicleMenuBarActionButton'..index])
+			local button = _G['VehicleMenuBarActionButton'..index]
+			if button then
+				main_buttons(button)
+				-- Aplicar formato de hotkeys también a vehicle buttons
+				actionbuttons_hotkey(button)
+			end
 		end
 	end
 end
@@ -582,7 +621,12 @@ function addon.petbuttons_template()
     if not IsModuleEnabled() then return end
     
 	for index=1, NUM_PET_ACTION_SLOTS do
-		additional_buttons(_G['PetActionButton'..index])
+		local button = _G['PetActionButton'..index]
+		if button then
+			additional_buttons(button)
+			-- Aplicar formato de hotkeys también a pet buttons
+			actionbuttons_hotkey(button)
+		end
 	end
 end
 
@@ -591,7 +635,12 @@ function addon.stancebuttons_template()
     if not IsModuleEnabled() then return end
     
 	for index=1, NUM_SHAPESHIFT_SLOTS do
-		additional_buttons(_G['ShapeshiftButton'..index])
+		local button = _G['ShapeshiftButton'..index]
+		if button then
+			additional_buttons(button)
+			-- Aplicar formato de hotkeys también a stance buttons
+			actionbuttons_hotkey(button)
+		end
 	end
 end
 
@@ -706,6 +755,7 @@ end,
 local initFrame = CreateFrame("Frame")
 initFrame:RegisterEvent("ADDON_LOADED")
 initFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+initFrame:RegisterEvent("UPDATE_BINDINGS")  -- CLAVE: Actualizar hotkeys cuando cambien los bindings
 initFrame:SetScript("OnEvent", function(self, event, addonName)
     if event == "ADDON_LOADED" and addonName == "DragonUI" then
         Initialize()
@@ -716,6 +766,50 @@ initFrame:SetScript("OnEvent", function(self, event, addonName)
             ButtonsModule.pendingRefresh = false
             addon.actionbuttons_grid()
             addon.RefreshButtons()
+        end
+    elseif event == "UPDATE_BINDINGS" then
+        -- PATRÓN ORIGINAL: Actualizar hotkeys cuando cambien los bindings
+        if IsModuleEnabled() then
+            -- Main action buttons
+            for button in addon.buttons_iterator() do
+                if button then
+                    actionbuttons_hotkey(button)
+                end
+            end
+            
+            -- Vehicle buttons
+            if UnitHasVehicleUI('player') then
+                for index=1, VEHICLE_MAX_ACTIONBUTTONS do
+                    local button = _G['VehicleMenuBarActionButton'..index]
+                    if button then
+                        actionbuttons_hotkey(button)
+                    end
+                end
+            end
+            
+            -- Pet buttons
+            for index=1, NUM_PET_ACTION_SLOTS do
+                local button = _G['PetActionButton'..index]
+                if button then
+                    actionbuttons_hotkey(button)
+                end
+            end
+            
+            -- Stance buttons
+            for index=1, NUM_SHAPESHIFT_SLOTS do
+                local button = _G['ShapeshiftButton'..index]
+                if button then
+                    actionbuttons_hotkey(button)
+                end
+            end
+            
+            -- Possess buttons
+            for index=1, NUM_POSSESS_SLOTS do
+                local button = _G['PossessButton'..index]
+                if button then
+                    actionbuttons_hotkey(button)
+                end
+            end
         end
     end
 end)

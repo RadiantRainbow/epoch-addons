@@ -386,7 +386,9 @@ function LibKeyBound:Set(button)
 		bindFrame:SetAllPoints(button)
 
 		bindFrame.text:SetFontObject('GameFontNormalLarge')
-		bindFrame.text:SetText(button:GetHotkey())
+		-- CAMBIO: No mostrar hotkey del botón original, solo mostrar binding actual durante keybind mode
+		local binding = GetBindingKey("CLICK " .. button:GetName() .. ":LeftButton")
+		bindFrame.text:SetText(binding and self:ToShortKey(binding) or "")
 		if bindFrame.text:GetStringWidth() > bindFrame:GetWidth() then
 			bindFrame.text:SetFontObject('GameFontNormal')
 		end

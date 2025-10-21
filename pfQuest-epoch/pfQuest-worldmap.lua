@@ -1087,60 +1087,10 @@ local function ExtendPfQuestConfig()
     table.insert(
         pfQuest_defconfig,
         {
-            text = "|cff33ffccQuest Tracker Style|r",
-            type = "header"
-        }
-    )
-    table.insert(
-        pfQuest_defconfig,
-        {
-            text = "Show Zone Groups (Modern Style)",
+            text = "Hide Item Drop Quest Starters",
             default = "0",
             type = "checkbox",
-            config = "trackershowzones"
-        }
-    )
-    table.insert(
-        pfQuest_defconfig,
-        {
-            text = "|cff33ffccQuest Tracker Dimensions|r",
-            type = "header"
-        }
-    )
-    table.insert(
-        pfQuest_defconfig,
-        {
-            text = "Use Fixed Height",
-            default = "0",
-            type = "checkbox",
-            config = "trackerfixedheight"
-        }
-    )
-    table.insert(
-        pfQuest_defconfig,
-        {
-            text = "Tracker Height (pixels)",
-            default = "400",
-            type = "text",
-            config = "trackerheight"
-        }
-    )
-    table.insert(
-        pfQuest_defconfig,
-        {
-            text = "Use Fixed Width",
-            default = "0",
-            type = "checkbox",
-            config = "trackerfixedwidth"
-        }
-    )
-    table.insert(
-        pfQuest_defconfig,
-        {
-            text = "Tracker Width (pixels)",
-            default = "250",
-            type = "text",
-            config = "trackerwidth"
+            config = "epochHideItemDrops"
         }
     )
 
@@ -1153,11 +1103,7 @@ local function ExtendPfQuestConfig()
     pfQuest_config["epochHideFelwoodFlowers"] = pfQuest_config["epochHideFelwoodFlowers"] or "1"
     pfQuest_config["epochHidePvPQuests"] = pfQuest_config["epochHidePvPQuests"] or "1"
     pfQuest_config["epochHideCommissionQuests"] = pfQuest_config["epochHideCommissionQuests"] or "0"
-    pfQuest_config["trackershowzones"] = pfQuest_config["trackershowzones"] or "0"
-    pfQuest_config["trackerfixedheight"] = pfQuest_config["trackerfixedheight"] or "0"
-    pfQuest_config["trackerheight"] = pfQuest_config["trackerheight"] or "400"
-    pfQuest_config["trackerfixedwidth"] = pfQuest_config["trackerfixedwidth"] or "0"
-    pfQuest_config["trackerwidth"] = pfQuest_config["trackerwidth"] or "250"
+    pfQuest_config["epochHideItemDrops"] = pfQuest_config["epochHideItemDrops"] or "0"
 end
 
 local f = CreateFrame("Frame")

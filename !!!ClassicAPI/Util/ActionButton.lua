@@ -1,7 +1,6 @@
 local _, Private = ...
 
 local _G = _G
-local Next = next
 local CreateFrame = CreateFrame
 
 local unusedOverlayGlows

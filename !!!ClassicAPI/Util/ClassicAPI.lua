@@ -12,27 +12,20 @@ Tooltip:AddFontStrings(Tooltip:CreateFontString("$parentTextLeft1", nil, "GameTo
 Private.Tooltip = Tooltip
 
 -- General Event
-Tooltip:SetScript("OnEvent",
-	function(self, event)
-		-- [Unit.lua:C_UnitInRange] Force client to cache Vial of the Sunwell
-		if ( WOW_PROJECT_ID_RCE ~= WOW_PROJECT_CLASSIC ) then
-			local _, RangeItemCached = GetItemInfo(34471)
-			if ( not RangeItemCached ) then
-				ItemEventListener:AddCallback(34471, Private.Void)
-			end
+Tooltip:SetScript("OnEvent", function(Self, Event)
+	-- [Unit.lua:C_UnitInRange] Force client to cache Vial of the Sunwell
+	if ( WOW_PROJECT_ID_RCE ~= WOW_PROJECT_CLASSIC ) then
+		local _, RangeItemCached = GetItemInfo(34471)
+		if ( not RangeItemCached ) then
+			ItemEventListener:AddCallback(34471, Private.Void)
 		end
-
-		ItemEventListener:Init()
-		self:UnregisterEvent(event)
-		self:SetScript("OnEvent", nil)
 	end
-)
-Tooltip:RegisterEvent("PLAYER_ENTERING_WORLD")
 
--- Errors
-function Private.Error(Text)
-	error(Text or "Error!", 2)
-end
+	ItemEventListener:Init()
+	Self:UnregisterEvent(Event)
+	Self:SetScript("OnEvent", nil)
+end)
+Tooltip:RegisterEvent("PLAYER_ENTERING_WORLD")
 
 -- Common Functions
 function Private.Void()
@@ -45,6 +38,10 @@ end
 
 function Private.False()
 	return false
+end
+
+function Private.Zero()
+	return 0
 end
 
 --[[function Private.Globalize(Namespace, Data)
@@ -64,12 +61,15 @@ end]]
 --[[ MISCELLANEOUS ]]
 
 -- [LFD_ERROR_FIX] This is unrelated to ClassicAPI, but I'm a chill guy :)
-local LFDQueueFrameRandomCooldownFrame_Update = LFDQueueFrameRandomCooldownFrame_Update
-local Sub = string.sub
+local LFDCooldown = LFDQueueFrameCooldownFrame
+if ( LFDCooldown ) then
+	local LFDCooldownUpdate = LFDQueueFrameRandomCooldownFrame_Update
+	local Sub = string.sub
 
--- LFD Lua Error
-LFDQueueFrameCooldownFrame:SetScript("OnEvent", function(Self, Event, Unit)
-	if ( Event ~= "UNIT_AURA" or (Unit and (Unit == "player" or Sub(Unit, 1, 5) == "party")) ) then
-		LFDQueueFrameRandomCooldownFrame_Update()
-	end
-end)
+	-- LFD Lua Error
+	LFDCooldown:SetScript("OnEvent", function(Self, Event, Unit)
+		if ( Event ~= "UNIT_AURA" or (Unit and (Unit == "player" or Sub(Unit, 1, 5) == "party")) ) then
+			LFDCooldownUpdate()
+		end
+	end)
+end

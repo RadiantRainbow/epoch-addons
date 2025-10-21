@@ -9,14 +9,9 @@ local TEXTURE_PATH = Private.TEXTURE_PATH
 	INFORMATION
 	=================================
 
-	Build: 3.4.2 (50664):
-		https://www.townlong-yak.com/framexml/9.2.7/Helix/AtlasInfo.lua
-		https://github.com/Ketho/BlizzardInterfaceResources/blob/wrath/Resources/AtlasInfo.lua
+	Build: 3.4.5.62256:
+		https://www.townlong-yak.com/framexml/3.4.5/Helix/AtlasInfo.lua
 		https://github.com/Gethe/wow-ui-textures
-
-	Build (Fallback): 10.1.5 (50622):
-		https://github.com/Ketho/BlizzardInterfaceResources/blob/mainline/Resources/AtlasInfo.lua
-		https://wow.tools
 
 	Manual Calc: X/WIDTH || Y/HEIGHT
 ]]

@@ -1,28 +1,30 @@
-function SearchBoxTemplate_OnLoad(self)
-	self:SetText(SEARCH);
-	self:SetFontObject("GameFontDisable");
-	self.searchIcon:SetVertexColor(0.6, 0.6, 0.6);
-	self:SetTextInsets(16, 20, 0, 0);
-end
-
-function SearchBoxTemplate_OnEditFocusLost(self)
-	self:HighlightText(0, 0);
-	self:SetFontObject("GameFontDisable");
-	self.searchIcon:SetVertexColor(0.6, 0.6, 0.6);
-	if ( self:GetText() == "" or self:GetText() == SEARCH ) then
+if ( not SearchBoxTemplate_OnLoad ) then
+	function SearchBoxTemplate_OnLoad(self)
 		self:SetText(SEARCH);
-		self.clearButton:Hide();
+		self:SetFontObject("GameFontDisable");
+		self.searchIcon:SetVertexColor(0.6, 0.6, 0.6);
+		self:SetTextInsets(16, 20, 0, 0);
 	end
-end
 
-function SerachBoxTemplate_OnEditFocusGained(self)
-	self:HighlightText();
-	self:SetFontObject("ChatFontSmall");
-	self.searchIcon:SetVertexColor(1.0, 1.0, 1.0);
-	if ( self:GetText() == SEARCH ) then
-		self:SetText("")
+	function SearchBoxTemplate_OnEditFocusLost(self)
+		self:HighlightText(0, 0);
+		self:SetFontObject("GameFontDisable");
+		self.searchIcon:SetVertexColor(0.6, 0.6, 0.6);
+		if ( self:GetText() == "" or self:GetText() == SEARCH ) then
+			self:SetText(SEARCH);
+			self.clearButton:Hide();
+		end
 	end
-	self.clearButton:Show();
+
+	function SerachBoxTemplate_OnEditFocusGained(self)
+		self:HighlightText();
+		self:SetFontObject("ChatFontSmall");
+		self.searchIcon:SetVertexColor(1.0, 1.0, 1.0);
+		if ( self:GetText() == SEARCH ) then
+			self:SetText("")
+		end
+		self.clearButton:Show();
+	end
 end
 
 ITEM_SEARCHBAR_LIST = {

@@ -49,6 +49,10 @@ elseif (DBM and type(DBM.ReleaseRevision) == "number" and DBM.ReleaseRevision >=
   dbmSupportStatus = dbmSupportStates.LEGACY
 end
 
+local barOptions = DBM and type(DBM.ReleaseRevision) == "number" and (
+  DBM.ReleaseRevision >= 20220412000000 and DBT.Options or DBM.Bars.options
+)
+
 -- DBM
 Private.ExecEnv.BossMods.DBM = {
   registeredEvents = {},
@@ -248,8 +252,6 @@ Private.ExecEnv.BossMods.DBM = {
         r, g, b = r or 0, g or 0, b or 0
       else
         -- Compability code for DBM versions from around Aberrus
-        -- Can be removed once we can assume newer versions
-        local barOptions = DBT.Options
         if barOptions then
           if dbmType == 1 then
             r, g, b = barOptions.StartColorAR, barOptions.StartColorAG, barOptions.StartColorAB
@@ -402,8 +404,6 @@ Private.ExecEnv.BossMods.DBM = {
       self:RegisterCallback("DBM_TimerStart")
       self:RegisterCallback("DBM_TimerStop")
       self:RegisterCallback("DBM_TimerUpdate")
-      self:RegisterCallback("wipe")
-      self:RegisterCallback("kill")
     end
   end,
 
@@ -413,8 +413,11 @@ Private.ExecEnv.BossMods.DBM = {
 
   RegisterStage = function(self)
     self:RegisterCallback("DBM_SetStage")
-    self:RegisterCallback("DBM_Pull")
-    self:RegisterCallback("DBM_Kill")
+    if dbmSupportStatus == dbmSupportStates.LATEST or
+      dbmSupportStatus == dbmSupportStates.COMPATIBLE then
+      self:RegisterCallback("DBM_Pull")
+      self:RegisterCallback("DBM_Kill")
+    end
   end,
 
   scheduled_scans = {},
@@ -533,7 +536,7 @@ Private.event_prototypes["DBM Timer"] = {
   type = "addons",
   events = {},
   internal_events = {
-    "DBM_TimerStart", "DBM_TimerStop", "DBM_TimerUpdate", "DBM_TimerStopAll,", "DBM_TimerForce",
+    "DBM_TimerStart", "DBM_TimerStop", "DBM_TimerUpdate", "DBM_TimerForce",
     "DBM_TimerResume", "DBM_TimerPause", "DBM_TimerUpdateIcon"
   },
   force_events = "DBM_TimerForce",
@@ -738,7 +741,18 @@ Private.event_prototypes["DBM Timer"] = {
       display = L["Count"],
       desc = L["Occurrence of the event, reset when aura is unloaded\nCan be a range of values\nCan have multiple values separated by a comma or a space\n\nExamples:\n2nd 5th and 6th events: 2, 5, 6\n2nd to 6th: 2-6\nevery 2 events: /2\nevery 3 events starting from 2nd: 2/3\nevery 3 events starting from 2nd and ending at 11th: 2-11/3\n\nOnly if DBM shows it on it's bar"],
       type = "string",
+      store = true,
       conditionType = "string",
+      operator_types = "none",
+      preamble = "local counter = Private.ExecEnv.CreateTriggerCounter(%q)",
+      test = "counter:SetCount(tonumber(count) or 0) == nil and counter:Match()",
+      conditionPreamble = function(input)
+        return Private.ExecEnv.CreateTriggerCounter(input)
+      end,
+      conditionTest = function(state, needle, op, preamble)
+        preamble:SetCount(tonumber(state.count) or 0)
+        return preamble:Match()
+      end,
     },
     {
       name = "dbmType",
@@ -1427,6 +1441,16 @@ Private.event_prototypes["BigWigs Timer"] = {
       type = "string",
       store = true,
       conditionType = "string",
+      operator_types = "none",
+      preamble = "local counter = Private.ExecEnv.CreateTriggerCounter(%q)",
+      test = "counter:SetCount(tonumber(count) or 0) == nil and counter:Match()",
+      conditionPreamble = function(input)
+        return Private.ExecEnv.CreateTriggerCounter(input)
+      end,
+      conditionTest = function(state, needle, op, preamble)
+        preamble:SetCount(tonumber(state.count) or 0)
+        return preamble:Match()
+      end,
     },
     {
       name = "cast",
@@ -1613,6 +1637,9 @@ Private.event_prototypes["Boss Mod Announce"] = {
       display = L["Count"],
       desc = L["Occurrence of the event\nCan be a range of values\nCan have multiple values separated by a comma or a space\n\nExamples:\n2nd 5th and 6th events: 2, 5, 6\n2nd to 6th: 2-6\nevery 2 events: /2\nevery 3 events starting from 2nd: 2/3\nevery 3 events starting from 2nd and ending at 11th: 2-11/3\n\nWorks only if Boss Mod addon show counter"],
       type = "string",
+      store = true,
+      conditionType = "string",
+      operator_types = "none",
       preamble = "local counter = Private.ExecEnv.CreateTriggerCounter(%q)",
       test = "counter:SetCount(tonumber(count) or 0) == nil and counter:Match()",
       conditionPreamble = function(input)
@@ -1622,9 +1649,6 @@ Private.event_prototypes["Boss Mod Announce"] = {
         preamble:SetCount(tonumber(state.count) or 0)
         return preamble:Match()
       end,
-      store = true,
-      conditionType = "string",
-      operator_types = "none"
     },
     {
       name = "cloneId",
@@ -1820,7 +1844,6 @@ Private.event_prototypes["Boss Mod Timer"] = {
       trigger.use_isBarEnabled == nil and "nil" or trigger.use_isBarEnabled and "true" or "false",
       trigger.remaining_operator or "<"
     )
-
   end,
   statesParameter = "full",
   args = {
@@ -1863,6 +1886,17 @@ Private.event_prototypes["Boss Mod Timer"] = {
       desc = L["Occurrence of the event, reset when aura is unloaded\nCan be a range of values\nCan have multiple values separated by a comma or a space\n\nExamples:\n2nd 5th and 6th events: 2, 5, 6\n2nd to 6th: 2-6\nevery 2 events: /2\nevery 3 events starting from 2nd: 2/3\nevery 3 events starting from 2nd and ending at 11th: 2-11/3\n\nOnly if DBM shows it on it's bar"],
       type = "string",
       conditionType = "string",
+      operator_types = "none",
+      preamble = "local counter = Private.ExecEnv.CreateTriggerCounter(%q)",
+      test = "counter:SetCount(tonumber(count) or 0) == nil and counter:Match()",
+      conditionPreamble = function(input)
+        return Private.ExecEnv.CreateTriggerCounter(input)
+      end,
+      conditionTest = function(state, needle, op, preamble)
+        preamble:SetCount(tonumber(state.count) or 0)
+        return preamble:Match()
+      end,
+      store = true,
     },
     {
       name = "isBarEnabled",
@@ -1889,6 +1923,7 @@ Private.event_prototypes["Boss Mod Timer"] = {
 }
 Private.category_event_prototype.addons["Boss Mod Timer"] = L["Boss Mod Timer"]
 
+
 -- Deactivate DBM for users with outdated versions, and always disable BigWigs triggers.
 -- DBM triggers are only disabled if the DBM version is older than 7.0.5+.
 -- Supported DBM version is "DBM Warmane" with commits from 2025-Feb-09+ and from 2025-Mar-12+.
@@ -1900,31 +1935,33 @@ Private.category_event_prototype.addons["Boss Mod Timer"] = L["Boss Mod Timer"]
 -- Download: https://github.com/Zidras/DBM-Warmane/archive/refs/heads/main.zip
 
 -- Disable DBM for users with an outdated DBM version
-if dbmSupportStatus == dbmSupportStates.UNSUPPORTED then
-  local dbm_trigger = {
-    "DBM Stage",
-    "DBM Announce",
-    "DBM Timer",
-    "Boss Mod Stage",
-    "Boss Mod Stage (Event)",
-    "Boss Mod Announce",
-    "Boss Mod Timer"
+do
+  if dbmSupportStatus == dbmSupportStates.UNSUPPORTED then
+    local dbm_trigger = {
+      "DBM Stage",
+      "DBM Announce",
+      "DBM Timer",
+      "Boss Mod Stage",
+      "Boss Mod Stage (Event)",
+      "Boss Mod Announce",
+      "Boss Mod Timer"
+    }
+
+    -- Remove all relevant DBM event prototypes
+    for _, event in ipairs(dbm_trigger) do
+      Private.event_prototypes[event] = nil
+    end
+  end
+
+  -- Always disable BigWigs triggers
+  local bigwigs_trigger = {
+    "BigWigs Stage",
+    "BigWigs Message",
+    "BigWigs Timer"
   }
 
-  -- Remove all relevant DBM event prototypes
-  for _, event in ipairs(dbm_trigger) do
+  -- Remove all relevant BigWigs event prototypes
+  for _, event in ipairs(bigwigs_trigger) do
     Private.event_prototypes[event] = nil
   end
-end
-
--- Always disable BigWigs triggers
-local bigwigs_trigger = {
-  "BigWigs Stage",
-  "BigWigs Message",
-  "BigWigs Timer"
-}
-
--- Remove all relevant BigWigs event prototypes
-for _, event in ipairs(bigwigs_trigger) do
-  Private.event_prototypes[event] = nil
 end

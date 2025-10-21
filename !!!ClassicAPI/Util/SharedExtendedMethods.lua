@@ -1,6 +1,6 @@
 local _, Private = ...
 
-local _G = _G
+local PCall = pcall
 local Max = math.max
 local Assert = assert
 local GetTime = GetTime
@@ -38,6 +38,10 @@ local CONST_ATLAS_BOTTOM		= 6
 local CONST_ATLAS_TILESHORIZ	= 7
 local CONST_ATLAS_TILESVERT		= 8
 local CONST_ATLAS_TEXTUREPATH	= 9
+
+-- [Preceding Compat] (Patches, Servers ...)
+local Preceding_SetAtlas = FrameTexture.SetAtlas
+local Preceding_GetAtlas = FrameTexture.GetAtlas
 
 local function Hook_SetCooldown(Self, Start, Duration, Modrate)
 	Self.___Start = Start > 0 and Start or nil
@@ -136,12 +140,20 @@ local function Method_SetSubTexCoord(Self, Left, Right, Top, Bottom)
 	Self:SetTexCoord(UL_X, UL_Y, LL_X, LL_Y, UR_X, UR_Y, LR_X, LR_Y)
 end
 
-local function Method_SetAtlas(Self, AtlasName, UseAtlasSize, FilterMode)
-	Assert(Self, "SetAtlas: not found object")
-	Assert(AtlasName, "SetAtlas: AtlasName must be specified")
-	Assert(ATLAS_INFO_STORAGE[AtlasName], "SetAtlas: Atlas named "..AtlasName.." does not exist")
+local function Method_SetAtlas(...)
+	if ( Preceding_SetAtlas ) then
+		local Success = PCall(Preceding_SetAtlas, ...)
+		if ( Success and Preceding_GetAtlas and Preceding_GetAtlas(...) ) then
+			return
+		end
+	end
 
+	local Self, AtlasName, UseAtlasSize, FilterMode = ...
 	local Atlas = ATLAS_INFO_STORAGE[AtlasName]
+
+	Assert(Self, "SetAtlas: Not a valid object")
+	Assert(AtlasName, "SetAtlas: Atlas must be specified")
+	Assert(Atlas, "SetAtlas: Atlas named "..AtlasName.." does not exist")
 
 	Self:SetTexture(Atlas[CONST_ATLAS_TEXTUREPATH] or "", Atlas[CONST_ATLAS_TILESHORIZ], Atlas[CONST_ATLAS_TILESVERT])
 
@@ -158,7 +170,58 @@ local function Method_SetAtlas(Self, AtlasName, UseAtlasSize, FilterMode)
 end
 
 local function Method_GetAtlas(Self)
+	if ( Preceding_GetAtlas ) then
+		local AtlasName = Preceding_GetAtlas(Self)
+		if ( AtlasName ) then
+			return AtlasName
+		end
+	end
+
 	return Self.___AtlasName
+end
+
+local function Method_SetNormalAtlas(Self, AtlasName)
+	local Texture = Self:GetNormalTexture()
+
+	if ( not Texture ) then
+		Self:SetNormalTexture("")
+		Texture = Self:GetNormalTexture()
+	end
+
+	Method_SetAtlas(Texture, AtlasName)
+end
+
+local function Method_SetPushedAtlas(Self, AtlasName)
+	local Texture = Self:GetPushedTexture()
+
+	if ( not Texture ) then
+		Self:SetPushedTexture("")
+		Texture = Self:GetPushedTexture()
+	end
+
+	Method_SetAtlas(Texture, AtlasName)
+end
+
+local function Method_SetDisabledAtlas(Self, AtlasName)
+	local Texture = Self:GetDisabledTexture()
+
+	if ( not Texture ) then
+		Self:SetDisabledTexture("")
+		Texture = Self:GetDisabledTexture()
+	end
+
+	Method_SetAtlas(Texture, AtlasName)
+end
+
+local function Method_SetHighlightAtlas(Self, AtlasName)
+	local Texture = Self:GetHighlightTexture()
+
+	if ( not Texture ) then
+		Self:SetHighlightTexture("")
+		Texture = Self:GetHighlightTexture()
+	end
+
+	Method_SetAtlas(Texture, AtlasName)
 end
 
 local function Method_ClearAndSetPoint(Self, ...)
@@ -167,8 +230,7 @@ local function Method_ClearAndSetPoint(Self, ...)
 end
 
 local function Method_CreateLine(Self, ...)
-	-- Self is NineSlice
-	local Line = Self:CreateTexture(...)
+	local Line = Self:CreateTexture(...) -- Self is NineSlice
 	Line.IsLine = true
 	return Line
 end
@@ -203,6 +265,10 @@ local function Method_SetFromAlpha(Self, normalizedAlpha)
 	end
 end
 
+local function Method_GetEffectiveScale(Self)
+	return Self:GetParent():GetEffectiveScale()
+end
+
 -- FRAME
 Frame.SetShown = Method_SetShown
 Frame.ClearAndSetPoint = Method_ClearAndSetPoint
@@ -223,10 +289,11 @@ Frame.IsForbidden = Method_IsForbidden
 		FrameTexture.GetAtlas = Method_GetAtlas
 		FrameTexture.ClearAndSetPoint = Method_ClearAndSetPoint
 		FrameTexture.SetMask = Private.Void
-		FrameTexture.GetNumMaskTextures = function(Self) return 0 end
+		FrameTexture.GetNumMaskTextures = Private.Zero
 		FrameTexture.SetSnapToPixelGrid = Private.Void
 		FrameTexture.SetTexelSnappingBias = Private.Void
 		FrameTexture.SetColorTexture = FrameTexture.SetTexture
+		FrameTexture.GetEffectiveScale = Method_GetEffectiveScale
 			-- Line
 				FrameTexture.SetThickness = Private.Void
 				FrameTexture.SetStartPoint = Private.Void
@@ -236,15 +303,16 @@ Frame.IsForbidden = Method_IsForbidden
 	-- FONTSTRING (FRAME)
 		FrameFontString.SetShown = Method_SetShown
 		FrameFontString.ClearAndSetPoint = Method_ClearAndSetPoint
+		FrameFontString.GetEffectiveScale = Method_GetEffectiveScale
 
 -- BUTTON
 Button.SetShown = Method_SetShown
 Button.SetEnabled = Method_SetEnabled
 Button.ClearAndSetPoint = Method_ClearAndSetPoint
-Button.SetNormalAtlas = function(Self, ...) Method_SetAtlas(Self:GetNormalTexture(), ...)  end
-Button.SetPushedAtlas = function(Self, ...) Method_SetAtlas(Self:GetPushedTexture(), ...)  end
-Button.SetDisabledAtlas = function(Self, ...) Method_SetAtlas(Self:GetDisabledTexture(), ...)  end
-Button.SetHighlightAtlas = function(Self, ...) Method_SetAtlas(Self:GetHighlightTexture(), ...)  end
+Button.SetNormalAtlas = Method_SetNormalAtlas
+Button.SetPushedAtlas = Method_SetPushedAtlas
+Button.SetDisabledAtlas = Method_SetDisabledAtlas
+Button.SetHighlightAtlas = Method_SetHighlightAtlas
 Button.SetForbidden = Method_SetForbidden
 Button.IsForbidden = Method_IsForbidden
 
@@ -266,7 +334,7 @@ CheckButton.SetEnabled = Method_SetEnabled
 CheckButton.ClearAndSetPoint = Method_ClearAndSetPoint
 
 -- COOLDOWN
-hooksecurefunc(Cooldown, "SetCooldown", Hook_SetCooldown) -- This will cause a tiny spike in CPU usage.
+hooksecurefunc(Cooldown, "SetCooldown", Hook_SetCooldown)
 Cooldown.Clear = Cooldown.Hide
 Cooldown.SetHideCountdownNumbers = Method_SetHideCountdownNumbers
 Cooldown.SetDrawBling = Private.Void

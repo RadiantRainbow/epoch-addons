@@ -126,7 +126,7 @@ function PlayerInteractionFrameManagerMixin:HideFrame(interactionType)
 		end
 	else
 		HideUIPanel(_G[frameInfo.frame])
-	end			
+	end
 end
 
 function PlayerInteractionFrameManagerMixin:OnLoad()
@@ -153,11 +153,13 @@ PlayerInteractionFrameManager.ShowFrame = PlayerInteractionFrameManagerMixin.Sho
 PlayerInteractionFrameManager.HideFrame = PlayerInteractionFrameManagerMixin.HideFrame
 
 PlayerInteractionFrameManager:SetScript("OnEvent", function(Self, Event)
-	local Type = Self.__Show[Event]
+	local Show = Self.__Show
+	local Type = Show and Show[Event]
 	if ( Type ) then
 		EventHandler_Fire(nil, "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", Type)
 	else
-		local Type = Self.__Hide[Event]
+		local Hide = Self.__Hide
+		local Type = Hide and Hide[Event]
 		if ( Type ) then
 			EventHandler_Fire(nil, "PLAYER_INTERACTION_MANAGER_FRAME_HIDE", Type)
 		end

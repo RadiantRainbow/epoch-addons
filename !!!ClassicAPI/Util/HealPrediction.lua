@@ -51,13 +51,8 @@ function UnitGetIncomingHeals(Unit, Healer, GUID)
 	end
 end
 
-function UnitGetTotalAbsorbs(Unit)
-	return 0
-end
-
-function UnitGetTotalHealAbsorbs(Unit)
-	return 0
-end
+UnitGetTotalAbsorbs = Private.Zero
+UnitGetTotalHealAbsorbs = Private.Zero
 
 local function UNIT_HEAL_PREDICTION(Limit, GUID, ...)
 	if ( not Limit ) then

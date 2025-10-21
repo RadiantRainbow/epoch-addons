@@ -1,7 +1,4 @@
 if ( not C_Timer ) then
-	local _G = _G
-	local Next = next
-
 	local C_Timer = TimerFrame or CreateFrame("Frame", "TimerFrame")
 	local ObjPool = {}
 

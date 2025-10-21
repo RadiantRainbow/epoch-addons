@@ -175,6 +175,18 @@ local function Method_RegisterUnitEvent(Self, Event, Unit1, Unit2)
 	end
 end
 
+local function Method_UnregisterAllEvents(Self)
+	for k in pairs(EVENT_ARCHIVE) do
+		Self:UnregisterEvent(k)
+	end
+end
+
+local function Method_RegisterAllEvents(Self)
+	for k in pairs(EVENT_ARCHIVE) do
+		Self:RegisterEvent(k)
+	end
+end
+
 local function EventHandler_Register(Type, Event, Callback)
 	if ( Type == "OnRegister" ) then
 		ON_REG[Event] = Callback
@@ -209,8 +221,12 @@ FrameMeta.RegisterUnitEvent = Method_RegisterUnitEvent
 ButtonMeta.RegisterUnitEvent = Method_RegisterUnitEvent
 HookSecureFunc(FrameMeta, "RegisterEvent", Method_RegisterEvent)
 HookSecureFunc(FrameMeta, "UnregisterEvent", Method_UnregisterEvent)
+HookSecureFunc(FrameMeta, "RegisterAllEvents", Method_RegisterAllEvents)
+HookSecureFunc(FrameMeta, "UnregisterAllEvents", Method_UnregisterAllEvents)
 HookSecureFunc(ButtonMeta, "RegisterEvent", Method_RegisterEvent)
 HookSecureFunc(ButtonMeta, "UnregisterEvent", Method_UnregisterEvent)
+HookSecureFunc(ButtonMeta, "RegisterAllEvents", Method_RegisterAllEvents)
+HookSecureFunc(ButtonMeta, "UnregisterAllEvents", Method_UnregisterAllEvents)
 EventHandler:SetScript("OnEvent", EventHandler_Fire)
 
 -- Module
@@ -219,26 +235,3 @@ EventHandler.Register = EventHandler_Register
 
 -- Private Namespace
 Private.EventHandler = EventHandler
-
---[[
-
-	EventHandler: EventTrace Support
-
-]]
-
-local EventTrace = SlashCmdList.EVENTTRACE
-function SlashCmdList.EVENTTRACE(MSG)
-	EventTrace(MSG)
-
-	local ETF = _G["EventTraceFrame"]
-	local function Start()
-		for k in pairs(EVENT_ARCHIVE) do ETF:RegisterEvent(k) end
-	end
-	Start()
-	HookSecureFunc("EventTraceFrame_StartEventCapture", Start)
-	HookSecureFunc("EventTraceFrame_StopEventCapture", function()
-		for k in pairs(EVENT_ARCHIVE) do ETF:UnregisterEvent(k) end
-	end)
-
-	SlashCmdList.EVENTTRACE = EventTrace
-end

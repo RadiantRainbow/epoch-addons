@@ -67,10 +67,6 @@ function C_Spell.DoesSpellExist(ID)
 	return GetSpellInfo(ID) ~= nil
 end
 
-function C_Spell.GetSpellCastCount(ID)
-	return 0 -- TODO
-end
-
 function C_Spell.GetSpellIDForSpellIdentifier(ID, BookType)
 	if ( BookType or Type(ID) == "string" ) then
 		Tooltip:ClearLines()
@@ -101,6 +97,7 @@ C_Spell.PickupSpell = PickupSpell
 C_Spell.GetSpellLink = GetSpellLink
 C_Spell.IsSpellInRange = IsSpellInRange
 
+C_Spell.GetSpellCastCount = Private.Zero
 C_Spell.GetSpellCharges = Private.Void
 
 -- Global
