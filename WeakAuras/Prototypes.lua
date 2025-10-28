@@ -593,10 +593,11 @@ function WeakAuras.CheckNumericIds(loadids, currentId)
   local startI, endI = string.find(loadids, currentId, searchFrom);
   while (startI) do
     searchFrom = endI + 1; -- start next search from end
-    if (startI == 1 or tonumber(string.sub(loadids, startI - 1, startI - 1)) == nil) then
+    local isNeg = (startI > 1 and string.sub(loadids, startI - 1, startI - 1) == "-")
+    if (isNeg or startI == 1 or tonumber(string.sub(loadids, startI - 1, startI - 1)) == nil) then
       -- Either right at start, or character before is not a number
       if (endI == string.len(loadids) or tonumber(string.sub(loadids, endI + 1, endI + 1)) == nil) then
-        return true;
+        return not isNeg
       end
     end
     startI, endI = string.find(loadids, currentId, searchFrom);
@@ -1662,6 +1663,9 @@ Private.event_prototypes = {
     end,
     loadFunc = function(trigger)
       AddWatchedUnits(trigger.unit, nil, trigger.use_unitisunit and trigger.unitisunit or nil)
+      if trigger.use_inRange then
+        WeakAuras.WatchForPlayerInRange()
+      end
     end,
     force_events = unitHelperFunctions.UnitChangedForceEvents,
     name = L["Unit Characteristics"],
@@ -1883,7 +1887,7 @@ Private.event_prototypes = {
         enable = function(trigger)
           return trigger.unit == "group" or trigger.unit == "raid" or trigger.unit == "party"
         end,
-        init = "UnitInRange(unit)"
+        init = "Private.ExecEnv.UnitInRangeFixed(unit)"
       },
       {
         name = "hostility",
@@ -2317,6 +2321,9 @@ Private.event_prototypes = {
     loadFunc = function(trigger)
       local includePets = trigger.use_includePets == true and trigger.includePets or nil
       AddWatchedUnits(trigger.unit, includePets)
+      if trigger.use_inRange then
+        WeakAuras.WatchForPlayerInRange()
+      end
     end,
     force_events = unitHelperFunctions.UnitChangedForceEventsWithPets,
     name = L["Health"],
@@ -2598,7 +2605,7 @@ Private.event_prototypes = {
         enable = function(trigger)
           return trigger.unit == "group" or trigger.unit == "raid" or trigger.unit == "party"
         end,
-        init = "UnitInRange(unit)"
+        init = "Private.ExecEnv.UnitInRangeFixed(unit)"
       },
       {
         name = "nameplateType",
@@ -2688,6 +2695,9 @@ Private.event_prototypes = {
       end
       local includePets = trigger.use_includePets == true and trigger.includePets or nil
       AddWatchedUnits(trigger.unit, includePets)
+      if trigger.use_inRange then
+        WeakAuras.WatchForPlayerInRange()
+      end
     end,
     force_events = unitHelperFunctions.UnitChangedForceEventsWithPets,
     name = L["Power"],
@@ -3070,7 +3080,7 @@ Private.event_prototypes = {
         enable = function(trigger)
           return trigger.unit == "group" or trigger.unit == "raid" or trigger.unit == "party"
         end,
-        init = "UnitInRange(unit)"
+        init = "Private.ExecEnv.UnitInRangeFixed(unit)"
       },
       {
         name = "nameplateType",

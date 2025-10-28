@@ -337,7 +337,6 @@ end
 --  FUNCIÓN PARA RESETEAR SOLO WIDGETS USANDO ACE3 (FUERA DEL EDITOR MODE)
 function EditorMode:ResetAllPositions()
     if not addon.db or not addon.db.profile then
-        
         return
     end
     
@@ -348,16 +347,20 @@ function EditorMode:ResetAllPositions()
     
     -- Resetear solo la sección widgets usando los defaults de Ace3
     if addon.defaults and addon.defaults.profile and addon.defaults.profile.widgets then
-        -- Usar deep copy de los defaults para widgets (preserva el resto de configuración)
         addon.db.profile.widgets = addon:CopyTable(addon.defaults.profile.widgets)
-        
     else
-        
         return
     end
     
-    -- Usar ReloadUI para aplicar completamente los cambios (como reset de perfil)
+    -- NUEVO: Resetear también additional.totem para multicast
+    if addon.defaults and addon.defaults.profile and addon.defaults.profile.additional then
+        if not addon.db.profile.additional then
+            addon.db.profile.additional = {}
+        end
+        addon.db.profile.additional.totem = addon:CopyTable(addon.defaults.profile.additional.totem)
+    end
     
+    -- Usar ReloadUI para aplicar completamente los cambios
     ReloadUI()
 end
 

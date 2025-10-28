@@ -501,7 +501,7 @@ function addon:CreateOptionsTable()
                             hide_main_bar_background = {
                                 type = 'toggle',
                                 name = "Hide Main Bar Background",
-                                desc = "Hide the background texture of the main action bar (makes it completely transparent)",
+                                desc = "Hide the background texture of the main action bar (makes it completely transparent)|cFFFF0000Requires UI reload|r",
                                 get = function()
                                     return addon.db.profile.buttons.hide_main_bar_background
                                 end,
@@ -510,6 +510,8 @@ function addon:CreateOptionsTable()
                                     if addon.RefreshMainbars then
                                         addon.RefreshMainbars()
                                     end
+                                    -- Prompt for UI reload
+                                    StaticPopup_Show("DRAGONUI_RELOAD_UI")
                                 end,
                                 order = 1.5
                             },
@@ -1246,48 +1248,10 @@ function addon:CreateOptionsTable()
                             pet_group = {
                                 type = 'group',
                                 name = "Pet Bar",
-                                desc = "Hunters, Warlocks, Death Knights",
+                                desc = "Hunters, Warlocks, Death Knights - Use editor mode to move",
                                 inline = true,
                                 order = 2,
                                 args = {
-                                    x_position = {
-                                        type = 'range',
-                                        name = "X Position",
-                                        desc = "Horizontal position of pet bar",
-                                        min = -500,
-                                        max = 500,
-                                        step = 1,
-                                        get = function()
-                                            return addon.db.profile.additional.pet.x_position
-                                        end,
-                                        set = function(info, value)
-                                            addon.db.profile.additional.pet.x_position = value
-                                            if addon.RefreshPetbar then
-                                                addon.RefreshPetbar()
-                                            end
-                                        end,
-                                        order = 1,
-                                        width = "double"
-                                    },
-                                    y_offset = {
-                                        type = 'range',
-                                        name = "Y Offset",
-                                        desc = "|cffFFD700Smart Anchored Bar:|r This bar automatically positions itself relative to other visible bars.\n\n• This Y offset adds extra spacing above/below the automatic position\n• Positive values = move UP\n• Negative values = move DOWN\n• The bar will still move automatically when you show/hide other action bars",
-                                        min = -100,
-                                        max = 100,
-                                        step = 1,
-                                        get = function()
-                                            return addon.db.profile.additional.pet.y_offset or 0
-                                        end,
-                                        set = function(info, value)
-                                            addon.db.profile.additional.pet.y_offset = value
-                                            if addon.RefreshPetbar then
-                                                addon.RefreshPetbar()
-                                            end
-                                        end,
-                                        order = 2,
-                                        width = "full"
-                                    },
                                     grid = {
                                         type = 'toggle',
                                         name = "Show Empty Slots",
@@ -1301,7 +1265,7 @@ function addon:CreateOptionsTable()
                                                 addon.RefreshPetbar()
                                             end
                                         end,
-                                        order = 3,
+                                        order = 1,
                                         width = "full"
                                     }
                                 }
@@ -1350,53 +1314,6 @@ function addon:CreateOptionsTable()
                                         end,
                                         order = 2,
                                         width = "full"
-                                    }
-                                }
-                            },
-                            totem_group = {
-                                type = 'group',
-                                name = "Totem Bar",
-                                desc = "Shamans only (multicast)",
-                                inline = true,
-                                order = 4,
-                                args = {
-                                    x_position = {
-                                        type = 'range',
-                                        name = "X Position",
-                                        desc = "Horizontal offset for totem bar",
-                                        min = -500,
-                                        max = 500,
-                                        step = 1,
-                                        order = 1,
-                                        get = function()
-                                            return (addon.db.profile.additional.totem and
-                                                       addon.db.profile.additional.totem.x_position) or 0
-                                        end,
-                                        set = function(info, value)
-                                            addon.db.profile.additional.totem.x_position = value
-                                            if addon.RefreshMulticast then
-                                                addon.RefreshMulticast()
-                                            end
-                                        end
-                                    },
-                                    y_offset = {
-                                        type = 'range',
-                                        name = "Y Offset",
-                                        desc = "Vertical offset for totem bar",
-                                        min = -200,
-                                        max = 200,
-                                        step = 1,
-                                        order = 2,
-                                        get = function()
-                                            return (addon.db.profile.additional.totem and
-                                                       addon.db.profile.additional.totem.y_offset) or 0
-                                        end,
-                                        set = function(info, value)
-                                            addon.db.profile.additional.totem.y_offset = value
-                                            if addon.RefreshMulticast then
-                                                addon.RefreshMulticast()
-                                            end
-                                        end
                                     }
                                 }
                             }

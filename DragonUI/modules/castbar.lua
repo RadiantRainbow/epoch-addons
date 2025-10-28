@@ -1,5 +1,4 @@
-local addon = select(2, ...)
-
+﻿local addon = select(2, ...)
 
 -- ============================================================================
 -- CASTBAR MODULE FOR DRAGONUI
@@ -14,6 +13,10 @@ local GetTime = GetTime
 local UnitExists, UnitGUID = UnitExists, UnitGUID
 local UnitCastingInfo, UnitChannelInfo = UnitCastingInfo, UnitChannelInfo
 local UnitAura, GetSpellTexture, GetSpellInfo = UnitAura, GetSpellTexture, GetSpellInfo
+
+-- ============================================================================
+-- CONSTANTS AND TEXTURES
+-- ============================================================================
 
 local TEXTURE_PATH = "Interface\\AddOns\\DragonUI\\Textures\\CastbarOriginal\\"
 local TEXTURES = {
@@ -64,16 +67,18 @@ local MAX_TICKS = 15
 
 local CastbarModule = {
     frames = {},
-    initialized = false
+    initialized = false,
+    anchor = nil,
+    blizzardHidden = {}  -- Track which Blizzard castbars we've hidden
 }
 
--- Initialize frames for each castbar type (RetailUI pattern: statusBar flags only)
+-- Initialize frames for each castbar type
 for _, unitType in ipairs({"player", "target", "focus"}) do
     CastbarModule.frames[unitType] = {}
 end
 
 -- ============================================================================
--- UTILITY FUNCTIONS
+-- CONFIGURATION ACCESS
 -- ============================================================================
 
 local function GetConfig(unitType)
@@ -81,11 +86,11 @@ local function GetConfig(unitType)
     if not cfg then
         return nil
     end
-
+    
     if unitType == "player" then
         return cfg
     end
-
+    
     return cfg[unitType]
 end
 
@@ -94,17 +99,21 @@ local function IsEnabled(unitType)
     return cfg and cfg.enabled
 end
 
+-- ============================================================================
+-- UTILITY FUNCTIONS
+-- ============================================================================
+
 local function GetSpellIcon(spellName, texture)
     if texture and texture ~= "" then
         return texture
     end
-
+    
     if spellName then
         local icon = GetSpellTexture(spellName)
         if icon then
             return icon
         end
-
+        
         -- Search in spellbook
         for i = 1, 1024 do
             local name, _, icon = GetSpellInfo(i, BOOKTYPE_SPELL)
@@ -116,7 +125,7 @@ local function GetSpellIcon(spellName, texture)
             end
         end
     end
-
+    
     return "Interface\\Icons\\INV_Misc_QuestionMark"
 end
 
@@ -124,187 +133,217 @@ local function ParseCastTimes(startTime, endTime)
     local start = (startTime or 0) / 1000
     local finish = (endTime or 0) / 1000
     local duration = finish - start
-
+    
     -- Sanity check for duration
     if duration > 3600 or duration < 0 then
         duration = 3.0
     end
-
+    
     return start, finish, duration
 end
 
 -- ============================================================================
--- FADE SYSTEM - Intelligent fade management following RetailUI pattern
+-- BLIZZARD CASTBAR MANAGEMENT 
 -- ============================================================================
 
-local function RestoreCastbarVisibility(unitType)
-    local frames = CastbarModule.frames[unitType]
-    if not frames then return end
-    
-    -- Ensure container exists before trying to show it
-    if not frames.container then
-        CreateCastbar(unitType)
+local function HideBlizzardCastbar(unitType)
+    -- Skip if already hidden
+    if CastbarModule.blizzardHidden[unitType] then
+        return
     end
     
-    -- RetailUI pattern: Cancel any active fades and restore full visibility on container
-    local container = frames.container
-    if container then
-        UIFrameFadeRemoveFrame(container)
-        container:SetAlpha(1.0)
-        container.fadeOutEx = false
-        container:Show()  -- Ensure container is visible
-    end
-    
-    -- CRITICAL: Also cancel fade on the castbar itself in case it was set
-    local castbar = frames.castbar
-    if castbar then
-        UIFrameFadeRemoveFrame(castbar)
-        castbar:SetAlpha(1.0)
-        castbar.fadeOutEx = false
-    end
-    
-    -- Restore all text elements that should be visible
-    local textElements = {
-        frames.castText, frames.castTextCompact, frames.castTextCentered, 
-        frames.castTimeText, frames.castTimeTextCompact
+    local frames = {
+        player = CastingBarFrame,
+        target = TargetFrameSpellBar,
+        focus = FocusFrameSpellBar
     }
     
-    for _, element in ipairs(textElements) do
-        if element then
-            UIFrameFadeRemoveFrame(element)
-            element:SetAlpha(1.0)
-        end
+    local frame = frames[unitType]
+    if not frame then
+        return
     end
     
-    -- Restore textBackground if it exists
-    if frames.textBackground then
-        UIFrameFadeRemoveFrame(frames.textBackground)
-        frames.textBackground:SetAlpha(1.0)
+    -- More aggressive hiding to prevent interference
+    frame:Hide()
+    frame:SetAlpha(0)
+    
+    if unitType == "target" then
+        frame:ClearAllPoints()
+        frame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -5000, -5000)
+        frame:SetSize(1, 1)
     end
     
-    -- Restore other elements
-    if frames.icon then
-        UIFrameFadeRemoveFrame(frames.icon)
-        frames.icon:SetAlpha(1.0)
+    -- Set OnShow hook only once
+    if not frame._dragonUIHooked then
+        frame:SetScript("OnShow", function(self)
+            if CastbarModule.blizzardHidden[unitType] then
+                self:Hide()
+            end
+        end)
+        frame._dragonUIHooked = true
     end
+    
+    CastbarModule.blizzardHidden[unitType] = true
 end
 
-local function FadeOutCastbar(unitType, duration)
-    local frames = CastbarModule.frames[unitType]
-    if not frames then return end
+local function ShowBlizzardCastbar(unitType)
+    CastbarModule.blizzardHidden[unitType] = false
     
-    -- RetailUI pattern: Fade entire container - unified and simple
-    local container = frames.container
-    if container then
-        container.fadeOutEx = true
-        UIFrameFadeOut(container, duration or 1, 1.0, 0.0, function()
-            -- OnFinished callback: Hide container and reset flags
-            container:Hide()
-            container.fadeOutEx = false
-        end)
+    local frames = {
+        player = CastingBarFrame,
+        target = TargetFrameSpellBar,
+        focus = FocusFrameSpellBar
+    }
+    
+    local frame = frames[unitType]
+    if not frame then
+        return
+    end
+    
+    frame:SetAlpha(1)
+    
+    if unitType == "target" then
+        frame:ClearAllPoints()
+        frame:SetPoint("TOPLEFT", TargetFrame, "BOTTOMLEFT", 25, -5)
     end
 end
 
 -- ============================================================================
--- TEXTURE AND LAYER MANAGEMENT
+-- TEXTURE LAYER MANAGEMENT 
 -- ============================================================================
 
 local function ForceStatusBarLayer(statusBar)
-    if not statusBar then
+    if not statusBar or statusBar._layerForced then
         return
     end
-
-    -- ✅ SOLO configurar UNA VEZ, no en cada frame
+    
     local texture = statusBar:GetStatusBarTexture()
-    if texture and texture.SetDrawLayer and not statusBar._layerForced then
+    if texture and texture.SetDrawLayer then
         texture:SetDrawLayer('BORDER', 0)
-        statusBar._layerForced = true -- Marcar como configurado
+        statusBar._layerForced = true
     end
 end
 
 local function CreateTextureClipping(statusBar)
+    -- Cache for performance
+    local lastProgress = -1
+    local lastChanneling = nil
+    
     statusBar.UpdateTextureClipping = function(self, progress, isChanneling)
         local texture = self:GetStatusBarTexture()
         if not texture then
             return
         end
-
+        
+        -- Skip if values haven't changed significantly
+        if abs(progress - lastProgress) < 0.001 and isChanneling == lastChanneling then
+            return
+        end
+        lastProgress = progress
+        lastChanneling = isChanneling
+        
+        local clampedProgress = max(0.01, min(0.99, progress))
+        
         if isChanneling then
-            -- CHANNELING: Ocultar desde la derecha (texture se "corta" de derecha a izquierda)
-            local clampedProgress = math.max(0.01, math.min(0.99, progress))
-            texture:ClearAllPoints()
-            texture:SetAllPoints(self)
+            -- CHANNELING: Hide from right
             texture:SetTexCoord(0, clampedProgress, 0, 1)
         else
-            -- CASTING: Normal (texture se "llena" de izquierda a derecha)
-            local clampedProgress = math.max(0.01, math.min(0.99, progress))
+            -- CASTING: Fill from left
             texture:SetTexCoord(0, clampedProgress, 0, 1)
-            texture:ClearAllPoints()
-            texture:SetAllPoints(self)
         end
+        
+        texture:ClearAllPoints()
+        texture:SetAllPoints(self)
     end
 end
 
 -- ============================================================================
--- BLIZZARD CASTBAR MANAGEMENT
+-- FADE SYSTEM 
 -- ============================================================================
 
-local function HideBlizzardCastbar(unitType)
-    local frames = {
-        player = CastingBarFrame,
-        target = TargetFrameSpellBar,
-        focus = FocusFrameSpellBar
-    }
-
-    local frame = frames[unitType]
-    if not frame then
+local function RestoreCastbarVisibility(unitType)
+    local frames = CastbarModule.frames[unitType]
+    if not frames or not frames.container then
         return
     end
+    
+    -- Cancel any active fades and restore full visibility
+    local container = frames.container
+    UIFrameFadeRemoveFrame(container)
+    container:SetAlpha(1.0)
+    container.fadeOutEx = false
+    container:Show()
+    
+    -- Also restore castbar itself
+    if frames.castbar then
+        UIFrameFadeRemoveFrame(frames.castbar)
+        frames.castbar:SetAlpha(1.0)
+        frames.castbar.fadeOutEx = false
+    end
+end
 
-    --  More aggressive hiding to prevent interference
-    frame:Hide()
-    frame:SetAlpha(0)
+local function FadeOutCastbar(unitType, duration)
+    local frames = CastbarModule.frames[unitType]
+    if not frames or not frames.container then
+        return
+    end
+    
+    local container = frames.container
+    if container.fadeOutEx then
+        return -- Already fading
+    end
+    
+    container.fadeOutEx = true
+    UIFrameFadeOut(container, duration or 1, 1.0, 0.0, function()
+        container:Hide()
+        container.fadeOutEx = false
+    end)
+end
 
-    if unitType == "target" then
-        frame:ClearAllPoints()
-        frame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -5000, -5000)
-        frame:SetSize(1, 1) -- Minimize size
-
-        --  Disable Blizzard's own show/hide logic
-        if frame.SetScript then
-            frame:SetScript("OnShow", function(self)
-                self:Hide()
-            end)
-        end
+-- Show success flash and fade out
+local function ShowSuccessFlash(unitType)
+    local frames = CastbarModule.frames[unitType]
+    if not frames then
+        return
+    end
+    
+    -- Cancel any previous flash timer
+    if frames.flashTimer then
+        frames.flashTimer:SetScript("OnUpdate", nil)
+        frames.flashTimer = nil
+    end
+    
+    if frames.flash then
+        frames.flash:SetAlpha(1.0)
+        frames.flash:Show()
+        
+        local flashFrame = CreateFrame("Frame")
+        flashFrame.elapsed = 0
+        flashFrame.unitType = unitType
+        flashFrame:SetScript("OnUpdate", function(self, elapsed)
+            self.elapsed = self.elapsed + elapsed
+            if self.elapsed >= 0.5 then
+                self:SetScript("OnUpdate", nil)
+                local f = CastbarModule.frames[self.unitType]
+                if f then
+                    if f.flash then
+                        f.flash:Hide()
+                    end
+                    f.flashTimer = nil
+                    
+                    -- Only fade if no new cast started
+                    local castbar = f.castbar
+                    if castbar and not (castbar.castingEx or castbar.channelingEx) then
+                        FadeOutCastbar(self.unitType, 0.5)
+                    end
+                end
+            end
+        end)
+        
+        -- Store flash timer so we can cancel it if new cast starts
+        frames.flashTimer = flashFrame
     else
-        if frame.SetScript then
-            frame:SetScript("OnShow", function(self)
-                self:Hide()
-            end)
-        end
-    end
-end
-
-local function ShowBlizzardCastbar(unitType)
-    local frames = {
-        player = CastingBarFrame,
-        target = TargetFrameSpellBar,
-        focus = FocusFrameSpellBar
-    }
-
-    local frame = frames[unitType]
-    if not frame then
-        return
-    end
-
-    frame:SetAlpha(1)
-    if frame.SetScript then
-        frame:SetScript("OnShow", nil)
-    end
-
-    if unitType == "target" then
-        frame:ClearAllPoints()
-        frame:SetPoint("TOPLEFT", TargetFrame, "BOTTOMLEFT", 25, -5)
+        FadeOutCastbar(unitType, 0.5)
     end
 end
 
@@ -330,17 +369,16 @@ local function UpdateChannelTicks(parent, ticksTable, spellName)
             ticksTable[i]:Hide()
         end
     end
-
+    
     local tickCount = CHANNEL_TICKS[spellName]
-
     if not tickCount or tickCount <= 1 then
         return
     end
-
+    
     local width = parent:GetWidth()
     local height = parent:GetHeight()
     local tickDelta = width / tickCount
-
+    
     for i = 1, min(tickCount - 1, MAX_TICKS) do
         if ticksTable[i] then
             ticksTable[i]:SetSize(3, max(height - 2, 10))
@@ -367,134 +405,118 @@ local function CreateShield(parent, icon, frameName, iconSize)
     if not parent or not icon then
         return nil
     end
-
+    
     local shield = CreateFrame("Frame", frameName .. "Shield", parent)
     shield:SetFrameLevel(parent:GetFrameLevel() - 1)
     shield:SetSize(iconSize * 1.8, iconSize * 2.0)
-
+    
     local texture = shield:CreateTexture(nil, "ARTWORK", nil, 3)
     texture:SetAllPoints(shield)
     texture:SetTexture(TEXTURES.atlas)
     texture:SetTexCoord(unpack(UV_COORDS.borderShield))
     texture:SetVertexColor(1, 1, 1, 1)
-
+    
     shield:ClearAllPoints()
     shield:SetPoint("CENTER", icon, "CENTER", 0, -4)
     shield:Hide()
-
+    
     return shield
 end
 
 -- ============================================================================
--- AURA OFFSET SYSTEM
+-- AURA OFFSET SYSTEM 
 -- ============================================================================
 
--- ============================================================================
--- UNIFIED AURA OFFSET SYSTEM
--- ============================================================================
+local auraOffsetCache = {
+    target = { offset = 0, guid = nil, lastUpdate = 0 },
+    focus = { offset = 0, guid = nil, lastUpdate = 0 }
+}
+
 local function GetAuraOffset(unit)
     local cfg = GetConfig(unit)
     if not cfg or not cfg.autoAdjust then
         return 0
     end
-
+    
     if not UnitExists(unit) then
         return 0
     end
-
+    
+    -- Check cache
+    local cache = auraOffsetCache[unit]
+    if cache and cache.guid == UnitGUID(unit) and (GetTime() - cache.lastUpdate) < 0.5 then
+        return cache.offset
+    end
+    
     local buffCount = 0
     local debuffCount = 0
-
-    -- Count auras using unified method
-    if unit == "target" then
-        -- Target uses direct UnitBuff/UnitDebuff
-        for i = 1, 40 do
-            if UnitBuff(unit, i) then
-                buffCount = buffCount + 1
-            else
-                break
-            end
+    
+    -- Count ALL auras (including player's auras on target/focus)
+    local index = 1
+    while index <= 40 do
+        local name = UnitAura(unit, index, "HELPFUL")
+        if not name then
+            break
         end
-        for i = 1, 40 do
-            if UnitDebuff(unit, i) then
-                debuffCount = debuffCount + 1
-            else
-                break
-            end
+        buffCount = buffCount + 1
+        index = index + 1
+    end
+    
+    index = 1
+    while index <= 40 do
+        local name = UnitAura(unit, index, "HARMFUL")
+        if not name then
+            break
         end
-    else
-        -- Focus uses UnitAura method
-        local index = 1
-        while index <= 40 do
-            local name = UnitAura(unit, index, "HELPFUL")
-            if not name then
-                break
+        debuffCount = debuffCount + 1
+        index = index + 1
+    end
+    
+    local totalOffset = 0
+    if buffCount > 0 or debuffCount > 0 then
+        -- WotLK 3.3.5a displays 8 auras per row (changed from 6 in earlier versions)
+        local AURAS_PER_ROW = 8
+        -- Each aura row is 22 pixels tall (including spacing)
+        local AURA_ROW_HEIGHT = 22
+        
+        if buffCount > 0 then
+            local buffRows = ceil(buffCount / AURAS_PER_ROW)
+            if buffRows > 1 then
+                totalOffset = totalOffset + ((buffRows - 1) * AURA_ROW_HEIGHT)
             end
-            buffCount = buffCount + 1
-            index = index + 1
         end
         
-        index = 1
-        while index <= 40 do
-            local name = UnitAura(unit, index, "HARMFUL")
-            if not name then
-                break
-            end
-            debuffCount = debuffCount + 1
-            index = index + 1
+        if debuffCount > 0 then
+            totalOffset = totalOffset + AURA_ROW_HEIGHT
         end
     end
-
-    if buffCount == 0 and debuffCount == 0 then
-        return 0
+    
+    -- Update cache
+    if cache then
+        cache.offset = totalOffset
+        cache.guid = UnitGUID(unit)
+        cache.lastUpdate = GetTime()
     end
-
-    -- Unified offset calculation
-    local AURAS_PER_ROW = 6
-    local BUFF_ROW_HEIGHT = 10
-    local DEBUFF_ROW_HEIGHT = 24
-    local totalOffset = 0
-
-    -- Count buff rows (only additional rows)
-    if buffCount > 0 then
-        local buffRows = math.ceil(buffCount / AURAS_PER_ROW)
-        if buffRows > 1 then
-            totalOffset = totalOffset + ((buffRows - 1) * BUFF_ROW_HEIGHT)
-        end
-    end
-
-    -- Add debuff offset if any debuffs exist
-    if debuffCount > 0 then
-        totalOffset = totalOffset + DEBUFF_ROW_HEIGHT
-    end
-
+    
     return totalOffset
 end
 
 local function ApplyAuraOffset(unit)
     local frames = CastbarModule.frames[unit]
-    if not frames.castbar or not frames.castbar:IsVisible() then
+    if not frames or not frames.container or not frames.container:IsVisible() then
         return
     end
-
+    
     local cfg = GetConfig(unit)
     if not cfg or not cfg.enabled or not cfg.autoAdjust then
         return
     end
-
+    
     local offset = GetAuraOffset(unit)
     local anchorFrame = _G[cfg.anchorFrame] or _G[unit:gsub("^%l", string.upper) .. "Frame"] or UIParent
-
-    -- RetailUI pattern: Position container instead of individual castbar
-    if not frames.container then
-        CreateCastbar(unitType)
-    end
     
     frames.container:ClearAllPoints()
     frames.container:SetPoint(cfg.anchor, anchorFrame, cfg.anchorParent, cfg.x_position, cfg.y_position - offset)
-    
-    -- Set castbar size on container
-    frames.container:SetSize(cfg.sizeX or 200, cfg.sizeY or 16)
 end
 
 -- ============================================================================
@@ -506,17 +528,22 @@ local function SetTextMode(unitType, mode)
     if not frames then
         return
     end
-
-    local elements = {frames.castText, frames.castTextCompact, frames.castTextCentered, frames.castTimeText,
-                      frames.castTimeTextCompact}
-
+    
+    local elements = {
+        frames.castText, 
+        frames.castTextCompact, 
+        frames.castTextCentered, 
+        frames.castTimeText,
+        frames.castTimeTextCompact
+    }
+    
     -- Hide all text elements first
     for _, element in ipairs(elements) do
         if element then
             element:Hide()
         end
     end
-
+    
     -- Show appropriate elements based on mode
     if mode == "simple" then
         if frames.castTextCentered then
@@ -525,7 +552,7 @@ local function SetTextMode(unitType, mode)
     else
         local cfg = GetConfig(unitType)
         local isCompact = cfg and cfg.compactLayout
-
+        
         if isCompact then
             if frames.castTextCompact then
                 frames.castTextCompact:Show()
@@ -549,15 +576,15 @@ local function SetCastText(unitType, text)
     if not cfg then
         return
     end
-
+    
     local textMode = cfg.text_mode or "simple"
     SetTextMode(unitType, textMode)
-
+    
     local frames = CastbarModule.frames[unitType]
     if not frames then
         return
     end
-
+    
     if textMode == "simple" then
         if frames.castTextCentered then
             frames.castTextCentered:SetText(text)
@@ -571,54 +598,42 @@ local function SetCastText(unitType, text)
         end
     end
 end
+
 local function UpdateTimeText(unitType)
     local frames = CastbarModule.frames[unitType]
     if not frames or not frames.castbar then
         return
     end
+    
     local castbar = frames.castbar
-
-    if unitType == "player" then
-        if not frames.timeValue and not frames.timeMax then
-            return
-        end
-    else
-        if not frames.castTimeText and not frames.castTimeTextCompact then
-            return
-        end
+    
+    -- Skip if not casting/channeling
+    if not castbar.castingEx and not castbar.channelingEx then
+        return
     end
-
+    
     local cfg = GetConfig(unitType)
     if not cfg then
         return
     end
-
+    
     local seconds = 0
     local secondsMax = (castbar.endTime or 0) - (castbar.startTime or 0)
-
-    if castbar.castingEx or castbar.channelingEx then
-        local currentTime = GetTime()
-        local elapsed = currentTime - (castbar.startTime or 0)
-        
-        if castbar.castingEx then
-            -- CASTING: Mostrar tiempo restante (cuenta atrás)
-            seconds = max(0, secondsMax - elapsed)
-        else
-            -- CHANNELING: Mostrar tiempo restante directo (drena)
-            seconds = max(0, secondsMax - elapsed)
-        end
-    end
-
+    
+    local currentTime = GetTime()
+    local elapsed = currentTime - (castbar.startTime or 0)
+    seconds = max(0, secondsMax - elapsed)
+    
     local timeText = format('%.' .. (cfg.precision_time or 1) .. 'f', seconds)
     local fullText
-
+    
     if cfg.precision_max and cfg.precision_max > 0 then
         local maxText = format('%.' .. cfg.precision_max .. 'f', secondsMax)
         fullText = timeText .. ' / ' .. maxText
     else
         fullText = timeText .. 's'
     end
-
+    
     if unitType == "player" then
         local textMode = cfg.text_mode or "simple"
         if textMode ~= "simple" and frames.timeValue and frames.timeMax then
@@ -643,56 +658,56 @@ local function CreateCastbar(unitType)
     if CastbarModule.frames[unitType].castbar then
         return
     end
-
+    
     local frameName = 'DragonUI' .. unitType:sub(1, 1):upper() .. unitType:sub(2) .. 'Castbar'
     local frames = CastbarModule.frames[unitType]
-
-    -- Create unified container frame (RetailUI pattern)
+    
+    -- Create unified container frame
     frames.container = CreateFrame('Frame', frameName .. 'Container', UIParent)
     frames.container:SetFrameStrata("MEDIUM")
     frames.container:SetFrameLevel(10)
-    frames.container:SetSize(256, 16)  -- Default size - will be updated by positioning functions
-    frames.container:SetPoint("CENTER", UIParent, "CENTER", 0, -150)  -- Default position - will be updated
+    frames.container:SetSize(256, 16)
+    frames.container:SetPoint("CENTER", UIParent, "CENTER", 0, -150)
     frames.container:Hide()
-
-    -- Main StatusBar (as child of container)
+    
+    -- Main StatusBar
     frames.castbar = CreateFrame('StatusBar', frameName, frames.container)
-    frames.castbar:SetFrameLevel(2)  -- Above textBackground
-    frames.castbar:SetAllPoints(frames.container)  -- Fill entire container
+    frames.castbar:SetFrameLevel(2)
+    frames.castbar:SetAllPoints(frames.container)
     frames.castbar:SetMinMaxValues(0, 1)
     frames.castbar:SetValue(0)
     
-    -- RetailUI pattern: Add simple state flags directly to statusBar
+    -- State flags
     frames.castbar.castingEx = false
     frames.castbar.channelingEx = false
     frames.castbar.fadeOutEx = false
     frames.castbar.selfInterrupt = false
-
+    
     -- Background
     local bg = frames.castbar:CreateTexture(nil, 'BACKGROUND')
     bg:SetTexture(TEXTURES.atlas)
     bg:SetTexCoord(unpack(UV_COORDS.background))
     bg:SetAllPoints()
-
+    
     -- StatusBar texture
     frames.castbar:SetStatusBarTexture(TEXTURES.standard)
     local texture = frames.castbar:GetStatusBarTexture()
     if texture then
-        texture:SetVertexColor(1, 1, 1, 1)  -- RetailUI texture color reset
+        texture:SetVertexColor(1, 1, 1, 1)
     end
     frames.castbar:SetStatusBarColor(1, 0.7, 0, 1)
-
+    
     -- Border
     local border = frames.castbar:CreateTexture(nil, 'ARTWORK', nil, 0)
     border:SetTexture(TEXTURES.atlas)
     border:SetTexCoord(unpack(UV_COORDS.border))
     border:SetPoint("TOPLEFT", frames.castbar, "TOPLEFT", -2, 2)
     border:SetPoint("BOTTOMRIGHT", frames.castbar, "BOTTOMRIGHT", 2, -2)
-
+    
     -- Channel ticks
     frames.ticks = {}
     CreateChannelTicks(frames.castbar, frames.ticks)
-
+    
     -- Flash
     frames.flash = frames.castbar:CreateTexture(nil, 'OVERLAY')
     frames.flash:SetTexture(TEXTURES.atlas)
@@ -700,11 +715,11 @@ local function CreateCastbar(unitType)
     frames.flash:SetBlendMode('ADD')
     frames.flash:SetAllPoints()
     frames.flash:Hide()
-
-   -- Text background frame y elementos de texto (as child of container)
+    
+    -- Text background frame
     frames.textBackground = CreateFrame('Frame', frameName .. 'TextBG', frames.container)
-    frames.textBackground:SetFrameLevel(1)  -- Below castbar
-
+    frames.textBackground:SetFrameLevel(1)
+    
     local textBg = frames.textBackground:CreateTexture(nil, 'BACKGROUND')
     if unitType == "player" then
         textBg:SetTexture(TEXTURES.atlas)
@@ -714,10 +729,9 @@ local function CreateCastbar(unitType)
         textBg:SetTexCoord(unpack(UV_COORDS.textBorder))
     end
     textBg:SetAllPoints()
-
-    -- Create text elements with original styling and positioning
+    
+    -- Create text elements
     if unitType == "player" then
-        -- Player castbar text elements (estilo original con GameFontHighlight)
         frames.castText = frames.textBackground:CreateFontString(nil, 'OVERLAY', 'GameFontHighlight')
         frames.castText:SetPoint('BOTTOMLEFT', frames.textBackground, 'BOTTOMLEFT', 8, 2)
         frames.castText:SetJustifyH("LEFT")
@@ -740,7 +754,6 @@ local function CreateCastbar(unitType)
         frames.timeMax:SetJustifyH("LEFT")
         frames.timeMax:Hide()
     else
-        -- Target/Focus castbar text elements (estilo original con GameFontHighlightSmall)
         frames.castText = frames.textBackground:CreateFontString(nil, 'OVERLAY', 'GameFontHighlightSmall')
         frames.castText:SetPoint('BOTTOMLEFT', frames.textBackground, 'BOTTOMLEFT', 6, 2)
         frames.castText:SetJustifyH("LEFT")
@@ -768,19 +781,19 @@ local function CreateCastbar(unitType)
         frames.castTimeTextCompact:SetJustifyH("RIGHT")
         frames.castTimeTextCompact:Hide()
     end
-
-    -- Background frame (as child of container)
+    
+    -- Background frame
     if unitType ~= "player" then
         frames.background = CreateFrame('Frame', frameName .. 'Background', frames.container)
-        frames.background:SetFrameLevel(0)  -- Behind everything in container
+        frames.background:SetFrameLevel(0)
         frames.background:SetAllPoints(frames.castbar)
     else
         frames.background = frames.textBackground
     end
-
-    -- SPARK: Create as child of container with highest frame level to be on top of everything
+    
+    -- Spark
     frames.spark = CreateFrame("Frame", frameName .. "Spark", frames.container)
-    frames.spark:SetFrameLevel(5)  -- Highest level - above castbar(1), textBackground(2), and all other elements
+    frames.spark:SetFrameLevel(5)
     frames.spark:SetSize(16, 16)
     frames.spark:Hide()
     
@@ -788,12 +801,12 @@ local function CreateCastbar(unitType)
     sparkTexture:SetTexture(TEXTURES.spark)
     sparkTexture:SetAllPoints()
     sparkTexture:SetBlendMode('ADD')
-
-    -- Icon y otros elementos...
+    
+    -- Icon
     frames.icon = frames.castbar:CreateTexture(frameName .. "Icon", 'ARTWORK')
     frames.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
     frames.icon:Hide()
-
+    
     -- Icon border
     local iconBorder = frames.castbar:CreateTexture(nil, 'ARTWORK')
     iconBorder:SetTexture("Interface\\Buttons\\UI-Quickslot2")
@@ -801,16 +814,16 @@ local function CreateCastbar(unitType)
     iconBorder:SetVertexColor(0.8, 0.8, 0.8, 1)
     iconBorder:Hide()
     frames.icon.Border = iconBorder
-
+    
     -- Shield (for target/focus)
     if unitType ~= "player" then
         frames.shield = CreateShield(frames.castbar, frames.icon, frameName, 20)
     end
-
+    
     -- Apply texture clipping system
     CreateTextureClipping(frames.castbar)
-
-    -- OnUpdate handler
+    
+    -- OnUpdate handler 
     frames.castbar:SetScript('OnUpdate', function(self, elapsed)
         CastbarModule:OnUpdate(unitType, self, elapsed)
     end)
@@ -819,88 +832,87 @@ end
 -- ============================================================================
 -- CASTING EVENT HANDLERS
 -- ============================================================================
+
 function CastbarModule:HandleCastStart_Simple(unitType, unit, isChanneling)
     local spell, displayName, icon, startTime, endTime
-
+    
     if isChanneling then
         spell, _, displayName, icon, startTime, endTime = UnitChannelInfo(unit)
     else
         spell, _, displayName, icon, startTime, endTime = UnitCastingInfo(unit)
     end
-
+    
     if not spell then
         return
     end
-
+    
     self:RefreshCastbar(unitType)
-
+    
     local frames = self.frames[unitType]
     local castbar = frames.castbar
-
-    -- RetailUI pattern: Set GUID for target/focus verification
+    
+    -- Set GUID for target/focus verification
     if unitType == "target" or unitType == "focus" then
         castbar.unit = UnitGUID(unit)
     end
-
+    
     local start, finish, duration = ParseCastTimes(startTime, endTime)
     
-    -- RetailUI pattern: Store times directly in statusBar frame
+    -- Store times directly in statusBar frame
     castbar.startTime = start
     castbar.endTime = finish
     
-    -- CRITICAL: Cancel any active fade when starting new cast (spam protection)
+    -- Cancel any active fade
     castbar.fadeOutEx = false
     if frames.container then
         frames.container.fadeOutEx = false
     end
-
-    -- RetailUI pattern: Always use 0-1 range for StatusBar
+    
+    -- Cancel any active flash timer that might trigger fade later
+    if frames.flashTimer then
+        frames.flashTimer:SetScript("OnUpdate", nil)
+        frames.flashTimer = nil
+    end
+    
+    -- Always use 0-1 range
     castbar:SetMinMaxValues(0, 1)
     
-    -- RetailUI pattern: Always use 0-1 range, StatusBar handles visual correctly
     if isChanneling then
-        -- CHANNELING: Start at 1.0 (full)
         castbar:SetValue(1.0)
         castbar.channelingEx = true
         castbar.castingEx = false
-        -- Initialize texture clipping for channeling
         if castbar.UpdateTextureClipping then
             castbar:UpdateTextureClipping(1.0, true)
         end
     else
-        -- CASTING: Start at 0.0 (empty)  
         castbar:SetValue(0.0)
         castbar.castingEx = true
         castbar.channelingEx = false
-        -- Initialize texture clipping for casting
         if castbar.UpdateTextureClipping then
             castbar:UpdateTextureClipping(0.0, false)
         end
     end
     
-    -- RetailUI pattern: Container handles visibility - individual elements shown as needed
-    -- RestoreCastbarVisibility already handles showing the container
     RestoreCastbarVisibility(unitType)
     
     if frames.background and frames.background ~= frames.textBackground then
         frames.background:Show()
     end
-
+    
     if frames.spark then
         frames.spark:Show()
     end
     if frames.flash then
         frames.flash:Hide()
     end
-
+    
     HideAllTicks(frames.ticks)
-
+    
     -- Set texture based on type
     if isChanneling then
         frames.castbar:SetStatusBarTexture(TEXTURES.channel)
         frames.castbar:SetStatusBarColor(unitType == "player" and 0 or 1, 1, unitType == "player" and 1 or 1, 1)
         UpdateChannelTicks(frames.castbar, frames.ticks, spell)
-        -- RetailUI pattern: Reset texture color to see real texture colors
         local texture = frames.castbar:GetStatusBarTexture()
         if texture then
             texture:SetVertexColor(1, 1, 1, 1)
@@ -908,19 +920,16 @@ function CastbarModule:HandleCastStart_Simple(unitType, unit, isChanneling)
     else
         frames.castbar:SetStatusBarTexture(TEXTURES.standard)
         frames.castbar:SetStatusBarColor(1, 0.7, 0, 1)
-        -- RetailUI pattern: Reset texture color to see real texture colors
         local texture = frames.castbar:GetStatusBarTexture()
         if texture then
             texture:SetVertexColor(1, 1, 1, 1)
         end
     end
-
+    
     ForceStatusBarLayer(frames.castbar)
     SetCastText(unitType, displayName)
-
- 
-
-    -- Configure icon and other elements...
+    
+    -- Configure icon
     local cfg = GetConfig(unitType)
     if frames.icon and cfg and cfg.showIcon then
         frames.icon:SetTexture(GetSpellIcon(displayName, icon))
@@ -936,7 +945,7 @@ function CastbarModule:HandleCastStart_Simple(unitType, unit, isChanneling)
             frames.icon.Border:Hide()
         end
     end
-
+    
     if frames.textBackground then
         frames.textBackground:Show()
         frames.textBackground:ClearAllPoints()
@@ -944,11 +953,12 @@ function CastbarModule:HandleCastStart_Simple(unitType, unit, isChanneling)
         frames.textBackground:SetPoint("TOP", frames.castbar, "BOTTOM", 0, unitType == "player" and 6 or 8)
     end
 end
+
 function CastbarModule:HandleCastStop_Simple(unitType, wasInterrupted, isChannelStop)
     local frames = self.frames[unitType]
     local castbar = frames.castbar
-
-    -- RetailUI pattern: GUID verification for target/focus
+    
+    -- GUID verification for target/focus
     if unitType == "target" then
         if castbar.unit ~= UnitGUID("target") then
             return
@@ -958,144 +968,174 @@ function CastbarModule:HandleCastStop_Simple(unitType, wasInterrupted, isChannel
             return
         end
     end
-
+    
     if not (castbar.castingEx or castbar.channelingEx) and not wasInterrupted then
         return
     end
-
+    
     local cfg = GetConfig(unitType)
     if not cfg then
         return
     end
-
-    -- RetailUI pattern: Clear casting/channeling flags
+    
+    -- For normal completions (not interrupts), verify no new cast started before clearing flags
+    if not wasInterrupted then
+        local unit = unitType == "player" and "player" or unitType
+        local stillCasting = UnitCastingInfo(unit)
+        local stillChanneling = UnitChannelInfo(unit)
+        
+        if stillCasting or stillChanneling then
+            -- New cast already started, don't clear flags or fade
+            return
+        end
+    end
+    
+    -- Clear casting/channeling flags
     castbar.castingEx = false
     castbar.channelingEx = false
-    
-    -- RetailUI pattern: selfInterrupt ONLY for channel stops
     castbar.selfInterrupt = isChannelStop or false
-
+    
     if wasInterrupted or castbar.selfInterrupt then
         -- Show interrupted state
         if frames.shield then frames.shield:Hide() end
         if frames.spark then frames.spark:Hide() end
         if frames.flash then frames.flash:Hide() end
         HideAllTicks(frames.ticks)
-
+        
         castbar:SetStatusBarTexture(TEXTURES.interrupted)
         castbar:SetStatusBarColor(1, 0, 0, 1)
-        castbar:SetValue(1.0)  -- Always full for interrupted display
-        -- Reset texture clipping to show full interrupted texture
+        castbar:SetValue(1.0)
         local texture = castbar:GetStatusBarTexture()
         if texture then
-            texture:SetTexCoord(0, 1, 0, 1)  -- Show complete texture
+            texture:SetTexCoord(0, 1, 0, 1)
             texture:SetVertexColor(1, 1, 1, 1)
         end
-
-        SetCastText(unitType, "Interrupted")
         
-        -- RetailUI pattern: Fade all elements consistently
+        SetCastText(unitType, "Interrupted")
         FadeOutCastbar(unitType, 1)
-
     else
-        -- Normal completion
+        -- Normal completion - show success flash
         if frames.spark then frames.spark:Hide() end
         if frames.shield then frames.shield:Hide() end
         HideAllTicks(frames.ticks)
-
-        -- Reset texture clipping to show full completion texture
+        
         local texture = castbar:GetStatusBarTexture()
         if texture then
-            texture:SetTexCoord(0, 1, 0, 1)  -- Show complete texture for flash
+            texture:SetTexCoord(0, 1, 0, 1)
         end
-
-        if frames.flash then
-            frames.flash:Show()
-            addon.core:ScheduleTimer(function()
-                if frames.flash then
-                    frames.flash:Hide()
-                end
-            end, 0.3)
-        end
-
-        -- RetailUI pattern: Fade all elements consistently  
-        FadeOutCastbar(unitType, 1)
+        
+        ShowSuccessFlash(unitType)
     end
 end
 
 function CastbarModule:HandleCastFailed_Simple(unitType)
+    -- Failed events do nothing - let cast continue normally
+end
+
+function CastbarModule:HandleCastDelayed_Simple(unitType, unit)
     local frames = self.frames[unitType]
     local castbar = frames.castbar
     
-    if not castbar then
+    if not castbar or not (castbar.castingEx or castbar.channelingEx) then
         return
     end
     
-    -- RetailUI pattern: FAILED events do NOTHING to textures/colors
-    -- Let the casting continue normally without any visual changes
-    -- This prevents interfering with the ongoing cast visualization
+    local spell, startTime, endTime
     
-    -- DO NOT fade like RetailUI - let cast continue normally
+    if castbar.castingEx then
+        spell, _, _, _, startTime, endTime = UnitCastingInfo(unit)
+    else
+        spell, _, _, _, startTime, endTime = UnitChannelInfo(unit)
+    end
+    
+    if not spell then
+        self:HideCastbar(unitType)
+        return
+    end
+    
+    local start = startTime / 1000
+    local finish = endTime / 1000
+    
+    castbar.startTime = start
+    castbar.endTime = finish
 end
 
+-- ============================================================================
+-- UPDATE HANDLER 
+-- ============================================================================
 
--- ============================================================================
--- UPDATE HANDLER
--- ============================================================================
 function CastbarModule:OnUpdate(unitType, castbar, elapsed)
+    -- Early exit if not casting/channeling
+    if not castbar.castingEx and not castbar.channelingEx then
+        return
+    end
+    
     local frames = self.frames[unitType]
     if not frames then
         return
     end
+    
     local cfg = GetConfig(unitType)
-
     if not cfg or not cfg.enabled then
         return
     end
-
-    -- RetailUI pattern: Exact same logic as RetailUI CastingBarFrame_OnUpdate
-    if castbar.channelingEx or castbar.castingEx then
-        local currentTime, value, remainingTime = GetTime(), 0, 0
-        
-        if castbar.castingEx then
-            remainingTime = min(currentTime, castbar.endTime) - castbar.startTime
-            value = remainingTime / (castbar.endTime - castbar.startTime)
-        elseif castbar.channelingEx then
-            remainingTime = castbar.endTime - currentTime
-            value = remainingTime / (castbar.endTime - castbar.startTime)
-        end
-
-        castbar:SetValue(value)
-
-        -- Apply texture clipping for smooth visual effect
-        if castbar.UpdateTextureClipping then
-            castbar:UpdateTextureClipping(value, castbar.channelingEx)
-        end
-
-        if currentTime > castbar.endTime then
-            castbar.castingEx, castbar.channelingEx = false, false
-            -- RetailUI pattern: Actually start fade when cast completes
-            FadeOutCastbar(unitType, 1)
-        end
-
-        -- Update spark position using RetailUI pattern
-        if frames.spark and frames.spark:IsShown() then
-            frames.spark:ClearAllPoints()
-            frames.spark:SetPoint('CENTER', castbar, 'LEFT', value * castbar:GetWidth(), 0)
-        end
-
-        UpdateTimeText(unitType)
+    
+    local currentTime = GetTime()
+    local value = 0
+    
+    if castbar.castingEx then
+        local remainingTime = min(currentTime, castbar.endTime) - castbar.startTime
+        value = remainingTime / (castbar.endTime - castbar.startTime)
+    elseif castbar.channelingEx then
+        local remainingTime = castbar.endTime - currentTime
+        value = remainingTime / (castbar.endTime - castbar.startTime)
     end
+    
+    castbar:SetValue(value)
+    
+    -- Apply texture clipping
+    if castbar.UpdateTextureClipping then
+        castbar:UpdateTextureClipping(value, castbar.channelingEx)
+    end
+    
+    if currentTime > castbar.endTime then
+        -- Cast/channel completed - show flash
+        -- BUT: Don't fade if a new cast already started (ability spam scenario)
+        if castbar.castingEx or castbar.channelingEx then
+            -- Verify the cast info is actually gone before fading
+            local stillCasting = UnitCastingInfo(unitType == "player" and "player" or unitType)
+            local stillChanneling = UnitChannelInfo(unitType == "player" and "player" or unitType)
+            
+            if not stillCasting and not stillChanneling then
+                -- No new cast started, safe to fade
+                castbar.castingEx = false
+                castbar.channelingEx = false
+                ShowSuccessFlash(unitType)
+            end
+            -- If new cast started, flags stay true and we skip fadeout
+        end
+        return
+    end
+    
+    -- Update spark position
+    if frames.spark and frames.spark:IsShown() then
+        frames.spark:ClearAllPoints()
+        frames.spark:SetPoint('CENTER', castbar, 'LEFT', value * castbar:GetWidth(), 0)
+    end
+    
+    UpdateTimeText(unitType)
 end
+
 -- ============================================================================
 -- CASTBAR REFRESH
 -- ============================================================================
+
 function CastbarModule:RefreshCastbar(unitType)
     local cfg = GetConfig(unitType)
     if not cfg then
         return
     end
-
+    
     if cfg.enabled then
         HideBlizzardCastbar(unitType)
     else
@@ -1103,35 +1143,31 @@ function CastbarModule:RefreshCastbar(unitType)
         self:HideCastbar(unitType)
         return
     end
-
+    
     if not self.frames[unitType].castbar then
         CreateCastbar(unitType)
     end
-
+    
     local frames = self.frames[unitType]
-    local frameName = 'DragonUI' .. unitType:sub(1, 1):upper() .. unitType:sub(2) .. 'Castbar'
-
-    -- Calculate aura offset using unified function
+    
+    -- Calculate aura offset
     local auraOffset = cfg.autoAdjust and GetAuraOffset(unitType) or 0
-
-    -- Calculate positioning for container
-    -- (castbar fills container automatically via SetAllPoints)
+    
+    -- Calculate positioning
     local anchorFrame = UIParent
     local anchorPoint = "CENTER"
     local relativePoint = "BOTTOM"
     local xPos = cfg.x_position or 0
     local yPos = cfg.y_position or 200
-
+    
     if unitType == "player" then
-        --  USAR ANCHOR FRAME PARA PLAYER CASTBAR (SISTEMA CENTRALIZADO)
         if self.anchor then
             anchorFrame = self.anchor
             anchorPoint = "CENTER"
             relativePoint = "CENTER"
-            xPos = 0 -- Relativo al anchor, no offset adicional
+            xPos = 0
             yPos = 0
         else
-            -- Fallback si no hay anchor (modo legacy)
             anchorFrame = UIParent
             anchorPoint = "BOTTOM"
             relativePoint = "BOTTOM"
@@ -1141,45 +1177,38 @@ function CastbarModule:RefreshCastbar(unitType)
         anchorPoint = cfg.anchor or "CENTER"
         relativePoint = cfg.anchorParent or "BOTTOM"
     end
-
-    -- RetailUI pattern: Position and size container instead of individual castbar
-    if not frames.container then
-        CreateCastbar(unitType)
-    end
     
+    frames.container:ClearAllPoints()
     frames.container:SetPoint(anchorPoint, anchorFrame, relativePoint, xPos, yPos - auraOffset)
     frames.container:SetSize(cfg.sizeX or 200, cfg.sizeY or 16)
-    frames.container:SetScale(cfg.scale or 1)  -- Apply scale to container, not individual castbar
-
-    -- REMOVED: Old spark creation code - now spark is created inside CreateCastbar as child of container
-
+    frames.container:SetScale(cfg.scale or 1)
+    
     -- Position text background
     if frames.textBackground then
         frames.textBackground:ClearAllPoints()
         frames.textBackground:SetPoint('TOP', frames.castbar, 'BOTTOM', 0, unitType == "player" and 6 or 8)
         frames.textBackground:SetSize(cfg.sizeX or 200, unitType == "player" and 22 or 20)
-        -- Text background scaling handled by container scale
     end
-
+    
     -- Configure icon
     if frames.icon then
         local iconSize = cfg.sizeIcon or 20
         frames.icon:SetSize(iconSize, iconSize)
         frames.icon:ClearAllPoints()
-
+        
         if unitType == "player" then
             frames.icon:SetPoint('TOPLEFT', frames.castbar, 'TOPLEFT', -(iconSize + 6), -1)
         else
             local iconScale = iconSize / 16
             frames.icon:SetPoint('RIGHT', frames.castbar, 'LEFT', -7 * iconScale, -4)
         end
-
+        
         if frames.icon.Border then
             frames.icon.Border:ClearAllPoints()
             frames.icon.Border:SetPoint('CENTER', frames.icon, 'CENTER', 0, 0)
             frames.icon.Border:SetSize(iconSize * 1.7, iconSize * 1.7)
         end
-
+        
         if frames.shield then
             if unitType == "player" then
                 frames.shield:ClearAllPoints()
@@ -1190,44 +1219,42 @@ function CastbarModule:RefreshCastbar(unitType)
             end
         end
     end
-
-    -- FIXED: Update spark size - now it's inside container so no separate scaling needed
+    
+    -- Update spark size
     if frames.spark then
         local sparkSize = cfg.sizeY or 16
         frames.spark:SetSize(sparkSize, sparkSize * 2)
-        -- Spark scaling now handled by container scale automatically
     end
-
+    
     -- Update tick sizes
     if frames.ticks then
         for i = 1, MAX_TICKS do
             if frames.ticks[i] then
-                -- ✅ CRITICAL: Usar la altura REAL del castbar después de SetSize/SetScale
                 local realHeight = frames.castbar:GetHeight()
                 frames.ticks[i]:SetSize(3, max(realHeight - 2, 10))
             end
         end
     end
-
-    -- Set compact layout for target/focus
+    
+    -- Set text mode
     if unitType ~= "player" then
         SetTextMode(unitType, cfg.text_mode or "simple")
     end
-
-    -- Ensure proper frame levels - SPARK MUST BE ON TOP
-    frames.castbar:SetFrameLevel(2)  -- Above textBackground
+    
+    -- Ensure proper frame levels
+    frames.castbar:SetFrameLevel(2)
     if frames.background then
-        frames.background:SetFrameLevel(0)  -- Behind everything
+        frames.background:SetFrameLevel(0)
     end
     if frames.textBackground then
-        frames.textBackground:SetFrameLevel(1)  -- Below castbar
+        frames.textBackground:SetFrameLevel(1)
     end
     if frames.spark then
-        frames.spark:SetFrameLevel(5)  -- HIGHEST - Above everything else
+        frames.spark:SetFrameLevel(5)
     end
-
+    
     HideBlizzardCastbar(unitType)
-
+    
     if cfg.text_mode then
         SetTextMode(unitType, cfg.text_mode)
     end
@@ -1235,13 +1262,11 @@ end
 
 function CastbarModule:HideCastbar(unitType)
     local frames = self.frames[unitType]
-
-    -- RetailUI pattern: Hide entire container instead of individual elements
+    
     if frames.container then
         frames.container:Hide()
     end
     
-    -- Reset StatusBar flags
     local castbar = frames.castbar
     if castbar then
         castbar.castingEx = false
@@ -1269,20 +1294,20 @@ function CastbarModule:HandleCastingEvent(event, unit)
     else
         return
     end
-
+    
     if not IsEnabled(unitType) then
         return
     end
-
+    
     HideBlizzardCastbar(unitType)
-
+    
     -- GUID verification for target/focus
     if unitType ~= "player" then
         local frames = self.frames[unitType]
         if not frames.castbar then
             return
         end
-
+        
         if event == 'UNIT_SPELLCAST_START' or event == 'UNIT_SPELLCAST_CHANNEL_START' then
             frames.castbar.unit = UnitGUID(unit)
         else
@@ -1291,7 +1316,7 @@ function CastbarModule:HandleCastingEvent(event, unit)
             end
         end
     end
-
+    
     -- Event handling
     if event == 'UNIT_SPELLCAST_START' then
         self:HandleCastStart_Simple(unitType, unit, false)
@@ -1300,7 +1325,7 @@ function CastbarModule:HandleCastingEvent(event, unit)
     elseif event == 'UNIT_SPELLCAST_STOP' then
         self:HandleCastStop_Simple(unitType, false)
     elseif event == 'UNIT_SPELLCAST_CHANNEL_STOP' then
-        self:HandleCastStop_Simple(unitType, false, true)  -- selfInterrupt for channel stop only
+        self:HandleCastStop_Simple(unitType, false, true)
     elseif event == 'UNIT_SPELLCAST_FAILED' then
         self:HandleCastFailed_Simple(unitType)
     elseif event == 'UNIT_SPELLCAST_INTERRUPTED' then
@@ -1315,26 +1340,23 @@ end
 function CastbarModule:HandleTargetChanged()
     local frames = self.frames.target
     local statusBar = frames.castbar
-
+    
     if not statusBar then
         return
     end
-
-    -- ✅ FIXED: Limpiar estado siempre que el GUID no coincida
+    
     if UnitExists("target") and statusBar.unit == UnitGUID("target") then
-        -- Same target, check if cast should still be visible
         if GetTime() > (statusBar.endTime or 0) then
-            self:HideCastbar("target") -- ← Usar HideCastbar para limpieza completa
+            self:HideCastbar("target")
         else
             statusBar:Show()
         end
     else
-        -- Different target or no target - CLEAN EVERYTHING
-        self:HideCastbar("target") -- ← CRITICAL: Limpiar estado completo
+        self:HideCastbar("target")
     end
-
+    
     HideBlizzardCastbar("target")
-
+    
     -- Check if new target has active cast
     if UnitExists("target") and IsEnabled("target") then
         if UnitCastingInfo("target") then
@@ -1349,26 +1371,23 @@ end
 function CastbarModule:HandleFocusChanged()
     local frames = self.frames.focus
     local statusBar = frames.castbar
-
+    
     if not statusBar then
         return
     end
-
-    -- ✅ FIXED: Misma lógica para focus
+    
     if UnitExists("focus") and statusBar.unit == UnitGUID("focus") then
-        -- Same focus, check if cast should still be visible
         if GetTime() > (statusBar.endTime or 0) then
-            self:HideCastbar("focus") -- ← Usar HideCastbar para limpieza completa
+            self:HideCastbar("focus")
         else
             statusBar:Show()
         end
     else
-        -- Different focus or no focus - CLEAN EVERYTHING
-        self:HideCastbar("focus") -- ← CRITICAL: Limpiar estado completo
+        self:HideCastbar("focus")
     end
-
+    
     HideBlizzardCastbar("focus")
-
+    
     -- Check if new focus has active cast
     if UnitExists("focus") and IsEnabled("focus") then
         if UnitCastingInfo("focus") then
@@ -1381,176 +1400,49 @@ function CastbarModule:HandleFocusChanged()
 end
 
 -- ============================================================================
--- Función de manejo de delays 
--- ============================================================================
-function CastbarModule:HandleCastDelayed_Simple(unitType, unit)
-    local frames = self.frames[unitType]
-    local castbar = frames.castbar
-
-    if not castbar or not (castbar.castingEx or castbar.channelingEx) then
-        return
-    end
-
-    local spell, startTime, endTime
-
-    if castbar.castingEx then
-        spell, _, _, _, startTime, endTime = UnitCastingInfo(unit)
-    else
-        spell, _, _, _, startTime, endTime = UnitChannelInfo(unit)
-    end
-
-    if not spell then
-        self:HideCastbar(unitType)
-        return
-    end
-
-    -- RetailUI pattern: Update statusBar times for OnUpdate calculations
-    local start = startTime / 1000
-    local finish = endTime / 1000
-    
-    castbar.startTime = start
-    castbar.endTime = finish
-end
-
--- ============================================================================
--- INITIALIZATION
--- ============================================================================
-local function OnEvent(self, event, unit, ...)
-    if event == 'UNIT_AURA' and unit == 'target' then
-        local cfg = GetConfig("target")
-        if cfg and cfg.enabled and cfg.autoAdjust then
-            addon.core:ScheduleTimer(function() ApplyAuraOffset("target") end, 0.05)
-        end
-    elseif event == 'UNIT_AURA' and unit == 'focus' then
-        local cfg = GetConfig("focus")
-        if cfg and cfg.enabled and cfg.autoAdjust then
-            addon.core:ScheduleTimer(function() ApplyAuraOffset("focus") end, 0.05)
-        end
-    elseif event == 'PLAYER_TARGET_CHANGED' then
-        CastbarModule:HandleTargetChanged()
-    elseif event == 'PLAYER_FOCUS_CHANGED' then
-        CastbarModule:HandleFocusChanged()
-    elseif event == 'PLAYER_ENTERING_WORLD' then
-        addon.core:ScheduleTimer(function()
-            CastbarModule:RefreshCastbar("player")
-            CastbarModule:RefreshCastbar("target")
-            CastbarModule:RefreshCastbar("focus")
-
-            addon.core:ScheduleTimer(function()
-                if IsEnabled("player") then
-                    HideBlizzardCastbar("player")
-                end
-                if IsEnabled("target") then
-                    HideBlizzardCastbar("target")
-                end
-                if IsEnabled("focus") then
-                    HideBlizzardCastbar("focus")
-                end
-            end, 1.0)
-        end, 0.5)
-    else
-        CastbarModule:HandleCastingEvent(event, unit)
-    end
-end
-
--- Public API (simplified)
-function addon.RefreshCastbar()
-    CastbarModule:RefreshCastbar("player")
-end
-
-function addon.RefreshTargetCastbar()
-    CastbarModule:RefreshCastbar("target")
-end
-
--- Initialize
-local eventFrame = CreateFrame('Frame', 'DragonUICastbarEventHandler')
-local events = {'PLAYER_ENTERING_WORLD', 'UNIT_SPELLCAST_START', 'UNIT_SPELLCAST_DELAYED', 'UNIT_SPELLCAST_STOP',
-                'UNIT_SPELLCAST_FAILED', 'UNIT_SPELLCAST_INTERRUPTED', 'UNIT_SPELLCAST_CHANNEL_START',
-                'UNIT_SPELLCAST_CHANNEL_STOP', 'UNIT_SPELLCAST_CHANNEL_UPDATE', 'UNIT_AURA', 'PLAYER_TARGET_CHANGED',
-                'PLAYER_FOCUS_CHANGED'}
-
-for _, event in ipairs(events) do
-    eventFrame:RegisterEvent(event)
-end
-
-eventFrame:SetScript('OnEvent', OnEvent)
-
--- Hook native WoW aura positioning
-if TargetFrameSpellBar then
-    hooksecurefunc('Target_Spellbar_AdjustPosition', function()
-        local cfg = GetConfig("target")
-        if cfg and cfg.enabled and cfg.autoAdjust then
-            addon.core:ScheduleTimer(function() ApplyAuraOffset("target") end, 0.05)
-        end
-    end)
-end
-
---  También necesitamos asegurar que el TargetFrameSpellBar no interfiera
-if TargetFrameSpellBar then
-    -- Disable Blizzard's own hiding logic that might interfere
-    TargetFrameSpellBar:SetScript("OnHide", nil)
-    TargetFrameSpellBar:SetScript("OnShow", function(self)
-        local cfg = GetConfig("target")
-        if cfg and cfg.enabled then
-            self:Hide()
-        end
-    end)
-end
-
--- ============================================================================
 -- CENTRALIZED SYSTEM INTEGRATION
 -- ============================================================================
 
--- Variables para el sistema centralizado
-CastbarModule.anchor = nil
-CastbarModule.initialized = false
-
--- Create auxiliary frame for anchoring (como party.lua)
 local function CreateCastbarAnchorFrame()
     if CastbarModule.anchor then
         return CastbarModule.anchor
     end
-
-    --  USAR FUNCIÓN CENTRALIZADA DE CORE.LUA
+    
     CastbarModule.anchor = addon.CreateUIFrame(256, 16, "PlayerCastbar")
-
-    --  PERSONALIZAR TEXTO PARA CASTBAR
+    
     if CastbarModule.anchor.editorText then
         CastbarModule.anchor.editorText:SetText("Player Castbar")
     end
-
+    
     return CastbarModule.anchor
 end
 
---  FUNCIÓN PARA APLICAR POSICIÓN DESDE WIDGETS (COMO party.lua)
 local function ApplyWidgetPosition()
     if not CastbarModule.anchor then
         return
     end
-
+    
     if not addon.db or not addon.db.profile or not addon.db.profile.widgets then
         return
     end
-
+    
     local widgetConfig = addon.db.profile.widgets.playerCastbar
-
+    
     if widgetConfig and widgetConfig.posX and widgetConfig.posY then
         local anchor = widgetConfig.anchor or "BOTTOM"
         CastbarModule.anchor:ClearAllPoints()
         CastbarModule.anchor:SetPoint(anchor, UIParent, anchor, widgetConfig.posX, widgetConfig.posY)
     else
-        -- Default position
         CastbarModule.anchor:ClearAllPoints()
         CastbarModule.anchor:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 270)
     end
 end
 
---  FUNCIONES REQUERIDAS POR EL SISTEMA CENTRALIZADO
 function CastbarModule:LoadDefaultSettings()
     if not addon.db.profile.widgets then
         addon.db.profile.widgets = {}
     end
-
+    
     if not addon.db.profile.widgets.playerCastbar then
         addon.db.profile.widgets.playerCastbar = {
             anchor = "BOTTOM",
@@ -1558,7 +1450,7 @@ function CastbarModule:LoadDefaultSettings()
             posY = 270
         }
     end
-
+    
     if not addon.db.profile.castbar then
         addon.db.profile.castbar = {}
     end
@@ -1566,91 +1458,74 @@ end
 
 function CastbarModule:UpdateWidgets()
     ApplyWidgetPosition()
-    --  REPOSICIONAR EL CASTBAR DEL PLAYER RELATIVO AL ANCHOR ACTUALIZADO
     if not InCombatLockdown() then
-        -- El castbar del player debería seguir al anchor
         self:RefreshCastbar("player")
     end
 end
 
---  FUNCIÓN PARA VERIFICAR SI EL CASTBAR DEBE ESTAR VISIBLE
 local function ShouldPlayerCastbarBeVisible()
     local cfg = GetConfig("player")
     return cfg and cfg.enabled
 end
 
---  FUNCIONES DE TESTEO PARA EL EDITOR
 local function ShowPlayerCastbarTest()
-    -- RetailUI pattern: Show container instead of individual elements
     local frames = CastbarModule.frames.player
     if not frames.container then
         CreateCastbar("player")
     end
     
     if frames.container then
-        -- Show container with test cast
         frames.container:Show()
-        
-        -- Mostrar texto de prueba
         CastbarModule:ShowCastbar("player", "Fire ball", 0.5, 1, 1.5, false, false)
     end
 end
 
 local function HidePlayerCastbarTest()
-    -- Ocultar el castbar de prueba
     CastbarModule:HideCastbar("player")
 end
 
---  FUNCIÓN AUXILIAR PARA MOSTRAR CASTBAR (USADA EN TESTS)
 function CastbarModule:ShowCastbar(unitType, spellName, currentValue, maxValue, duration, isChanneling, isInterrupted)
-    -- Public API compatibility function - converts old parameters to new system
     local frames = self.frames[unitType]
     if not frames.castbar then
         self:RefreshCastbar(unitType)
         frames = self.frames[unitType]
     end
-
+    
     if not frames.castbar then
         return
     end
-
+    
     local castbar = frames.castbar
     local currentTime = GetTime()
     
-    -- RetailUI pattern: Set StatusBar times and flags directly
     castbar.startTime = currentTime
     castbar.endTime = currentTime + (duration or maxValue or 1)
     castbar.castingEx = not isChanneling
     castbar.channelingEx = isChanneling
     castbar.fadeOutEx = false
     castbar.selfInterrupt = false
-
-    -- Always use 0-1 range
+    
     castbar:SetMinMaxValues(0, 1)
     
-    -- Convert currentValue/maxValue to 0-1 range
     local progress = maxValue > 0 and (currentValue / maxValue) or 0
     if isChanneling then
-        -- For channeling, invert the progress
         progress = 1 - progress
     end
     castbar:SetValue(progress)
-    -- RetailUI pattern: Show entire container instead of individual elements
+    
     if not frames.container then
         CreateCastbar(unitType)
     end
     
     frames.container:Show()
-    
-    -- Fix: Cancel any active fadeout and restore full visibility
     UIFrameFadeRemoveFrame(frames.container)
     frames.container:SetAlpha(1.0)
-
+    
     if isInterrupted then
         castbar:SetStatusBarTexture(TEXTURES.interrupted)
         local texture = castbar:GetStatusBarTexture()
         if texture then
-            texture:SetVertexColor(1, 1, 1, 1)  -- RetailUI texture color reset
+            texture:SetVertexColor(1, 1, 1, 1)
         end
         castbar:SetStatusBarColor(1, 0, 0, 1)
         SetCastText(unitType, "Interrupted")
@@ -1660,43 +1535,44 @@ function CastbarModule:ShowCastbar(unitType, spellName, currentValue, maxValue, 
             castbar:SetStatusBarTexture(TEXTURES.channel)
             local texture = castbar:GetStatusBarTexture()
             if texture then
-                texture:SetVertexColor(1, 1, 1, 1)  -- RetailUI texture color reset
+                texture:SetVertexColor(1, 1, 1, 1)
             end
             castbar:SetStatusBarColor(0, 1, 0, 1)
         else
             castbar:SetStatusBarTexture(TEXTURES.standard)
             local texture = castbar:GetStatusBarTexture()
             if texture then
-                texture:SetVertexColor(1, 1, 1, 1)  -- RetailUI texture color reset
+                texture:SetVertexColor(1, 1, 1, 1)
             end
             castbar:SetStatusBarColor(1, 0.7, 0, 1)
         end
         SetCastText(unitType, spellName)
     end
-
+    
     if frames.textBackground then
         frames.textBackground:Show()
     end
-
+    
     ForceStatusBarLayer(castbar)
 end
 
---  FUNCIÓN DE INICIALIZACIÓN DEL SISTEMA CENTRALIZADO
-local function InitializeCastbarForEditor()
-    -- Crear el anchor frame
-    CreateCastbarAnchorFrame()
+-- ============================================================================
+-- INITIALIZATION
+-- ============================================================================
 
-    --  REGISTRO COMPLETO CON TODAS LAS FUNCIONES (COMO party.lua)
+local function InitializeCastbarForEditor()
+    CreateCastbarAnchorFrame()
+    
     addon:RegisterEditableFrame({
         name = "PlayerCastbar",
         frame = CastbarModule.anchor,
-        configPath = {"widgets", "playerCastbar"}, --  CORREGIDO: Array en lugar de string
-        hasTarget = ShouldPlayerCastbarBeVisible, --  Visibilidad condicional
-        showTest = ShowPlayerCastbarTest, --  CORREGIDO: Minúscula como party.lua
-        hideTest = HidePlayerCastbarTest, --  CORREGIDO: Minúscula como party.lua
+        configPath = {"widgets", "playerCastbar"},
+        hasTarget = ShouldPlayerCastbarBeVisible,
+        showTest = ShowPlayerCastbarTest,
+        hideTest = HidePlayerCastbarTest,
         onHide = function()
             CastbarModule:UpdateWidgets()
-        end, --  AÑADIDO: Para aplicar cambios
+        end,
         LoadDefaultSettings = function()
             CastbarModule:LoadDefaultSettings()
         end,
@@ -1704,24 +1580,142 @@ local function InitializeCastbarForEditor()
             CastbarModule:UpdateWidgets()
         end
     })
-
+    
     CastbarModule.initialized = true
-
 end
 
--- ============================================================================
--- INITIALIZATION
--- ============================================================================
+local function OnEvent(self, event, unit, ...)
+    if event == 'UNIT_AURA' and unit == 'target' then
+        local cfg = GetConfig("target")
+        if cfg and cfg.enabled and cfg.autoAdjust then
+            if addon.core and addon.core.ScheduleTimer then
+                addon.core:ScheduleTimer(function() ApplyAuraOffset("target") end, 0.05)
+            else
+                ApplyAuraOffset("target")
+            end
+        end
+    elseif event == 'UNIT_AURA' and unit == 'focus' then
+        local cfg = GetConfig("focus")
+        if cfg and cfg.enabled and cfg.autoAdjust then
+            if addon.core and addon.core.ScheduleTimer then
+                addon.core:ScheduleTimer(function() ApplyAuraOffset("focus") end, 0.05)
+            else
+                ApplyAuraOffset("focus")
+            end
+        end
+    elseif event == 'PLAYER_TARGET_CHANGED' then
+        CastbarModule:HandleTargetChanged()
+    elseif event == 'PLAYER_FOCUS_CHANGED' then
+        CastbarModule:HandleFocusChanged()
+    elseif event == 'PLAYER_ENTERING_WORLD' then
+        -- Protección total para reload en combate
+        if addon.core and addon.core.ScheduleTimer then
+            -- Path normal con timers
+            addon.core:ScheduleTimer(function()
+                CastbarModule:RefreshCastbar("player")
+                CastbarModule:RefreshCastbar("target")
+                CastbarModule:RefreshCastbar("focus")
+                
+                addon.core:ScheduleTimer(function()
+                    if IsEnabled("player") then
+                        HideBlizzardCastbar("player")
+                    end
+                    if IsEnabled("target") then
+                        HideBlizzardCastbar("target")
+                    end
+                    if IsEnabled("focus") then
+                        HideBlizzardCastbar("focus")
+                    end
+                end, 1.0)
+            end, 0.5)
+        else
+            -- Fallback inmediato sin timers (reload en combate)
+            CastbarModule:RefreshCastbar("player")
+            CastbarModule:RefreshCastbar("target")
+            CastbarModule:RefreshCastbar("focus")
+            
+            -- Segundo paso también inmediato
+            if IsEnabled("player") then
+                HideBlizzardCastbar("player")
+            end
+            if IsEnabled("target") then
+                HideBlizzardCastbar("target")
+            end
+            if IsEnabled("focus") then
+                HideBlizzardCastbar("focus")
+            end
+        end
+    else
+        CastbarModule:HandleCastingEvent(event, unit)
+    end
+end
 
---  Initialize centralized system for editor
+-- Public API
+function addon.RefreshCastbar()
+    CastbarModule:RefreshCastbar("player")
+end
+
+function addon.RefreshTargetCastbar()
+    CastbarModule:RefreshCastbar("target")
+end
+
+-- Initialize event frame
+local eventFrame = CreateFrame('Frame', 'DragonUICastbarEventHandler')
+local events = {
+    'PLAYER_ENTERING_WORLD',
+    'UNIT_SPELLCAST_START',
+    'UNIT_SPELLCAST_DELAYED',
+    'UNIT_SPELLCAST_STOP',
+    'UNIT_SPELLCAST_FAILED',
+    'UNIT_SPELLCAST_INTERRUPTED',
+    'UNIT_SPELLCAST_CHANNEL_START',
+    'UNIT_SPELLCAST_CHANNEL_STOP',
+    'UNIT_SPELLCAST_CHANNEL_UPDATE',
+    'UNIT_AURA',
+    'PLAYER_TARGET_CHANGED',
+    'PLAYER_FOCUS_CHANGED'
+}
+
+for _, event in ipairs(events) do
+    eventFrame:RegisterEvent(event)
+end
+
+eventFrame:SetScript('OnEvent', OnEvent)
+-- Hook native WoW aura positioning
+if TargetFrameSpellBar then
+    hooksecurefunc('Target_Spellbar_AdjustPosition', function()
+        local cfg = GetConfig("target")
+        if cfg and cfg.enabled and cfg.autoAdjust then
+            -- PROTECCIÓN AÑADIDA
+            if addon.core and addon.core.ScheduleTimer then
+                addon.core:ScheduleTimer(function() ApplyAuraOffset("target") end, 0.05)
+            else
+                -- Fallback sin timer
+                ApplyAuraOffset("target")
+            end
+        end
+    end)
+end
+
+-- Disable Blizzard's own hiding logic
+if TargetFrameSpellBar then
+    TargetFrameSpellBar:SetScript("OnHide", nil)
+    TargetFrameSpellBar:SetScript("OnShow", function(self)
+        local cfg = GetConfig("target")
+        if cfg and cfg.enabled then
+            self:Hide()
+        end
+    end)
+end
+
+-- Initialize centralized system
 InitializeCastbarForEditor()
 
---  LISTENER PARA CUANDO EL ADDON ESTÉ COMPLETAMENTE CARGADO
+-- Load settings when addon is ready
 local readyFrame = CreateFrame("Frame")
 readyFrame:RegisterEvent("ADDON_LOADED")
 readyFrame:SetScript("OnEvent", function(self, event, addonName)
     if addonName == "DragonUI" then
-        -- Aplicar posición del widget cuando el addon esté listo
         if CastbarModule.UpdateWidgets then
             CastbarModule:UpdateWidgets()
         end

@@ -9,7 +9,7 @@ WeakAuras.halfWidth = WeakAuras.normalWidth / 2
 WeakAuras.doubleWidth = WeakAuras.normalWidth * 2
 
 local versionStringFromToc = GetAddOnMetadata("WeakAuras", "Version")
-local versionString = "5.20.5 Beta"
+local versionString = "5.20.6 Beta"
 -- Year, Month, Day, Hour, Minute, Seconds
 local buildTime = "2025".."09".."14".."20".."43".."00"
 local isAwesomeEnabled = C_VoiceChat and C_VoiceChat.SpeakText and 2 -- TTS available
@@ -22,6 +22,8 @@ if GetRealmName() == "Onyxia" or (GetRealmName() == "Blackrock [PvP only]" and G
   flavor = "TBC"
 elseif GetRealmName() == "Kezan" or GetRealmName() == "Menethil" or GetRealmName() == "Gurubashi" then
   flavor = "ClassicPlus"
+elseif GetRealmName() == "Frostmourne" then
+  flavor = "WrathReborn"
 else
   flavor = "Wrath"
 end
@@ -44,7 +46,11 @@ function WeakAuras.IsCorrectVersion()
 end
 
 function WeakAuras.IsWrath()
-  return flavor == "Wrath"
+  return flavor == "Wrath" or flavor == "WrathReborn"
+end
+
+function WeakAuras.IsWrathReborn()
+  return flavor == "WrathReborn"
 end
 
 function WeakAuras.IsTBC()

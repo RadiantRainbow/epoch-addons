@@ -1,7 +1,7 @@
 local AddonName = ...
 local Private = select(2, ...)
 
-local internalVersion = 85
+local internalVersion = 86
 
 -- Lua APIs
 local insert = table.insert
@@ -1584,7 +1584,7 @@ local function scanForLoadsImpl(toCheck, event, arg1, ...)
   local size, difficulty = GetInstanceTypeAndSize()
 
   if (WeakAuras.CurrentEncounter) then
-    if (zone ~= WeakAuras.CurrentEncounter.zone_id and not inCombat) then
+    if (zoneId ~= WeakAuras.CurrentEncounter.zone_id and not inCombat) then
       encounter_id = 0
       DestroyEncounterTable()
     end

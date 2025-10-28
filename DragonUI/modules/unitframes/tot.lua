@@ -244,17 +244,18 @@ local function InitializeFrame()
 
     -- Verificar que ToT existe
     if not TargetFrameToT then
-        
         return
     end
 
     -- Get configuration
     local config = GetConfig()
 
-    -- Position and scale with proper defaults
-    TargetFrameToT:ClearAllPoints()
-    TargetFrameToT:SetPoint(config.anchor or "BOTTOMRIGHT", TargetFrame, config.anchorParent or "BOTTOMRIGHT", config.x, config.y)
-    TargetFrameToT:SetScale(config.scale)
+    -- Posicionar el frame de Blizzard (no causa taint si lo hacemos solo una vez al inicio)
+    if not Module.configured then
+        TargetFrameToT:ClearAllPoints()
+        TargetFrameToT:SetPoint(config.anchor or "BOTTOMRIGHT", TargetFrame, config.anchorParent or "BOTTOMRIGHT", config.x or 22, config.y or -15)
+        TargetFrameToT:SetScale(config.scale or 1.0)
+    end
 
     -- Hide Blizzard elements
     local toHide = {TargetFrameToTTextureFrameTexture, TargetFrameToTBackground}
@@ -346,6 +347,8 @@ local function InitializeFrame()
 
     -- Setup bar hooks
     SetupBarHooks()
+    
+    Module.configured = true
 end
 
 -- ============================================================================
@@ -437,11 +440,10 @@ local function ResetFrame()
     addon:SetConfigValue("unitframe", "tot", "y", -15)
     addon:SetConfigValue("unitframe", "tot", "scale", 1.0)
 
-    -- Aplicar inmediatamente
-    local config = GetConfig()
+    -- Aplicar al frame de Blizzard
     TargetFrameToT:ClearAllPoints()
-    TargetFrameToT:SetPoint(config.anchor or "BOTTOMRIGHT", TargetFrame, config.anchorParent or "BOTTOMRIGHT", config.x, config.y)
-    TargetFrameToT:SetScale(config.scale)
+    TargetFrameToT:SetPoint("BOTTOMRIGHT", TargetFrame, "BOTTOMRIGHT", 22, -15)
+    TargetFrameToT:SetScale(1.0)
 end
 
 -- Export API (igual que target/focus)
